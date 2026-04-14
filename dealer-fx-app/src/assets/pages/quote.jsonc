@@ -1,0 +1,47 @@
+{
+  "$schemaVersion": "2026.04-alpha",
+  // Quote — RFQ flow. Po lewej lista klientów, po prawej formularz quote'a.
+  // Form zbiera params, submit → callComputed → wynik do `quoteResult`.
+  "page": {
+    "id": "quote",
+    "title": "Quote",
+    "layout": {
+      "cols": 12,
+      "items": [
+        { "widget": "title",  "x": 0, "y": 0, "w": 12 },
+        { "widget": "list",   "x": 0, "y": 1, "w": 5 },
+        { "widget": "form",   "x": 5, "y": 1, "w": 4 },
+        { "widget": "result", "x": 9, "y": 1, "w": 3 }
+      ]
+    },
+    "datasources": {
+      "clientsList":      {},
+      "spotUsdPln":       {},
+      "selectedClient":   { "kind": "local" },
+      "quoteResult":      { "kind": "local" }
+    },
+    "widgets": {
+      "title":  { "type": "page-title",
+                  "options": { "title": "Request For Quote",
+                               "subtitle": "Pick a client → set params → send" } },
+      "list":   { "type": "client-list",
+                  "bind":    { "clients": "clientsList" } },
+      "form":   { "type": "dealer-quote-form",
+                  "bind":    { "clientCode": "selectedClient.code", "spot": "spotUsdPln" } },
+      "result": { "type": "stat-tile",
+                  "bind":    { "value": "quoteResult" },
+                  "options": { "label": "Last quote rate", "tone": "accent" },
+                  "when":    { "path": "quoteResult", "exists": true } }
+    },
+    "eventHandlers": [
+      { "on": "list.select",
+        "do": [ { "setDatasource": "selectedClient", "from": "$event" } ] },
+      { "on": "form.submit",
+        "do": [
+          { "callComputed": "computeDealerRate",
+            "with": ["$event.spot", "$event.side", "$event.marginPips"],
+            "into": "quoteResult" }
+        ] }
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "$schemaVersion": "2026.04-alpha",
+  // Clients — search-filterable list. `query` w local datasource, `filtered`
+  // przez computed fn `filterClients`. Klik na klienta emit'uje na event bus
+  // — handler zapisuje w `selectedClient` (i w przyszłej apce mógłby przekierować).
+  "page": {
+    "id": "clients",
+    "title": "Clients",
+    "layout": {
+      "cols": 12,
+      "items": [
+        { "widget": "title", "x": 0, "y": 0, "w": 12 },
+        { "widget": "list",  "x": 0, "y": 1, "w": 8 }
+      ]
+    },
+    "datasources": {
+      "clientsList":     {},
+      "searchQuery":     { "kind": "local", "initial": "" },
+      "filteredClients": { "kind": "computed", "fn": "filterClients",
+                           "inputs": ["clientsList", "searchQuery"] },
+      "selectedClient":  { "kind": "local" }
+    },
+    "widgets": {
+      "title": { "type": "page-title",
+                 "options": { "title": "Clients", "subtitle": "Search & select to start a quote" } },
+      "list":  { "type": "client-list",
+                 "bind":    { "clients": "filteredClients", "query": "searchQuery" } }
+    },
+    "eventHandlers": [
+      { "on": "list.queryChange",
+        "do": [ { "setDatasource": "searchQuery", "from": "$event" } ] },
+      { "on": "list.select",
+        "do": [
+          { "setDatasource": "selectedClient", "from": "$event" },
+          { "emit": "client.selected", "payload": "$event" }
+        ] }
+    ]
+  }
+}

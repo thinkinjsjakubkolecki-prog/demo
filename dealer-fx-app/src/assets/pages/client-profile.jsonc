@@ -1,0 +1,80 @@
+{
+  "$schemaVersion": "2026.04-alpha",
+  // Profil klienta — 3 sekcje zgodnie ze specyfikacją biznesową:
+  // 1) Nagłówek (readonly): nazwa + opiekunowie + lokalizacja
+  // 2) Marża preferencyjna (editable): EUR/CHF/GBP bps
+  // 3) Lista rachunków (editable): typ/waluta + statusy boolean
+  "page": {
+    "id": "client-profile",
+    "title": "Klient — Profil",
+    "layout": {
+      "cols": 12,
+      "items": [
+        { "widget": "header",   "x": 0, "y": 0, "w": 12 },
+        { "widget": "margins",  "x": 0, "y": 1, "w": 4  },
+        { "widget": "accounts", "x": 4, "y": 1, "w": 8  }
+      ]
+    },
+    "datasources": {
+      "clientProfile":  {},
+      "clientMargins":  {},
+      "clientAccounts": {}
+    },
+    "widgets": {
+      "header":   { "type": "entity-header",
+                    "bind": { "name": "clientProfile.name",
+                              "subtitle": "clientProfile.subtitle",
+                              "tags": "clientProfile.tags" } },
+
+      "margins":  { "type": "editable-table",
+                    "bind": { "rows": "clientMargins" },
+                    "options": {
+                      "rowKey": "currency",
+                      "allowAdd": true,
+                      "allowDelete": true,
+                      "addLabel": "Dodaj walutę",
+                      "columns": [
+                        { "key": "currency", "label": "Waluta",      "format": "mono" },
+                        { "key": "bps",      "label": "Marża (bps)", "format": "number",
+                          "align": "right", "editable": true, "inputType": "number", "decimals": 0 }
+                      ]
+                    } },
+
+      "accounts": { "type": "editable-table",
+                    "bind": { "rows": "clientAccounts" },
+                    "options": {
+                      "rowKey": "currency",
+                      "allowAdd": false,
+                      "allowDelete": false,
+                      "columns": [
+                        { "key": "type",     "label": "Typ",       "format": "text",
+                          "editable": true, "inputType": "text" },
+                        { "key": "currency", "label": "Waluta",    "format": "mono" },
+                        { "key": "default",  "label": "Domyślny",  "format": "badge", "align": "center",
+                          "badges": { "true": "ok", "false": "muted" } },
+                        { "key": "pending",  "label": "Zakładany", "format": "badge", "align": "center",
+                          "badges": { "true": "warn", "false": "muted" } },
+                        { "key": "closed",   "label": "Zamknięty", "format": "badge", "align": "center",
+                          "badges": { "true": "err",  "false": "muted" } }
+                      ]
+                    } }
+    },
+    "eventHandlers": [
+      { "on": "margins.rowUpdate",
+        "do": [ { "setDatasource": "clientMargins",
+                  "from": { "fn": "mergeRow",
+                            "inputs": ["clientMargins", "$event", "static:currency"] } } ] },
+      { "on": "margins.rowDelete",
+        "do": [ { "setDatasource": "clientMargins",
+                  "from": { "fn": "deleteRow",
+                            "inputs": ["clientMargins", "$event", "static:currency"] } } ] },
+      { "on": "margins.rowAdd",
+        "do": [ { "emit": "client.margin.addRequested" } ] },
+
+      { "on": "accounts.rowUpdate",
+        "do": [ { "setDatasource": "clientAccounts",
+                  "from": { "fn": "mergeRow",
+                            "inputs": ["clientAccounts", "$event", "static:currency"] } } ] }
+    ]
+  }
+}

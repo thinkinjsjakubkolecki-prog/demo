@@ -1,0 +1,12 @@
+[
+  { "id": "C-000123", "code": "000123", "name": "ACME Polska Sp. z o.o.",       "pesel": "—",            "nip": "5252312345", "transactions": "FX, MM, FWD",       "marginGroup": "PREMIUM",  "status": "Aktywny" },
+  { "id": "C-000124", "code": "000124", "name": "Jan Kowalski",                  "pesel": "82091203456",  "nip": "—",          "transactions": "FX",                "marginGroup": "STANDARD", "status": "Aktywny" },
+  { "id": "C-000125", "code": "000125", "name": "Tradex International Ltd.",     "pesel": "—",            "nip": "9512334457", "transactions": "FX, FWD, OPT",      "marginGroup": "PRIORITY", "status": "Aktywny" },
+  { "id": "C-000126", "code": "000126", "name": "BlueRiver Capital",             "pesel": "—",            "nip": "1182245667", "transactions": "FX, MM",            "marginGroup": "PREMIUM",  "status": "Aktywny" },
+  { "id": "C-000127", "code": "000127", "name": "Anna Nowak",                    "pesel": "75050823467",  "nip": "—",          "transactions": "FX",                "marginGroup": "STANDARD", "status": "Aktywny" },
+  { "id": "C-000128", "code": "000128", "name": "MegaFood Distribution",         "pesel": "—",            "nip": "6342165498", "transactions": "FX, FWD",           "marginGroup": "STANDARD", "status": "Aktywny" },
+  { "id": "C-000129", "code": "000129", "name": "Stellar FX Brokers",            "pesel": "—",            "nip": "5210045678", "transactions": "FX, MM, FWD, OPT",  "marginGroup": "PRIORITY", "status": "Aktywny" },
+  { "id": "C-000130", "code": "000130", "name": "Nikkel Metals Trading",         "pesel": "—",            "nip": "7780012387", "transactions": "FX, FWD",           "marginGroup": "PREMIUM",  "status": "Aktywny" },
+  { "id": "C-000131", "code": "000131", "name": "Varia Investment Holdings",     "pesel": "—",            "nip": "9999812234", "transactions": "FX, MM",            "marginGroup": "PRIORITY", "status": "Aktywny" },
+  { "id": "C-000132", "code": "000132", "name": "Piotr Zieliński",               "pesel": "88040567812",  "nip": "—",          "transactions": "FX",                "marginGroup": "STANDARD", "status": "Aktywny" }
+]

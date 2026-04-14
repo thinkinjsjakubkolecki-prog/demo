@@ -1,0 +1,10 @@
+[
+  { "type": "Bieżący",      "currency": "PLN", "default": true,  "pending": false, "closed": false },
+  { "type": "Bieżący",      "currency": "USD", "default": false, "pending": false, "closed": false },
+  { "type": "Bieżący",      "currency": "EUR", "default": false, "pending": false, "closed": false },
+  { "type": "Bieżący",      "currency": "CHF", "default": false, "pending": false, "closed": false },
+  { "type": "Bieżący",      "currency": "GBP", "default": false, "pending": false, "closed": false },
+  { "type": "Bieżący",      "currency": "NOK", "default": false, "pending": true,  "closed": false },
+  { "type": "Bieżący",      "currency": "SEK", "default": false, "pending": false, "closed": true  },
+  { "type": "Rozliczeniowy","currency": "DKK", "default": false, "pending": false, "closed": false }
+]

@@ -1,0 +1,9 @@
+{
+  "name": "Velo Sp. z o.o.",
+  "subtitle": "Warszawa",
+  "tags": [
+    { "label": "LOI Michał (bp1)", "variant": "info" },
+    { "label": "RACZYŃSKA Zuzanna (raczynska3)", "variant": "info" },
+    { "label": "Marża preferencyjna", "variant": "enabled" }
+  ]
+}

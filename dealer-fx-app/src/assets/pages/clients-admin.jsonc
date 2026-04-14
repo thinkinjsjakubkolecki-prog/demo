@@ -1,0 +1,96 @@
+{
+  "$schemaVersion": "2026.04-alpha",
+  // Admin clients dashboard — wszystkie widgety z framework, app deklaruje konfigurację.
+  "page": {
+    "id": "clients-admin",
+    "title": "Klienci",
+    "layout": {
+      "cols": 12,
+      "items": [
+        { "widget": "toolbar",   "x": 0, "y": 0, "w": 12 },
+        { "widget": "filters",   "x": 0, "y": 1, "w": 12 },
+        { "widget": "table",     "x": 0, "y": 2, "w": 12 },
+        { "widget": "pagination","x": 0, "y": 3, "w": 12 }
+      ]
+    },
+    "datasources": {
+      "clientsList":   {},
+      "filtersState":  { "kind": "local", "initial": null },
+      "page":          { "kind": "local", "initial": 1 },
+      "pageSize":      { "kind": "local", "initial": 10 },
+      "filteredAll":   { "kind": "computed", "fn": "filterClients",
+                         "inputs": ["clientsList", "filtersState"] },
+      "filteredPage":  { "kind": "computed", "fn": "paginate",
+                         "inputs": ["filteredAll", "page", "pageSize"] },
+      "totalPages":    { "kind": "computed", "fn": "totalPages",
+                         "inputs": ["filteredAll", "pageSize"] }
+    },
+    "widgets": {
+      "toolbar":    { "type": "page-toolbar",
+                      "options": { "title": "Klienci", "addLabel": "Dodaj" } },
+      "filters":    { "type": "filter-form",
+                      "options": {
+                        "cols": 7,
+                        "fields": [
+                          { "id": "status",     "label": "Status", "type": "select",
+                            "options": [
+                              { "value": "Aktywny",    "label": "Aktywny" },
+                              { "value": "Nieaktywny", "label": "Nieaktywny" },
+                              { "value": "Zawieszony", "label": "Zawieszony" }
+                            ] },
+                          { "id": "assignment", "label": "Przypisanie", "type": "select",
+                            "options": [
+                              { "value": "moje",   "label": "Moi klienci" },
+                              { "value": "zespol", "label": "Mojego zespołu" }
+                            ] },
+                          { "id": "ecommerce",  "label": "E-commerce", "type": "select",
+                            "options": [
+                              { "value": "tak", "label": "Tak" },
+                              { "value": "nie", "label": "Nie" }
+                            ] },
+                          { "id": "code",  "label": "Numer klienta", "type": "text", "placeholder": "np. 000123" },
+                          { "id": "name",  "label": "Nazwa", "type": "text", "placeholder": "np. ACME", "span": 2 },
+                          { "id": "pesel", "label": "PESEL", "type": "text" },
+                          { "id": "nip",   "label": "NIP",   "type": "text" }
+                        ]
+                      } },
+      "table":      { "type": "data-table",
+                      "bind":    { "rows": "filteredPage" },
+                      "options": {
+                        "rowKey": "code",
+                        "columns": [
+                          { "key": "code",         "label": "Numer klienta",       "format": "mono" },
+                          { "key": "name",         "label": "Nazwa",                "format": "text" },
+                          { "key": "pesel",        "label": "PESEL",                "format": "mono" },
+                          { "key": "nip",          "label": "NIP",                  "format": "mono" },
+                          { "key": "transactions", "label": "Dostępne transakcje",  "format": "text" },
+                          { "key": "marginGroup",  "label": "Grupa marżowa",        "format": "tag",
+                            "tagColors": { "PRIORITY": "#d29922", "PREMIUM": "#58a6ff", "STANDARD": "#8b949e" } },
+                          { "key": "status",       "label": "Status",               "format": "badge",
+                            "badges": { "Aktywny": "ok", "Nieaktywny": "muted", "Zawieszony": "warn" } }
+                        ]
+                      } },
+      "pagination": { "type": "pagination",
+                      "bind":    { "page": "page", "totalPages": "totalPages", "pageSize": "pageSize" } }
+    },
+    "eventHandlers": [
+      { "on": "filters.search",
+        "do": [
+          { "setDatasource": "filtersState", "from": "$event" },
+          { "setDatasource": "page", "from": "static:1" }
+        ] },
+      { "on": "filters.clear",
+        "do": [
+          { "setDatasource": "filtersState", "from": "static:" },
+          { "setDatasource": "page", "from": "static:1" }
+        ] },
+      { "on": "pagination.pageChange",     "do": [ { "setDatasource": "page", "from": "$event" } ] },
+      { "on": "pagination.pageSizeChange", "do": [
+          { "setDatasource": "pageSize", "from": "$event" },
+          { "setDatasource": "page", "from": "static:1" }
+        ] },
+      { "on": "toolbar.add",   "do": [ { "emit": "client.create.requested" } ] },
+      { "on": "table.rowClick","do": [ { "emit": "client.opened", "payload": "$event" } ] }
+    ]
+  }
+}
