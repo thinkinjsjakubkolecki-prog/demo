@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root     = resolve(__dirname, '..');
-const ngEngine = resolve(root, '../ng-engine/packages');
+const ngEngine = resolve(root, '../echelon/packages');
 const nm       = resolve(root, 'node_modules/@echelon-framework');
 
 const PACKAGES = [

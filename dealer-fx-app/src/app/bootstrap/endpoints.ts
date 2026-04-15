@@ -15,7 +15,7 @@ export const endpoints = {
     return {
       adname,
       firstName: 'Michał',
-      lastName:  'Łój',
+      lastName:  'XXX',
       email:     `${adname}@bank.example.com`,
       phone:     '+48 600 000 000',
     };
@@ -111,7 +111,7 @@ function enrich(small: Record<string, unknown>): Record<string, unknown> {
   const isCorpo = (small['nip'] ?? '—') !== '—';
   const pesel = String(small['pesel'] ?? '');
 
-  const dealer = { adname: 'id01', firstName: 'Michał', lastName: 'Łój' };
+  const dealer = { adname: 'id01', firstName: 'Michał', lastName: 'XXX' };
   const accountManager = 'OHZ';
   const branch = '8897';
   const csCode = 'WE';

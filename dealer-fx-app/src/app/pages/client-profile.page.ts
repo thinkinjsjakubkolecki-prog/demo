@@ -18,7 +18,7 @@ import {
 // Pola read-only (codeId/custom/code) widoczne ale nie edytowalne.
 // Dodanie nowego pola do edycji = jedna zmiana w `ClientModel` (editable: true) + dopisanie key tutaj.
 function group(label: string, keys: ReadonlyArray<keyof ClientModel & string>) {
-  return sidebarFieldsFromModel<ClientModel>(ClientModel, keys).map((f) => ({ ...f, group: label }));
+  return sidebarFieldsFromModel(ClientModel, keys).map((f) => ({ ...f, group: label }));
 }
 
 const EDIT_FIELDS = [
