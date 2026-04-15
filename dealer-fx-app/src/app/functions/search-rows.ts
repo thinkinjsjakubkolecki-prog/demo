@@ -1,6 +1,7 @@
 import { PureFunction } from '@echelon-framework/runtime';
 
 @PureFunction({
+  name: 'searchRows',
   description: 'Generic per-field search — każdy klucz w filters matchuje ten sam klucz w wierszu (contains, case-insensitive). Specjalny klucz "q" = full-text po wszystkich polach.',
   inputs: [
     { name: 'rows',    type: 'object[]' },

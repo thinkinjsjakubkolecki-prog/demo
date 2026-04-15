@@ -1,16 +1,14 @@
 {
   "$schemaVersion": "2026.04-alpha",
-  // Admin clients dashboard — wszystkie widgety z framework, app deklaruje konfigurację.
+  // Admin clients dashboard — kompozytowy widget `entity-list` z frameworka.
   "page": {
     "id": "clients-admin",
     "title": "Klienci",
     "layout": {
       "cols": 12,
       "items": [
-        { "widget": "toolbar",   "x": 0, "y": 0, "w": 12 },
-        { "widget": "filters",   "x": 0, "y": 1, "w": 12 },
-        { "widget": "table",     "x": 0, "y": 2, "w": 12 },
-        { "widget": "pagination","x": 0, "y": 3, "w": 12 }
+        { "widget": "list",    "x": 0, "y": 0, "w": 12 },
+        { "widget": "sidebar", "x": 0, "y": 1, "w": 12 }
       ]
     },
     "datasources": {
@@ -18,79 +16,148 @@
       "filtersState":  { "kind": "local", "initial": null },
       "page":          { "kind": "local", "initial": 1 },
       "pageSize":      { "kind": "local", "initial": 10 },
-      "filteredAll":   { "kind": "computed", "fn": "filterClients",
+      "filteredAll":   { "kind": "computed", "fn": "searchRows",
                          "inputs": ["clientsList", "filtersState"] },
       "filteredPage":  { "kind": "computed", "fn": "paginate",
                          "inputs": ["filteredAll", "page", "pageSize"] },
       "totalPages":    { "kind": "computed", "fn": "totalPages",
-                         "inputs": ["filteredAll", "pageSize"] }
+                         "inputs": ["filteredAll", "pageSize"] },
+      "filteredCount": { "kind": "computed", "fn": "count",
+                         "inputs": ["filteredAll"] },
+      "selectedClient": { "kind": "local", "initial": null }
     },
     "widgets": {
-      "toolbar":    { "type": "page-toolbar",
-                      "options": { "title": "Klienci", "addLabel": "Dodaj" } },
-      "filters":    { "type": "filter-form",
-                      "options": {
-                        "cols": 7,
-                        "fields": [
-                          { "id": "status",     "label": "Status", "type": "select",
-                            "options": [
-                              { "value": "Aktywny",    "label": "Aktywny" },
-                              { "value": "Nieaktywny", "label": "Nieaktywny" },
-                              { "value": "Zawieszony", "label": "Zawieszony" }
-                            ] },
-                          { "id": "assignment", "label": "Przypisanie", "type": "select",
-                            "options": [
-                              { "value": "moje",   "label": "Moi klienci" },
-                              { "value": "zespol", "label": "Mojego zespołu" }
-                            ] },
-                          { "id": "ecommerce",  "label": "E-commerce", "type": "select",
-                            "options": [
-                              { "value": "tak", "label": "Tak" },
-                              { "value": "nie", "label": "Nie" }
-                            ] },
-                          { "id": "code",  "label": "Numer klienta", "type": "text", "placeholder": "np. 000123" },
-                          { "id": "name",  "label": "Nazwa", "type": "text", "placeholder": "np. ACME", "span": 2 },
-                          { "id": "pesel", "label": "PESEL", "type": "text" },
-                          { "id": "nip",   "label": "NIP",   "type": "text" }
-                        ]
-                      } },
-      "table":      { "type": "data-table",
-                      "bind":    { "rows": "filteredPage" },
-                      "options": {
-                        "rowKey": "code",
-                        "columns": [
-                          { "key": "code",         "label": "Numer klienta",       "format": "mono" },
-                          { "key": "name",         "label": "Nazwa",                "format": "text" },
-                          { "key": "pesel",        "label": "PESEL",                "format": "mono" },
-                          { "key": "nip",          "label": "NIP",                  "format": "mono" },
-                          { "key": "transactions", "label": "Dostępne transakcje",  "format": "text" },
-                          { "key": "marginGroup",  "label": "Grupa marżowa",        "format": "tag",
-                            "tagColors": { "PRIORITY": "#d29922", "PREMIUM": "#58a6ff", "STANDARD": "#8b949e" } },
-                          { "key": "status",       "label": "Status",               "format": "badge",
-                            "badges": { "Aktywny": "ok", "Nieaktywny": "muted", "Zawieszony": "warn" } }
-                        ]
-                      } },
-      "pagination": { "type": "pagination",
-                      "bind":    { "page": "page", "totalPages": "totalPages", "pageSize": "pageSize" } }
+      "sidebar": {
+        "type": "context-sidebar",
+        "bind": { "record": "selectedClient.record" },
+        "options": {
+          "titleField": "name",
+          "subtitleField": "code",
+          "width": 460,
+          "layout": "default",
+          "fields": [
+            { "key": "code",          "label": "Numer klienta", "format": "mono" },
+            { "key": "name",          "label": "Nazwa",         "format": "text", "editable": true, "editType": "text" },
+            { "key": "status",        "label": "Status",        "format": "badge",
+              "badges": { "Aktywny": "ok", "Usunięty": "err" },
+              "editable": true, "editType": "select",
+              "editOptions": [
+                { "value": "Aktywny",  "label": "Aktywny"  },
+                { "value": "Usunięty", "label": "Usunięty" }
+              ] },
+            { "key": "marginGroup",   "label": "Grupa marżowa", "format": "tag",
+              "tagColors": { "PRIORITY": "#d29922", "PREMIUM": "#58a6ff", "STANDARD": "#8b949e", "VIP": "#da6bc1" },
+              "editable": true, "editType": "select",
+              "editOptions": [
+                { "value": "STANDARD", "label": "STANDARD" },
+                { "value": "PREMIUM",  "label": "PREMIUM"  },
+                { "value": "PRIORITY", "label": "PRIORITY" },
+                { "value": "VIP",      "label": "VIP"      }
+              ] },
+            { "key": "nip",           "label": "NIP",           "format": "mono" },
+            { "key": "pesel",         "label": "PESEL",         "format": "mono" },
+            { "key": "regon",         "label": "REGON",         "format": "mono" },
+            { "key": "accountNumber", "label": "Numer rachunku","format": "mono", "editable": true, "editType": "text" },
+            { "key": "transactions",  "label": "Transakcje",    "format": "text" },
+            { "key": "assignment",    "label": "Dealer",        "format": "text", "editable": true, "editType": "text" },
+            { "key": "ecommerce",     "label": "E-commerce",    "format": "text", "editable": true, "editType": "text" },
+            { "key": "specialist",    "label": "Specjalista",   "format": "text", "editable": true, "editType": "text" }
+          ],
+          "actions": [
+            { "id": "edit",     "label": "Edytuj",        "kind": "primary",
+              "setLayout": "edit-form", "inLayout": ["default"] },
+            { "id": "open",     "label": "Otwórz profil", "kind": "ghost",
+              "inLayout": ["default"] },
+            { "id": "delete",   "label": "Usuń",          "kind": "danger",
+              "inLayout": ["default"], "when": { "path": "status", "eq": "Aktywny" } },
+            { "id": "save",     "label": "Zapisz",        "kind": "primary",
+              "inLayout": ["edit-form"],
+              "when": { "path": "name", "exists": true },
+              "success": { "message": "Zapisano klienta", "duration": 1500, "returnTo": "default" } },
+            { "id": "cancel",   "label": "Anuluj",        "kind": "ghost",
+              "setLayout": "default", "inLayout": ["edit-form"] }
+          ]
+        }
+      },
+      "list": {
+        "type": "entity-list",
+        "bind": {
+          "rows": "filteredPage",
+          "page": "page",
+          "totalPages": "totalPages",
+          "pageSize": "pageSize",
+          "total": "filteredCount"
+        },
+        "options": {
+          "title": "Klienci",
+          "addLabel": "Dodaj",
+          "rowKey": "code",
+          "idField": "code",
+          "filterCols": 6,
+          "filterFields": [
+            { "id": "code",          "label": "Numer klienta",  "type": "text",   "placeholder": "np. 000123",  "span": 1 },
+            { "id": "name",          "label": "Nazwa",          "type": "text",   "placeholder": "np. ACME",    "span": 3 },
+            { "id": "status",        "label": "Status",         "type": "select", "span": 1,
+              "options": [
+                { "value": "Aktywny",  "label": "Aktywny"  },
+                { "value": "Usunięty", "label": "Usunięty" }
+              ] },
+            { "id": "marginGroup",   "label": "Grupa marżowa",  "type": "select", "span": 1,
+              "options": [
+                { "value": "STANDARD", "label": "STANDARD" },
+                { "value": "PREMIUM",  "label": "PREMIUM"  },
+                { "value": "PRIORITY", "label": "PRIORITY" },
+                { "value": "VIP",      "label": "VIP"      }
+              ] },
+            { "id": "nip",           "label": "NIP",            "type": "text", "span": 1 },
+            { "id": "pesel",         "label": "PESEL",          "type": "text", "span": 1 },
+            { "id": "regon",         "label": "REGON",          "type": "text", "span": 1 },
+            { "id": "accountNumber", "label": "Numer rachunku", "type": "text", "placeholder": "PL…", "span": 3 },
+            { "id": "assignment",    "label": "Przypisanie (dealer)", "type": "text", "placeholder": "np. dealer.nowak",    "span": 2 },
+            { "id": "ecommerce",     "label": "E-commerce (user)",    "type": "text", "placeholder": "np. ecom.kowalski",   "span": 2 },
+            { "id": "specialist",    "label": "Specjalista",          "type": "text", "placeholder": "np. spec.wisniewski", "span": 2 }
+          ],
+          "columns": [
+            { "key": "lp",            "label": "Lp.",            "format": "mono",  "align": "right", "width": 50 },
+            { "key": "code",          "label": "Numer klienta",  "format": "mono" },
+            { "key": "name",          "label": "Nazwa",          "format": "text" },
+            { "key": "peselOrRegon",  "label": "PESEL / REGON",  "format": "mono" },
+            { "key": "nip",           "label": "NIP",            "format": "mono" },
+            { "key": "transactions",  "label": "Dostępne transakcje", "format": "text" },
+            { "key": "marginGroup",   "label": "Grupa marżowa",  "format": "tag",
+              "tagColors": { "PRIORITY": "#d29922", "PREMIUM": "#58a6ff", "STANDARD": "#8b949e", "VIP": "#da6bc1" } },
+            { "key": "status",        "label": "Status",         "format": "badge",
+              "badges": { "Aktywny": "ok", "Usunięty": "err" } }
+          ]
+        }
+      }
     },
     "eventHandlers": [
-      { "on": "filters.search",
+      { "on": "list.search",
         "do": [
           { "setDatasource": "filtersState", "from": "$event" },
           { "setDatasource": "page", "from": "static:1" }
         ] },
-      { "on": "filters.clear",
+      { "on": "list.clear",
         "do": [
           { "setDatasource": "filtersState", "from": "static:" },
           { "setDatasource": "page", "from": "static:1" }
         ] },
-      { "on": "pagination.pageChange",     "do": [ { "setDatasource": "page", "from": "$event" } ] },
-      { "on": "pagination.pageSizeChange", "do": [
+      { "on": "list.pageChange",     "do": [ { "setDatasource": "page", "from": "$event" } ] },
+      { "on": "list.pageSizeChange", "do": [
           { "setDatasource": "pageSize", "from": "$event" },
           { "setDatasource": "page", "from": "static:1" }
         ] },
-      { "on": "toolbar.add",   "do": [ { "emit": "client.create.requested" } ] },
-      { "on": "table.rowClick","do": [ { "emit": "client.opened", "payload": "$event" } ] }
+      { "on": "list.add",     "do": [ { "emit": "client.create.requested" } ] },
+      { "on": "list.rowClick","do": [
+          { "setDatasource": "selectedClient", "from": "$event" },
+          { "emit": "client.opened", "payload": "$event" }
+        ] },
+      { "on": "sidebar.close", "do": [ { "clearDatasource": "selectedClient" } ] },
+      { "on": "sidebar.action","do": [ { "emit": "client.action", "payload": "$event" } ] },
+      { "on": "client.action",
+        "when": { "path": "id", "eq": "open" },
+        "do": [ { "navigate": ["/d/client-profile", "$ds.selectedClient.entityId"] } ] }
     ]
   }
 }

@@ -12,3 +12,6 @@ export * from './validate-amount';
 export * from './format-pln';
 export * from './merge-row';
 export * from './search-rows';
+export * from './add-lp';
+export * from './count';
+export * from './pick-by-id';

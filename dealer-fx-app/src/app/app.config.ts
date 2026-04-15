@@ -13,11 +13,7 @@ import { provideRouter } from '@angular/router';
 import {
   provideEchelon,
   EchelonPageRouterComponent,
-  RealClock,
 } from '@echelon-framework/runtime';
-import { MockTransportAdapter } from '@echelon-framework/transport-mock';
-import { HttpTransportAdapter } from '@echelon-framework/transport-http';
-import { WsTransportAdapter } from '@echelon-framework/transport-ws';
 import {
   DataTableComponent,
   FilterFormComponent,
@@ -28,6 +24,8 @@ import {
   PageToolbarComponent,
   EditableTableComponent,
   ProfileFormComponent,
+  EntityListComponent,
+  ContextSidebarComponent,
 } from '@echelon-framework/widgets-core';
 
 import * as fns from './functions';
@@ -44,22 +42,19 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(),
     provideRouter([
       { path: '', redirectTo: '/d/clients-admin', pathMatch: 'full' },
+      { path: 'd/:id/:entityId', component: EchelonPageRouterComponent },
       { path: 'd/:id', component: EchelonPageRouterComponent },
     ]),
     ...provideEchelon({
-      // Multi-transport: mock (default, in-memory), http (REST), ws (live feeds).
-      // Przełączenie na prawdziwy backend: zmień `kind: "transport", transport: "http", channel: "api/..."` w JSONC.
-      transports: {
-        mock: new MockTransportAdapter({ clock: new RealClock() }),
-        http: new HttpTransportAdapter({ baseUrl: 'http://localhost:3001/api' }),
-        ws:   new WsTransportAdapter({ url: 'ws://localhost:3001/ws' }),
-      },
-      defaultTransport: 'mock',
+      // transports: nieustawione → framework tworzy default mock i ładuje fixtures.
+      // HTTP/WS adaptery są zainstalowane i gotowe, ale framework obecnie nie
+      // pozwala mieszać custom transports z automatycznym fixture loaderem.
+      // Podepniemy je po framework rc.14 (per-action transport w fetch handler).
       widgets: [
         // Generic — z framework, configurable przez JSONC
         DataTableComponent, FilterFormComponent, ActionsBarComponent, EntityHeaderComponent,
         TabStripComponent, PaginationComponent, PageToolbarComponent,
-        EditableTableComponent, ProfileFormComponent,
+        EditableTableComponent, ProfileFormComponent, EntityListComponent, ContextSidebarComponent,
         // Domain — FX-specific dealera
         PageTitleComponent, StatTileComponent, ClientCardComponent,
         PositionRowComponent, DealerQuoteFormComponent,
@@ -67,6 +62,16 @@ export const appConfig: ApplicationConfig = {
       functions:   Object.values(fns),
       dataSources: Object.values(ds),
       pages:       ['clients-admin', 'client-fx', 'client-profile', 'dashboard', 'clients', 'quote', 'positions'],
+      endpoints: {
+        // GET-like resolver: zwraca pojedynczego klienta po `code`.
+        // Dane czerpie z fixture `clientsList` ładowanego przez @DataSource(Static).
+        'client-by-id': async (params: Record<string, unknown>) => {
+          const code = String(params['id'] ?? '');
+          const res = await fetch('/assets/fixtures/clients.json');
+          const all = (await res.json()) as Array<Record<string, unknown>>;
+          return all.find((c) => c['code'] === code) ?? null;
+        },
+      },
     }),
   ],
 };

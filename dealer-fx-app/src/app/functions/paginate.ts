@@ -1,6 +1,7 @@
 import { PureFunction } from '@echelon-framework/runtime';
 
 @PureFunction({
+  name: 'paginate',
   description: 'Slice an array into a single page given (page, pageSize).',
   inputs: [
     { name: 'rows', type: 'unknown[]' },
@@ -20,6 +21,7 @@ export class Paginate {
 }
 
 @PureFunction({
+  name: 'totalPages',
   description: 'Compute total page count given (totalRows, pageSize).',
   inputs: [
     { name: 'rows', type: 'unknown[]' },

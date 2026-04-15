@@ -16,15 +16,21 @@
       ]
     },
     "datasources": {
-      "clientProfile":  {},
+      "clientProfile":  { "kind": "local", "initial": null },
       "clientMargins":  {},
       "clientAccounts": {}
+    },
+    "lifecycle": {
+      "onInit": [
+        { "fetch": "client-by-id",
+          "into":  "clientProfile",
+          "with":  { "id": "$ds.routeParams.entityId" } }
+      ]
     },
     "widgets": {
       "header":   { "type": "entity-header",
                     "bind": { "name": "clientProfile.name",
-                              "subtitle": "clientProfile.subtitle",
-                              "tags": "clientProfile.tags" } },
+                              "subtitle": "clientProfile.code" } },
 
       "margins":  { "type": "editable-table",
                     "bind": { "rows": "clientMargins" },
