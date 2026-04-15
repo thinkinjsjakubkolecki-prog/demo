@@ -12,8 +12,12 @@ import {
   PageToolbarComponent,
   EditableTableComponent,
   ProfileFormComponent,
+  ValidatedFormComponent,
   EntityListComponent,
   ContextSidebarComponent,
+  SectionHeaderComponent,
+  KvListComponent,
+  BoolChipsComponent,
 } from '@echelon-framework/widgets-core';
 
 import { PageTitleComponent } from '../widgets/page-title.component';
@@ -26,7 +30,8 @@ export const widgets = [
   // Generic — framework
   DataTableComponent, FilterFormComponent, ActionsBarComponent, EntityHeaderComponent,
   TabStripComponent, PaginationComponent, PageToolbarComponent,
-  EditableTableComponent, ProfileFormComponent, EntityListComponent, ContextSidebarComponent,
+  EditableTableComponent, ProfileFormComponent, ValidatedFormComponent, EntityListComponent, ContextSidebarComponent,
+  SectionHeaderComponent, KvListComponent, BoolChipsComponent,
   // Domain — FX dealera
   PageTitleComponent, StatTileComponent, ClientCardComponent,
   PositionRowComponent, DealerQuoteFormComponent,

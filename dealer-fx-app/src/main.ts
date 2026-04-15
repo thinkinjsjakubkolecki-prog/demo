@@ -3,7 +3,6 @@ import { bootstrapApplication } from '@angular/platform-browser';
 import { AppShellComponent, APP_SHELL_CONFIG } from '@echelon-framework/widgets-core';
 import { appConfig } from './app/app.config';
 import { menu } from './app/bootstrap/menu';
-import { userMenu } from './app/bootstrap/user';
 
 /**
  * Env detection — steruje kolorem akcentu (CSS var --accent przez [data-env]).
@@ -37,7 +36,6 @@ bootstrapApplication(AppShellComponent, {
         brand: 'DEALER FX',
         envLabel: (document.documentElement.dataset['env'] ?? 'dev').toUpperCase(),
         menu,
-        userMenu,
       },
     },
   ],

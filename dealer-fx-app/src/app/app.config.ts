@@ -4,9 +4,10 @@
  */
 import { provideHttpClient } from '@angular/common/http';
 import { type ApplicationConfig } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withRouterConfig } from '@angular/router';
 import { provideEchelon } from '@echelon-framework/runtime';
 import { coreFunctions } from '@echelon-framework/functions-core';
+import { aggregateFunctions } from './bootstrap/aggregate-functions';
 
 import * as fns from './functions';
 import * as ds from './datasources';
@@ -19,10 +20,12 @@ import { routes } from './bootstrap/routes';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideHttpClient(),
-    provideRouter(routes),
+    // `paramsInheritanceStrategy: always` — child routes (np. taby) widzą
+    // params parent route (`:entityId` z `/clients/:entityId`).
+    provideRouter(routes, withRouterConfig({ paramsInheritanceStrategy: 'always' })),
     ...provideEchelon({
       widgets,
-      functions:   [...coreFunctions, ...Object.values(fns)],
+      functions:   [...coreFunctions, ...aggregateFunctions as never[], ...Object.values(fns)],
       dataSources: Object.values(ds),
       pages,
       endpoints,

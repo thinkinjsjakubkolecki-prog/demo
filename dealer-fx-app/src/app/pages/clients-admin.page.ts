@@ -4,7 +4,7 @@
  * Cała mechanika (filtrowanie, paginacja, sidebar, navigate na profil) wynika
  * z deklaracji — żadne handlery / computed pipeline nie są już ręcznie pisane.
  */
-import { defineEntityListPage } from '@echelon-framework/page-builders';
+import { defineEntityListPage, Page } from '@echelon-framework/page-builders';
 
 interface Client {
   readonly id: string;
@@ -25,7 +25,12 @@ interface Client {
 const TAG_COLORS = { PRIORITY: '#d29922', PREMIUM: '#58a6ff', STANDARD: '#8b949e', VIP: '#da6bc1' } as const;
 const STATUS_BADGES = { Aktywny: 'ok', Usunięty: 'err' } as const;
 
-export const clientsAdminPage = defineEntityListPage<Client>({
+@Page({
+  route: '/clients',
+  title: 'Klienci',
+})
+export class ClientsAdminPage {
+  static readonly config = defineEntityListPage<Client>({
   id: 'clients-admin',
   title: 'Klienci',
   dataSource: 'clientsList',
@@ -89,7 +94,14 @@ export const clientsAdminPage = defineEntityListPage<Client>({
       { id: 'edit', label: 'Edytuj', kind: 'primary', setLayout: 'edit-form', inLayout: ['default'] },
       { id: 'open', label: 'Otwórz profil', kind: 'ghost', inLayout: ['default'] },
       { id: 'delete', label: 'Usuń', kind: 'danger', inLayout: ['default'],
-        when: { path: 'status', eq: 'Aktywny' } },
+        when: { path: 'status', eq: 'Aktywny' },
+        confirm: {
+          title: 'Usunięcie klienta',
+          message: 'Klient zostanie oznaczony jako usunięty. Czy na pewno?',
+          confirmLabel: 'Tak, usuń',
+          cancelLabel: 'Anuluj',
+        },
+        success: { message: 'Klient usunięty', duration: 1500, closeAfter: true } },
       { id: 'save', label: 'Zapisz', kind: 'primary', inLayout: ['edit-form'],
         when: { path: 'name', exists: true },
         success: { message: 'Zapisano klienta', duration: 1500, returnTo: 'default' } },
@@ -97,4 +109,5 @@ export const clientsAdminPage = defineEntityListPage<Client>({
     ],
   },
   navigateOnAction: { open: '/clients/:entityId' },
-});
+  });
+}

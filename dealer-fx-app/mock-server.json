@@ -11,8 +11,8 @@
     "client-accounts": "@file:src/assets/fixtures/client-accounts.json"
   },
   "streams": {
-    "rates.usdpln": { "kind": "fx-random-walk", "intervalMs": 1000, "mid": 4.05,  "vol": 0.0003 },
-    "rates.eurpln": { "kind": "fx-random-walk", "intervalMs": 1000, "mid": 4.31,  "vol": 0.0003 },
-    "rates.gbppln": { "kind": "fx-random-walk", "intervalMs": 1000, "mid": 5.07,  "vol": 0.0003 }
+    "rates.usdpln": { "simulate": { "kind": "fx-random-walk", "intervalMs": 1000, "mid": 4.05, "vol": 0.0003 } },
+    "rates.eurpln": { "simulate": { "kind": "fx-random-walk", "intervalMs": 1000, "mid": 4.31, "vol": 0.0003 } },
+    "rates.gbppln": { "simulate": { "kind": "fx-random-walk", "intervalMs": 1000, "mid": 5.07, "vol": 0.0003 } }
   }
 }

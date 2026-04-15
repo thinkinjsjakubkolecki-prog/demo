@@ -4,11 +4,13 @@
   "private": true,
   "description": "FX dealer client-handling app — built on Echelon framework.",
   "scripts": {
-    "start": "ng serve",
+    "start": "npm run sync-fw && concurrently -k -n mock,ng -c magenta,cyan \"npm:mock-server\" \"ng serve\"",
+    "start:ng": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "mock-server": "echelon-mock-server --config mock-server.json",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "sync-fw": "node scripts/sync-fw.mjs"
   },
   "dependencies": {
     "@angular/animations": "^21.0.0",
@@ -25,6 +27,9 @@
     "@echelon-framework/transport-http": "^0.1.0-rc.12",
     "@echelon-framework/transport-ws": "^0.1.0-rc.12",
     "@echelon-framework/expression": "^0.1.0-rc.12",
+    "@echelon-framework/model": "^0.1.0-rc.13",
+    "@echelon-framework/page-builders": "^0.1.0-rc.13",
+    "@echelon-framework/functions-core": "^0.1.0-rc.13",
     "rxjs": "~7.8.0",
     "tslib": "^2.6.0",
     "zone.js": "~0.15.0"
@@ -35,6 +40,7 @@
     "@angular/compiler-cli": "^21.0.0",
     "@echelon-framework/eslint-plugin": "^0.1.0-rc.12",
     "@echelon-framework/mock-server": "^0.1.0-rc.12",
+    "concurrently": "^9.0.0",
     "typescript": "~5.9.0"
   }
 }

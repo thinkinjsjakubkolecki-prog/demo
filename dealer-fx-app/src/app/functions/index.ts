@@ -9,3 +9,6 @@ export * from './compute-dealer-rate';
 export * from './validate-amount';
 export * from './format-pln';
 export * from './add-lp';
+export * from './client-info-rows';
+export * from './client-profile-rows';
+export * from './tx-form-helpers';
