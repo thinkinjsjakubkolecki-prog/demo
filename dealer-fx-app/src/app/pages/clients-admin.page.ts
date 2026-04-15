@@ -96,5 +96,5 @@ export const clientsAdminPage = defineEntityListPage<Client>({
       { id: 'cancel', label: 'Anuluj', kind: 'ghost', setLayout: 'default', inLayout: ['edit-form'] },
     ],
   },
-  navigateOnAction: { open: '/d/client-profile/:entityId' },
+  navigateOnAction: { open: '/clients/:entityId' },
 });
