@@ -14,6 +14,9 @@ import {
   provideEchelon,
   EchelonPageRouterComponent,
 } from '@echelon-framework/runtime';
+import { coreFunctions } from '@echelon-framework/functions-core';
+import { clientsAdminPage } from './pages/clients-admin.page';
+import { clientProfilePage } from './pages/client-profile.page';
 import {
   DataTableComponent,
   FilterFormComponent,
@@ -59,9 +62,13 @@ export const appConfig: ApplicationConfig = {
         PageTitleComponent, StatTileComponent, ClientCardComponent,
         PositionRowComponent, DealerQuoteFormComponent,
       ],
-      functions:   Object.values(fns),
+      functions:   [...coreFunctions, ...Object.values(fns)],
       dataSources: Object.values(ds),
-      pages:       ['clients-admin', 'client-fx', 'client-profile', 'dashboard', 'clients', 'quote', 'positions'],
+      pages:       [
+        clientsAdminPage,        // built via defineEntityListPage
+        clientProfilePage,       // built via defineDetailPage
+        'client-fx', 'dashboard', 'clients', 'quote', 'positions',
+      ],
       endpoints: {
         // GET-like resolver: zwraca pojedynczego klienta po `code`.
         // Dane czerpie z fixture `clientsList` ładowanego przez @DataSource(Static).
