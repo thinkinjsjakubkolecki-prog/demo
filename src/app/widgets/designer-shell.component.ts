@@ -106,8 +106,12 @@ interface PageEntry {
               @for (p of pages; track p.id) {
                 <option [value]="p.id">{{ p.title }} — {{ p.route }}</option>
               }
+              @for (d of draftPages(); track d.id) {
+                <option [value]="d.id">⚡ {{ d.title }} — {{ d.route }} (NEW)</option>
+              }
             </select>
           </label>
+          <button type="button" class="btn-new" (click)="openNewPageDialog()" title="Nowa strona (pusta)">➕ New page</button>
           @if (selectedPage(); as p) {
             <div class="breadcrumb">
               <span class="crumb class">{{ p.sourceClassName }}</span>
@@ -387,6 +391,57 @@ interface PageEntry {
       </aside>
     </div>
 
+    @if (newPageDialogOpen()) {
+      <div class="modal-backdrop" (click)="closeNewPageDialog()">
+        <div class="modal modal-sm" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <span>➕ Nowa strona</span>
+            <button type="button" class="btn-close" (click)="closeNewPageDialog()">✕</button>
+          </div>
+          <div class="modal-body">
+            <label class="form-label">
+              <span>Page ID</span>
+              <input #newIdInput type="text" class="inline-edit" placeholder="np. my-new-page"
+                     [value]="newPageId()" (input)="onNewIdInput($event)" />
+              <small class="muted">Używane do route i nazwy klasy. Tylko lowercase + myślnik.</small>
+            </label>
+            <label class="form-label">
+              <span>Tytuł</span>
+              <input type="text" class="inline-edit" placeholder="np. My New Page"
+                     [value]="newPageTitle()" (input)="newPageTitle.set(($any($event.target)).value)" />
+            </label>
+            <label class="form-label">
+              <span>Route</span>
+              <input type="text" class="inline-edit" placeholder="/my-new-page"
+                     [value]="newPageRoute()" (input)="newPageRoute.set(($any($event.target)).value)" />
+            </label>
+            <label class="form-label">
+              <span>Template</span>
+              <select class="inline-edit" [value]="newPageTemplate()" (change)="newPageTemplate.set(($any($event.target)).value)">
+                <option value="empty">Empty (tylko page-title)</option>
+                <option value="list">List + Detail (lewa/prawa)</option>
+                <option value="dashboard">Dashboard (3 stat-tile na górze)</option>
+                <option value="form">Form (validated-form + actions-bar)</option>
+              </select>
+            </label>
+            @if (newPageError()) {
+              <div class="form-error">{{ newPageError() }}</div>
+            }
+            <div class="save-actions">
+              <button type="button" class="btn-primary" (click)="createNewPage()">✨ Stwórz draft</button>
+              <button type="button" class="btn-mini" (click)="closeNewPageDialog()">Cancel</button>
+            </div>
+            <div class="save-roadmap">
+              Nowa strona jest <strong>draftem w pamięci</strong>. Żeby ją zcommitować do
+              kodu: po stworzeniu kliknij 💾 Save i wklej wygenerowany plik do
+              <code>src/app/pages/{{ newPageId() }}.page.ts</code> + dodaj import w
+              <code>bootstrap/pages.ts</code>.
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
     @if (saveDialogOpen()) {
       <div class="modal-backdrop" (click)="closeSaveDialog()">
         <div class="modal" (click)="$event.stopPropagation()">
@@ -618,13 +673,23 @@ interface PageEntry {
     @keyframes flash { from { opacity: 0; } to { opacity: 1; } }
     .save-roadmap { padding: 10px 12px; background: #713f1233; border-left: 3px solid #f59e0b; border-radius: 2px; font-size: 11px; color: #fef3c7; }
     .save-roadmap code { background: #1f2937; padding: 1px 4px; border-radius: 2px; color: #fcd34d; }
+
+    .btn-new { padding: 4px 10px; background: #1e3a5f33; border: 1px solid #3b82f6; color: #e0f2fe; border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; margin-left: 4px; }
+    .btn-new:hover { background: #1e3a5f66; }
+
+    .modal-sm { max-width: 500px; }
+    .form-label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted, #9ca3af); }
+    .form-label span { font-weight: 600; }
+    .form-label small { font-size: 10px; font-style: italic; }
+    .form-error { padding: 6px 10px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fee2e2; border-radius: 3px; font-size: 12px; }
   `],
 })
 export class DesignerShellComponent {
   readonly pages: ReadonlyArray<PageEntry> = this.collectPages();
   readonly selectedId = signal<string>(this.pages[0]?.id ?? '');
   readonly selectedPage = computed<PageEntry | null>(() => {
-    const base = this.pages.find((p) => p.id === this.selectedId()) ?? null;
+    const id = this.selectedId();
+    const base = this.pages.find((p) => p.id === id) ?? this.draftPages().find((p) => p.id === id) ?? null;
     if (!base) return null;
     // W edit mode bierzemy title z draftModel (bo user mógł go edytować)
     this.draftVersion();
@@ -661,6 +726,17 @@ export class DesignerShellComponent {
   /** Save dialog state. */
   readonly saveDialogOpen = signal<boolean>(false);
   readonly saveCopied = signal<boolean>(false);
+
+  /** New page dialog state. */
+  readonly newPageDialogOpen = signal<boolean>(false);
+  readonly newPageId = signal<string>('');
+  readonly newPageTitle = signal<string>('');
+  readonly newPageRoute = signal<string>('');
+  readonly newPageTemplate = signal<'empty' | 'list' | 'dashboard' | 'form'>('empty');
+  readonly newPageError = signal<string>('');
+
+  /** In-memory draft pages (utworzone przez designera, nie jeszcze w kodzie). */
+  readonly draftPages = signal<ReadonlyArray<PageEntry>>([]);
   /** Flaga: czy draft różni się od oryginalnego configu (proste sprawdzenie po serialize). */
   readonly hasChanges = computed<boolean>(() => {
     const p = this.selectedPage();
@@ -1096,6 +1172,65 @@ export class DesignerShellComponent {
     this.saveCopied.set(false);
   }
 
+  openNewPageDialog(): void {
+    this.newPageId.set('');
+    this.newPageTitle.set('');
+    this.newPageRoute.set('');
+    this.newPageTemplate.set('empty');
+    this.newPageError.set('');
+    this.newPageDialogOpen.set(true);
+  }
+
+  closeNewPageDialog(): void {
+    this.newPageDialogOpen.set(false);
+  }
+
+  /** Input handler z auto-fill route/title z id (do czasu gdy user sam coś wpisze). */
+  onNewIdInput(event: Event): void {
+    const raw = (event.target as HTMLInputElement).value;
+    const sanitized = raw.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    this.newPageId.set(sanitized);
+    // Auto-fill route jeśli user jeszcze nie zmienił
+    if (!this.newPageRoute() || this.newPageRoute().startsWith('/') && this.newPageRoute().slice(1).replace(/-/g, '') === '') {
+      this.newPageRoute.set(sanitized ? `/${sanitized}` : '');
+    }
+    // Auto-fill title jeśli pusty
+    if (!this.newPageTitle()) {
+      const title = sanitized.split('-').map((s) => s ? s[0]!.toUpperCase() + s.slice(1) : '').join(' ');
+      this.newPageTitle.set(title);
+    }
+  }
+
+  createNewPage(): void {
+    const id = this.newPageId().trim();
+    const title = this.newPageTitle().trim() || id;
+    const route = this.newPageRoute().trim() || `/${id}`;
+    const template = this.newPageTemplate();
+
+    if (!id) { this.newPageError.set('Page ID jest wymagane'); return; }
+    if (!/^[a-z][a-z0-9-]*$/.test(id)) { this.newPageError.set('Page ID musi zaczynać się od litery, tylko lowercase + myślniki'); return; }
+    if (this.pages.find((p) => p.id === id) || this.draftPages().find((p) => p.id === id)) {
+      this.newPageError.set(`Strona o ID "${id}" już istnieje`);
+      return;
+    }
+    if (!route.startsWith('/')) { this.newPageError.set('Route musi zaczynać się od /'); return; }
+
+    const config = buildTemplateConfig(id, title, template);
+    const className = id.split('-').map((s) => s ? s[0]!.toUpperCase() + s.slice(1) : '').join('') + 'Page';
+    const entry: PageEntry = {
+      id, title, route, config,
+      widgetCount: Object.keys(config.page.widgets).length,
+      dsCount: Object.keys(config.page.datasources ?? {}).length,
+      computedCount: Object.keys(config.page.computed ?? {}).length,
+      handlerCount: (config.page.eventHandlers ?? []).length,
+      sourceClassName: className,
+    };
+    this.draftPages.update((list) => [...list, entry]);
+    this.selectedId.set(id);
+    this.editMode.set(true);
+    this.closeNewPageDialog();
+  }
+
   closeSaveDialog(): void {
     this.saveDialogOpen.set(false);
   }
@@ -1230,6 +1365,82 @@ export class DesignerShellComponent {
 
 function humanize(id: string): string {
   return id.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Szablony dla nowych stron — minimalne kompozycje widgetów frameworkowych.
+ * Każdy zwraca kompletny PageConfig który może być od razu edytowany w draft model.
+ */
+function buildTemplateConfig(id: string, title: string, template: 'empty' | 'list' | 'dashboard' | 'form'): PageConfig {
+  const schemaVersion = '2026.04-alpha' as PageConfig['$schemaVersion'];
+  switch (template) {
+    case 'list':
+      return {
+        $schemaVersion: schemaVersion,
+        page: {
+          id, title,
+          layout: { type: 'grid', items: [
+            { widget: 'title', x: 0, y: 0, w: 12 },
+            { widget: 'list', x: 0, y: 1, w: 5 },
+            { widget: 'detail', x: 5, y: 1, w: 7 },
+          ] },
+          widgets: {
+            title: { type: 'page-title', options: { title, subtitle: 'Nowa strona — uzupełnij' } },
+            list: { type: 'data-table', bind: { rows: '$ds.YOUR_DATASOURCE' } },
+            detail: { type: 'info-card', bind: { data: '$local.selected' } },
+          },
+        },
+      };
+    case 'dashboard':
+      return {
+        $schemaVersion: schemaVersion,
+        page: {
+          id, title,
+          layout: { type: 'grid', items: [
+            { widget: 'title', x: 0, y: 0, w: 12 },
+            { widget: 'stat1', x: 0, y: 1, w: 4 },
+            { widget: 'stat2', x: 4, y: 1, w: 4 },
+            { widget: 'stat3', x: 8, y: 1, w: 4 },
+            { widget: 'chart', x: 0, y: 2, w: 12 },
+          ] },
+          widgets: {
+            title: { type: 'page-title', options: { title } },
+            stat1: { type: 'stat-tile', options: { label: 'KPI 1', value: 0 } },
+            stat2: { type: 'stat-tile', options: { label: 'KPI 2', value: 0 } },
+            stat3: { type: 'stat-tile', options: { label: 'KPI 3', value: 0 } },
+            chart: { type: 'candlestick-chart', options: { xField: 'timestamp' } },
+          },
+        },
+      };
+    case 'form':
+      return {
+        $schemaVersion: schemaVersion,
+        page: {
+          id, title,
+          layout: { type: 'grid', items: [
+            { widget: 'title', x: 0, y: 0, w: 12 },
+            { widget: 'form', x: 0, y: 1, w: 8 },
+            { widget: 'actions', x: 0, y: 5, w: 8 },
+          ] },
+          widgets: {
+            title: { type: 'page-title', options: { title } },
+            form: { type: 'validated-form', options: { fields: [] } },
+            actions: { type: 'actions-bar', options: { actions: [{ id: 'save', label: 'Zapisz' }] } },
+          },
+        },
+      };
+    default:
+      return {
+        $schemaVersion: schemaVersion,
+        page: {
+          id, title,
+          layout: { type: 'grid', items: [{ widget: 'title', x: 0, y: 0, w: 12 }] },
+          widgets: {
+            title: { type: 'page-title', options: { title, subtitle: 'Pusta strona' } },
+          },
+        },
+      };
+  }
 }
 
 const TS_KEYWORDS = /\b(import|from|export|class|static|readonly|const|return|true|false|null|undefined|type|interface|this)\b/g;
