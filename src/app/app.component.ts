@@ -5,9 +5,10 @@
  * można go używać przez `imports: [...]` w template.
  */
 import { ChangeDetectionStrategy, Component, inject, DestroyRef } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule, NavigationEnd } from '@angular/router';
+import { filter, map, startWith } from 'rxjs/operators';
 import { EVENT_BUS } from '@echelon-framework/core';
 import { menu } from './bootstrap/menu';
 import type { MenuItem } from '@echelon-framework/page-builders';
@@ -19,7 +20,7 @@ import { exportPositionsToCsv } from './bootstrap/framework-integrations';
   imports: [CommonModule, RouterModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (embedMode) {
+    @if (embedMode()) {
       <!-- Embed mode — iframe preview, bez chrome-u. Trigger: ?embed=1 w URL -->
       <main class="embed"><router-outlet /></main>
     } @else {
@@ -100,16 +101,31 @@ import { exportPositionsToCsv } from './bootstrap/framework-integrations';
 export class AppComponent {
   readonly envLabel: string = (document.documentElement.dataset['env'] ?? 'dev').toUpperCase();
   readonly menu: ReadonlyArray<MenuItem> = menu;
+
+  private readonly router = inject(Router);
+
   /**
    * Embed mode — gdy URL ma query param `?embed=1`, chrome (sidebar + menu)
    * jest ukryty. Używane przez designer-shell preview iframe — pokazuje
    * stronę bez menu żeby user widział tylko content strony.
+   *
+   * Reaktywne na route events — iframe mount ma czasem race z Router init,
+   * więc IIFE w konstruktorze niewystarczał.
    */
-  readonly embedMode: boolean = (() => {
-    if (typeof window === 'undefined') return false;
-    const params = new URLSearchParams(window.location.search);
-    return params.get('embed') === '1';
-  })();
+  readonly embedMode = toSignal(
+    this.router.events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      startWith(null),
+      map(() => {
+        if (typeof window === 'undefined') return false;
+        return new URLSearchParams(window.location.search).get('embed') === '1';
+      }),
+    ),
+    { initialValue: (() => {
+      if (typeof window === 'undefined') return false;
+      return new URLSearchParams(window.location.search).get('embed') === '1';
+    })() },
+  );
 
   private readonly expanded = new Set<string>(menu.filter((i) => i.defaultOpen).map((i) => i.id));
   private readonly destroyRef = inject(DestroyRef);
