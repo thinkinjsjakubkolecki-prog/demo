@@ -29,6 +29,17 @@ interface PaletteGroup {
   readonly items: ReadonlyArray<WidgetManifest>;
 }
 
+interface DatasourceConfigShape {
+  readonly kind?: 'transport' | 'local' | 'computed';
+  readonly transport?: string;
+  readonly channel?: string;
+  readonly endpoint?: string;
+  readonly params?: Readonly<Record<string, unknown>>;
+  readonly initial?: unknown;
+  readonly fn?: string;
+  readonly inputs?: ReadonlyArray<string>;
+}
+
 interface InspectedWidget {
   readonly instanceId: string;
   readonly type: string;
@@ -610,13 +621,14 @@ interface PageEntry {
             </div>
             <div class="widget-list">
               @for (ds of pageDatasources(); track ds.id) {
-                <div class="ds-row">
+                <div class="ds-row" [class.clickable]="editMode()" (click)="editMode() && editDatasource(ds.id)">
                   <div class="ds-main">
                     <span class="wli-id">{{ ds.id }}</span>
                     <span class="wli-type">{{ ds.kind }}{{ ds.transport ? ' : ' + ds.transport : '' }}{{ ds.endpoint ? ' → ' + ds.endpoint : '' }}</span>
                   </div>
                   @if (editMode()) {
-                    <button type="button" class="btn-rm" (click)="removeDatasource(ds.id)" title="Usuń">✕</button>
+                    <button type="button" class="btn-tiny" (click)="editDatasource(ds.id); $event.stopPropagation()" title="Edytuj">✎</button>
+                    <button type="button" class="btn-rm" (click)="removeDatasource(ds.id); $event.stopPropagation()" title="Usuń">✕</button>
                   }
                 </div>
               }
@@ -728,6 +740,94 @@ interface PageEntry {
         }
       </aside>
     </div>
+
+    @if (dsDialogOpen()) {
+      <div class="modal-backdrop" (click)="closeDsDialog()">
+        <div class="modal modal-sm" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <span>📦 {{ dsEditingId() ? 'Edytuj' : 'Nowy' }} datasource</span>
+            <button type="button" class="btn-close" (click)="closeDsDialog()">✕</button>
+          </div>
+          <div class="modal-body">
+            <label class="form-label">
+              <span>ID</span>
+              <input type="text" class="inline-edit" placeholder="np. clientsList"
+                     [value]="dsFormId()" (input)="dsFormId.set(($any($event.target)).value)" />
+              <small class="muted">Użyte w bindingach jako <code>$ds.{{ dsFormId() || 'id' }}</code></small>
+            </label>
+
+            <label class="form-label">
+              <span>Kind</span>
+              <select class="inline-edit" [value]="dsFormKind()" (change)="dsFormKind.set(($any($event.target)).value)">
+                <option value="transport">transport (HTTP / WebSocket / mock)</option>
+                <option value="static">static (JSON z URL / fixture)</option>
+                <option value="local">local (w pamięci)</option>
+                <option value="computed">computed (derived z innych)</option>
+              </select>
+            </label>
+
+            @if (dsFormKind() === 'transport') {
+              <label class="form-label">
+                <span>Transport</span>
+                <select class="inline-edit" [value]="dsFormTransport()" (change)="dsFormTransport.set(($any($event.target)).value)">
+                  <option value="http">http</option>
+                  <option value="ws">ws (WebSocket)</option>
+                  <option value="mock">mock (testowy)</option>
+                </select>
+              </label>
+              <label class="form-label">
+                <span>Endpoint / Channel</span>
+                <input type="text" class="inline-edit"
+                       [placeholder]="dsFormTransport() === 'ws' ? 'np. live/quotes' : 'np. api/clients'"
+                       [value]="dsFormEndpoint()" (input)="dsFormEndpoint.set(($any($event.target)).value)" />
+              </label>
+            }
+
+            @if (dsFormKind() === 'static') {
+              <label class="form-label">
+                <span>URL do JSON</span>
+                <input type="text" class="inline-edit" placeholder="/assets/fixtures/clients.json"
+                       [value]="dsFormStaticUrl()" (input)="dsFormStaticUrl.set(($any($event.target)).value)" />
+                <small class="muted">Klasyczny wzorzec dla fixtures / static data</small>
+              </label>
+            }
+
+            @if (dsFormKind() === 'local') {
+              <label class="form-label">
+                <span>Initial value (JSON — opcjonalne)</span>
+                <input type="text" class="inline-edit" placeholder='np. {"items": []}'
+                       [value]="dsFormInitial()" (input)="dsFormInitial.set(($any($event.target)).value)" />
+                <small class="muted">Wartość początkowa state-u (parsed jako JSON, fallback na string)</small>
+              </label>
+            }
+
+            @if (dsFormKind() === 'computed') {
+              <label class="form-label">
+                <span>Function name</span>
+                <input type="text" class="inline-edit" placeholder="np. searchRows"
+                       [value]="dsFormFn()" (input)="dsFormFn.set(($any($event.target)).value)" />
+                <small class="muted">Zarejestrowana w functions/ lub z functions-core</small>
+              </label>
+              <label class="form-label">
+                <span>Inputs (comma-separated)</span>
+                <input type="text" class="inline-edit" placeholder="np. clientsList, searchTerm"
+                       [value]="dsFormInputs()" (input)="dsFormInputs.set(($any($event.target)).value)" />
+              </label>
+            }
+
+            @if (dsFormError()) {
+              <div class="form-error">{{ dsFormError() }}</div>
+            }
+            <div class="save-actions">
+              <button type="button" class="btn-primary" (click)="submitDsForm()">
+                {{ dsEditingId() ? '💾 Zapisz' : '✨ Stwórz' }}
+              </button>
+              <button type="button" class="btn-mini" (click)="closeDsDialog()">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
 
     @if (newPageDialogOpen()) {
       <div class="modal-backdrop" (click)="closeNewPageDialog()">
@@ -1025,6 +1125,7 @@ interface PageEntry {
     .ro-badge { margin-left: auto; background: #713f1233; color: #fcd34d; font-size: 9px; padding: 1px 6px; border-radius: 8px; font-weight: 500; }
     .ds-row { display: flex; align-items: center; gap: 4px; padding: 5px 8px; background: transparent; border: 1px solid transparent; border-radius: 3px; font-size: 11px; margin-bottom: 2px; }
     .ds-row:hover { background: #1a2332; border-color: var(--border, #374151); }
+    .ds-row.clickable { cursor: pointer; }
     .ds-main { flex: 1; display: flex; align-items: center; gap: 8px; }
 
     .handler-list { display: flex; flex-direction: column; gap: 6px; }
@@ -1244,6 +1345,20 @@ export class DesignerShellComponent {
   /** Save dialog state. */
   readonly saveDialogOpen = signal<boolean>(false);
   readonly saveCopied = signal<boolean>(false);
+
+  /** Datasource creator dialog state. */
+  readonly dsDialogOpen = signal<boolean>(false);
+  readonly dsEditingId = signal<string | null>(null); // null = create, string = edit
+  readonly dsFormId = signal<string>('');
+  readonly dsFormKind = signal<'transport' | 'local' | 'computed' | 'static'>('transport');
+  readonly dsFormTransport = signal<string>('http');
+  readonly dsFormEndpoint = signal<string>('');
+  readonly dsFormChannel = signal<string>('');
+  readonly dsFormStaticUrl = signal<string>('');
+  readonly dsFormInitial = signal<string>('');
+  readonly dsFormFn = signal<string>('');
+  readonly dsFormInputs = signal<string>('');
+  readonly dsFormError = signal<string>('');
 
   /** New page dialog state. */
   readonly newPageDialogOpen = signal<boolean>(false);
@@ -2246,20 +2361,113 @@ export class DesignerShellComponent {
   }
 
   addDatasource(): void {
-    const id = this.promptKey('datasource (np. clientsList)');
-    if (!id) return;
-    const kindRaw = (typeof window !== 'undefined') ? window.prompt('Kind (transport/local/computed):', 'transport') : 'transport';
-    const kind = (kindRaw === 'local' || kindRaw === 'computed' || kindRaw === 'transport') ? kindRaw : 'transport';
-    this.applyDraft((dm) =>
-      dm.addDatasource({
-        id,
-        config: kind === 'local'
-          ? { kind: 'local' }
-          : kind === 'computed'
-          ? { kind: 'computed', fn: 'TODO', inputs: [] }
-          : { kind: 'transport', transport: 'http', endpoint: `/${id}` },
-      }),
-    );
+    this.dsEditingId.set(null);
+    this.dsFormId.set('');
+    this.dsFormKind.set('transport');
+    this.dsFormTransport.set('http');
+    this.dsFormEndpoint.set('');
+    this.dsFormChannel.set('');
+    this.dsFormStaticUrl.set('');
+    this.dsFormInitial.set('');
+    this.dsFormFn.set('');
+    this.dsFormInputs.set('');
+    this.dsFormError.set('');
+    this.dsDialogOpen.set(true);
+  }
+
+  /** Otwiera dialog w trybie edycji istniejącego datasource. */
+  editDatasource(id: string): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const ds = m.snapshot().datasources.find((d) => d.id === id);
+    if (!ds) return;
+    const cfg = ds.config;
+    this.dsEditingId.set(id);
+    this.dsFormId.set(id);
+    const kind = cfg.kind ?? 'transport';
+    // 'static' jest transport z kind 'transport' + transport: 'static' albo url field
+    if ((cfg as { url?: string }).url) this.dsFormKind.set('static');
+    else this.dsFormKind.set(kind === 'local' || kind === 'computed' ? kind : 'transport');
+    this.dsFormTransport.set(cfg.transport ?? 'http');
+    this.dsFormEndpoint.set(cfg.endpoint ?? '');
+    this.dsFormChannel.set(cfg.channel ?? '');
+    this.dsFormStaticUrl.set((cfg as { url?: string }).url ?? '');
+    this.dsFormInitial.set(cfg.initial !== undefined ? JSON.stringify(cfg.initial) : '');
+    this.dsFormFn.set(cfg.fn ?? '');
+    this.dsFormInputs.set((cfg.inputs ?? []).join(', '));
+    this.dsFormError.set('');
+    this.dsDialogOpen.set(true);
+  }
+
+  closeDsDialog(): void {
+    this.dsDialogOpen.set(false);
+  }
+
+  /** Submit z dialog — create albo update w zależności od dsEditingId. */
+  submitDsForm(): void {
+    const id = this.dsFormId().trim();
+    const editingId = this.dsEditingId();
+    if (!id) { this.dsFormError.set('ID jest wymagane'); return; }
+    if (!/^[a-zA-Z][\w]*$/.test(id)) { this.dsFormError.set('ID musi zaczynać się od litery (litery/cyfry/_)'); return; }
+    const m = this.draftModel();
+    if (!m) { this.dsFormError.set('Brak aktywnego draftu'); return; }
+    if (id !== editingId && m.snapshot().datasources.some((d) => d.id === id)) {
+      this.dsFormError.set(`Datasource "${id}" już istnieje`);
+      return;
+    }
+
+    const kind = this.dsFormKind();
+    const config = this.buildDsConfigFromForm();
+    if (!config) { this.dsFormError.set('Uzupełnij wymagane pola dla wybranego typu'); return; }
+
+    if (editingId) {
+      // Edit flow
+      if (id !== editingId) {
+        this.applyDraft((dm) => dm.renameDatasource(editingId, id));
+      }
+      this.applyDraft((dm) => dm.updateDatasource(id, config));
+    } else {
+      // Create flow
+      this.applyDraft((dm) => dm.addDatasource({ id, config }));
+    }
+
+    this.closeDsDialog();
+    void kind;
+  }
+
+  private buildDsConfigFromForm(): DatasourceConfigShape | null {
+    const kind = this.dsFormKind();
+    if (kind === 'local') {
+      const raw = this.dsFormInitial().trim();
+      let initial: unknown = undefined;
+      if (raw) {
+        try { initial = JSON.parse(raw); } catch { initial = raw; }
+      }
+      return { kind: 'local', ...(initial !== undefined ? { initial } : {}) };
+    }
+    if (kind === 'computed') {
+      const fn = this.dsFormFn().trim();
+      if (!fn) return null;
+      const inputs = this.dsFormInputs().split(',').map((s) => s.trim()).filter(Boolean);
+      return { kind: 'computed', fn, inputs };
+    }
+    if (kind === 'static') {
+      const url = this.dsFormStaticUrl().trim();
+      if (!url) return null;
+      return { kind: 'transport', transport: 'static', ...(url ? { endpoint: url } : {}) } as never;
+    }
+    // transport default (http/ws/mock)
+    const transport = this.dsFormTransport() || 'http';
+    const endpoint = this.dsFormEndpoint().trim();
+    const channel = this.dsFormChannel().trim();
+    if (transport === 'ws' && !channel && !endpoint) return null;
+    if (transport === 'http' && !endpoint) return null;
+    return {
+      kind: 'transport',
+      transport,
+      ...(endpoint ? { endpoint } : {}),
+      ...(channel ? { channel } : {}),
+    };
   }
 
   removeDatasource(id: string): void {
