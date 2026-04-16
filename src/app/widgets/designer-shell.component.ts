@@ -394,66 +394,18 @@ interface PageEntry {
               <div class="inspector-section">
                 📋 Form Builder
                 <span class="count-pill">{{ formFields().length }} pól</span>
-                @if (editMode()) {
-                  <button type="button" class="btn-mini" (click)="addFormField(iw.instanceId)" title="Dodaj pole formularza">+ field</button>
-                }
+                <a routerLink="/designer/forms" class="btn-mini" title="Edytuj pola + akcje w dedykowanej sekcji">↗ Forms Designer</a>
               </div>
-              <div class="fb-fields">
-                @for (f of formFields(); track f.id; let fi = $index) {
-                  <div class="fb-field" [class.expanded]="expandedFormFieldId() === f.id">
-                    <div class="fb-field-header" (click)="toggleFormField(f.id)">
-                      <span class="fb-caret">{{ expandedFormFieldId() === f.id ? '▾' : '▸' }}</span>
-                      <span class="fb-type">{{ f.type }}</span>
-                      <span class="fb-id">{{ f.id }}</span>
-                      @if (f.required) { <span class="fb-badge">req</span> }
-                      @if (editMode()) {
-                        <span class="action-controls">
-                          <button type="button" class="btn-tiny" (click)="moveFormField(iw.instanceId, fi, -1); $event.stopPropagation()" title="Do góry">↑</button>
-                          <button type="button" class="btn-tiny" (click)="moveFormField(iw.instanceId, fi, 1); $event.stopPropagation()" title="W dół">↓</button>
-                          <button type="button" class="btn-tiny danger" (click)="removeFormField(iw.instanceId, f.id); $event.stopPropagation()" title="Usuń pole">✕</button>
-                        </span>
-                      }
-                    </div>
-                    @if (expandedFormFieldId() === f.id && editMode()) {
-                      <div class="fb-field-body">
-                        <label class="fb-label"><span>id</span><input type="text" class="inline-edit" [value]="f.id" (change)="onFormFieldIdChange(iw.instanceId, f.id, $event)"/></label>
-                        <label class="fb-label"><span>label</span><input type="text" class="inline-edit" [value]="f.label" (change)="onFormFieldChange(iw.instanceId, f.id, 'label', $event)"/></label>
-                        <label class="fb-label"><span>type</span>
-                          <select class="inline-edit" [value]="f.type" (change)="onFormFieldChange(iw.instanceId, f.id, 'type', $event)">
-                            <option value="text">text</option>
-                            <option value="number">number</option>
-                            <option value="decimal">decimal</option>
-                            <option value="email">email</option>
-                            <option value="password">password</option>
-                            <option value="checkbox">checkbox</option>
-                            <option value="select">select</option>
-                            <option value="textarea">textarea</option>
-                            <option value="date">date</option>
-                          </select>
-                        </label>
-                        <label class="fb-label"><span>placeholder</span><input type="text" class="inline-edit" [value]="f.placeholder ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'placeholder', $event)"/></label>
-                        <label class="fb-label"><span>hint</span><input type="text" class="inline-edit" [value]="f.hint ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'hint', $event)"/></label>
-                        <label class="fb-label"><span>section</span><input type="text" class="inline-edit" [value]="f.section ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'section', $event)"/></label>
-                        <div class="fb-inline">
-                          <label class="fb-check"><input type="checkbox" [checked]="!!f.required" (change)="onFormFieldChange(iw.instanceId, f.id, 'required', $event)"/> required</label>
-                          <label class="fb-check"><input type="checkbox" [checked]="!!f.readonly" (change)="onFormFieldChange(iw.instanceId, f.id, 'readonly', $event)"/> readonly</label>
-                        </div>
-                        <div class="fb-validators">
-                          <div class="fb-label-small">Walidacja:</div>
-                          <div class="fb-grid">
-                            <label class="fb-label"><span>min</span><input type="number" class="inline-edit" [value]="f.min ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'min', $event)"/></label>
-                            <label class="fb-label"><span>max</span><input type="number" class="inline-edit" [value]="f.max ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'max', $event)"/></label>
-                            <label class="fb-label"><span>minLength</span><input type="number" class="inline-edit" [value]="f.minLength ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'minLength', $event)"/></label>
-                            <label class="fb-label"><span>maxLength</span><input type="number" class="inline-edit" [value]="f.maxLength ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'maxLength', $event)"/></label>
-                          </div>
-                          <label class="fb-label"><span>pattern (regex)</span><input type="text" class="inline-edit" [value]="f.pattern ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'pattern', $event)"/></label>
-                        </div>
-                      </div>
-                    }
+              <div class="fb-fields-ro">
+                @for (f of formFields(); track f.id) {
+                  <div class="fb-row-ro">
+                    <span class="fb-type">{{ f.type }}</span>
+                    <span class="fb-id">{{ f.id }}</span>
+                    @if (f.required) { <span class="fb-badge">req</span> }
                   </div>
                 }
                 @if (formFields().length === 0) {
-                  <div class="muted small">Brak pól — dodaj pierwsze klikiem "+ field"</div>
+                  <div class="muted small">Brak pól — dodaj w <a routerLink="/designer/forms">Forms Designer</a></div>
                 }
               </div>
             </div>
