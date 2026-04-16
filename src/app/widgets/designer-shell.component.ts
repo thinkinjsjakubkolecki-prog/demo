@@ -116,6 +116,15 @@ interface PageEntry {
               <span title="Computed"><span class="ic">ƒ</span>{{ p.computedCount }}</span>
               <span title="Handlery"><span class="ic">⚡</span>{{ p.handlerCount }}</span>
             </div>
+            <div class="edit-controls">
+              @if (editMode()) {
+                <button type="button" class="btn-undo" [disabled]="!canUndo()" (click)="undo()" title="Cofnij (Ctrl+Z)">↶ Undo</button>
+                <button type="button" class="btn-redo" [disabled]="!canRedo()" (click)="redo()" title="Przywróć (Ctrl+Shift+Z)">↷ Redo</button>
+              }
+              <button type="button" class="btn-edit" [class.on]="editMode()" (click)="toggleEditMode()" [title]="editMode() ? 'Wyłącz tryb edycji' : 'Włącz tryb edycji'">
+                {{ editMode() ? '✏ Edit ON' : '🔒 Read-only' }}
+              </button>
+            </div>
           }
         </header>
         <section class="canvas-area">
@@ -191,18 +200,36 @@ interface PageEntry {
           }
 
           <div class="inspector-block">
-            <div class="inspector-section">Bind / Options</div>
+            <div class="inspector-section">Bind / Options {{ editMode() ? '(edytuj)' : '' }}</div>
             @if (iw.bind && (keys(iw.bind)).length > 0) {
               <dl>
                 @for (k of keys(iw.bind); track k) {
-                  <dt>bind.{{ k }}</dt><dd><code>{{ formatVal(iw.bind![k]) }}</code></dd>
+                  <dt>bind.{{ k }}</dt>
+                  <dd>
+                    @if (editMode()) {
+                      <input type="text" class="inline-edit"
+                             [value]="asString(iw.bind![k])"
+                             (change)="onBindChange(iw.instanceId, k, $event)" />
+                    } @else {
+                      <code>{{ formatVal(iw.bind![k]) }}</code>
+                    }
+                  </dd>
                 }
               </dl>
             }
             @if (iw.options && (keys(iw.options)).length > 0) {
               <dl>
                 @for (k of keys(iw.options); track k) {
-                  <dt>opt.{{ k }}</dt><dd><code>{{ formatVal(iw.options![k]) }}</code></dd>
+                  <dt>opt.{{ k }}</dt>
+                  <dd>
+                    @if (editMode() && isScalarOption(iw.options![k])) {
+                      <input type="text" class="inline-edit"
+                             [value]="asString(iw.options![k])"
+                             (change)="onOptionChange(iw.instanceId, k, $event)" />
+                    } @else {
+                      <code>{{ formatVal(iw.options![k]) }}</code>
+                    }
+                  </dd>
                 }
               </dl>
             }
@@ -235,8 +262,26 @@ interface PageEntry {
           </div>
         } @else if (selectedPage(); as sp) {
           <div class="inspector-block">
-            <div class="inspector-section">Strona wybrana</div>
-            <div class="muted small">Wybierz widget z listy poniżej żeby zobaczyć szczegóły:</div>
+            <div class="inspector-section">Strona {{ editMode() ? '(edytuj)' : '' }}</div>
+            <dl>
+              <dt>id</dt>
+              <dd><code>{{ sp.id }}</code></dd>
+              <dt>title</dt>
+              <dd>
+                @if (editMode()) {
+                  <input type="text" class="inline-edit"
+                         [value]="sp.title"
+                         (change)="onTitleChange($event)" />
+                } @else {
+                  <code>{{ sp.title }}</code>
+                }
+              </dd>
+              <dt>route</dt>
+              <dd><code>{{ sp.route }}</code></dd>
+            </dl>
+          </div>
+          <div class="inspector-block">
+            <div class="inspector-section">Widgety strony</div>
             <div class="widget-list">
               @for (w of pageWidgets(); track w.instanceId) {
                 <button type="button" class="widget-list-item"
@@ -385,26 +430,65 @@ interface PageEntry {
     .tk-com { color: #676e95; font-style: italic; }
     .tk-dec { color: #ffcb6b; }
     .tk-key { color: #82aaff; }
+
+    .edit-controls { display: flex; gap: 4px; margin-left: 10px; }
+    .btn-edit, .btn-undo, .btn-redo { padding: 4px 10px; background: transparent; border: 1px solid var(--border, #374151); color: var(--muted, #9ca3af); border-radius: 3px; font-size: 11px; cursor: pointer; font-family: inherit; }
+    .btn-edit:hover, .btn-undo:hover:not(:disabled), .btn-redo:hover:not(:disabled) { border-color: #58a6ff; color: var(--fg, #e5e7eb); }
+    .btn-edit.on { background: #064e3b; border-color: #10b981; color: #d1fae5; }
+    .btn-undo:disabled, .btn-redo:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .inline-edit { width: 100%; padding: 3px 6px; background: #0b1120; border: 1px solid #58a6ff; color: var(--fg, #e5e7eb); border-radius: 2px; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; box-sizing: border-box; }
+    .inline-edit:focus { outline: none; border-color: #93c5fd; box-shadow: 0 0 0 1px #93c5fd44; }
   `],
 })
 export class DesignerShellComponent {
   readonly pages: ReadonlyArray<PageEntry> = this.collectPages();
   readonly selectedId = signal<string>(this.pages[0]?.id ?? '');
-  readonly selectedPage = computed<PageEntry | null>(() =>
-    this.pages.find((p) => p.id === this.selectedId()) ?? null,
-  );
+  readonly selectedPage = computed<PageEntry | null>(() => {
+    const base = this.pages.find((p) => p.id === this.selectedId()) ?? null;
+    if (!base) return null;
+    // W edit mode bierzemy title z draftModel (bo user mógł go edytować)
+    this.draftVersion();
+    const model = this.draftModel();
+    if (!model) return base;
+    const draft = model.snapshot();
+    const widgetCount = draft.widgets.length;
+    return {
+      ...base,
+      title: draft.title,
+      widgetCount,
+    };
+  });
   readonly previewLoading = signal<boolean>(false);
   readonly selectedWidgetType = signal<string | null>(null);
   readonly filter = signal<string>('');
   readonly inspectedInstanceId = signal<string | null>(null);
-  readonly viewMode = signal<'preview' | 'source-ts' | 'source-json'>('preview');
+  readonly viewMode = signal<'preview' | 'source-ts' | 'source-json'>('source-ts');
+  /**
+   * Edit mode — przełącznik globalny. Default OFF (read-only zgodnie z Fazą 1).
+   * ON → PageDesignerModel przejmuje kontrolę, wszystkie zmiany lecą przez
+   * .apply() i można je undo/redo. Source view re-renderuje się live.
+   */
+  readonly editMode = signal<boolean>(false);
+  /**
+   * Draft model — tworzony gdy user wybierze stronę. Trzyma aktualny stan
+   * edycji (undo stack, redo stack, current DraftPage).
+   */
+  private readonly draftModel = signal<PageDesignerModel | null>(null);
+  readonly canUndo = signal<boolean>(false);
+  readonly canRedo = signal<boolean>(false);
+  /** Licznik zmian — zwiększany po każdym apply żeby wymusić re-render computed. */
+  private readonly draftVersion = signal<number>(0);
 
   readonly generatedSource = computed<string>(() => {
     const p = this.selectedPage();
     if (!p) return '';
     const mode = this.viewMode();
     if (mode === 'preview') return '';
-    const draft = PageDesignerModel.fromPageConfig(p.config).snapshot();
+    // Reactywne na draftVersion — każdy apply bumpnie counter, computed się odpala.
+    this.draftVersion();
+    const model = this.draftModel();
+    const draft = model ? model.snapshot() : PageDesignerModel.fromPageConfig(p.config).snapshot();
     return serialize(draft, { target: mode === 'source-ts' ? 'page-builder' : 'json' });
   });
 
@@ -420,6 +504,11 @@ export class DesignerShellComponent {
   readonly pageWidgets = computed<ReadonlyArray<{ instanceId: string; type: string }>>(() => {
     const p = this.selectedPage();
     if (!p) return [];
+    this.draftVersion();
+    const model = this.draftModel();
+    if (model) {
+      return model.snapshot().widgets.map((w) => ({ instanceId: w.id, type: w.type }));
+    }
     const widgets = p.config.page.widgets ?? {};
     return Object.entries(widgets).map(([instanceId, w]) => ({ instanceId, type: w.type }));
   });
@@ -428,10 +517,28 @@ export class DesignerShellComponent {
     const p = this.selectedPage();
     const id = this.inspectedInstanceId();
     if (!p || !id) return null;
+    this.draftVersion();
+    const model = this.draftModel();
+
+    if (model) {
+      // Edit mode — draft jako źródło
+      const draftW = model.snapshot().widgets.find((w) => w.id === id);
+      if (!draftW) return null;
+      return {
+        instanceId: id,
+        type: draftW.type,
+        pageRoute: p.route,
+        bind: draftW.widget.bind,
+        options: draftW.widget.options,
+        when: draftW.widget.when,
+        layout: { x: draftW.layout.x, y: draftW.layout.y, w: draftW.layout.w, h: draftW.layout.h },
+        manifest: this.registry?.get(draftW.type)?.manifest,
+      };
+    }
+    // Read-only mode
     const widgetCfg = (p.config.page.widgets ?? {})[id];
     if (!widgetCfg) return null;
     const layoutItem = p.config.page.layout.items.find((it) => it.widget === id) as { x?: number; y?: number; w?: number; h?: number } | undefined ?? {};
-    const manifest = this.registry?.get(widgetCfg.type)?.manifest;
     return {
       instanceId: id,
       type: widgetCfg.type,
@@ -440,7 +547,7 @@ export class DesignerShellComponent {
       options: widgetCfg.options,
       when: widgetCfg.when,
       layout: { x: layoutItem.x, y: layoutItem.y, w: layoutItem.w, h: layoutItem.h },
-      manifest,
+      manifest: this.registry?.get(widgetCfg.type)?.manifest,
     };
   });
   private readonly registry = inject(WIDGET_REGISTRY as never, { optional: true }) as WidgetRegistry | null;
@@ -488,6 +595,84 @@ export class DesignerShellComponent {
       this.selectedId();
       this.previewLoading.set(true);
     });
+
+    // Gdy zmienia się wybrana strona LUB włączamy edit mode — rebuild draftModel
+    effect(() => {
+      const p = this.selectedPage();
+      const enabled = this.editMode();
+      if (!p || !enabled) {
+        this.draftModel.set(null);
+        this.canUndo.set(false);
+        this.canRedo.set(false);
+        return;
+      }
+      const model = PageDesignerModel.fromPageConfig(p.config);
+      this.draftModel.set(model);
+      this.refreshUndoRedo();
+      this.draftVersion.update((v) => v + 1);
+    });
+  }
+
+  private refreshUndoRedo(): void {
+    const m = this.draftModel();
+    this.canUndo.set(m ? m.canUndo() : false);
+    this.canRedo.set(m ? m.canRedo() : false);
+  }
+
+  /**
+   * Aplikuje mutację na draftModel. Musi być używane do KAŻDEJ zmiany — gwarantuje
+   * undo stack entry + reactivity (draftVersion bump).
+   */
+  private applyDraft(mutate: (m: PageDesignerModel) => void): void {
+    const m = this.draftModel();
+    if (!m) return;
+    mutate(m);
+    this.refreshUndoRedo();
+    this.draftVersion.update((v) => v + 1);
+  }
+
+  undo(): void {
+    const m = this.draftModel();
+    if (!m) return;
+    m.undo();
+    this.refreshUndoRedo();
+    this.draftVersion.update((v) => v + 1);
+  }
+
+  redo(): void {
+    const m = this.draftModel();
+    if (!m) return;
+    m.redo();
+    this.refreshUndoRedo();
+    this.draftVersion.update((v) => v + 1);
+  }
+
+  toggleEditMode(): void {
+    this.editMode.update((v) => !v);
+  }
+
+  /** Edytuj tytuł strony — trafia przez model.setTitle → undo stack. */
+  editTitle(nextTitle: string): void {
+    this.applyDraft((m) => m.setTitle(nextTitle));
+  }
+
+  /** Edytuj options pojedyncze pole widgetu — trafia przez model.updateWidget. */
+  editWidgetOption(instanceId: string, key: string, value: unknown): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().widgets.find((w) => w.id === instanceId)?.widget;
+    if (!current) return;
+    const nextOptions = { ...(current.options ?? {}), [key]: value };
+    this.applyDraft((dm) => dm.updateWidget(instanceId, { options: nextOptions }));
+  }
+
+  editWidgetBind(instanceId: string, key: string, value: string): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().widgets.find((w) => w.id === instanceId)?.widget;
+    if (!current) return;
+    const nextBind = { ...(current.bind ?? {}), [key]: value };
+    this.applyDraft((dm) => dm.updateWidget(instanceId, { bind: nextBind }));
   }
 
   onPreviewLoad(): void {
@@ -521,6 +706,36 @@ export class DesignerShellComponent {
     if (typeof navigator !== 'undefined' && navigator.clipboard && src) {
       void navigator.clipboard.writeText(src);
     }
+  }
+
+  asString(v: unknown): string {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'string') return v;
+    if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+    try { return JSON.stringify(v); } catch { return String(v); }
+  }
+
+  /** Pola złożone (obiekty/tablice) nie są edytowalne inline — wymagają panelu dedykowanego (M8+). */
+  isScalarOption(v: unknown): boolean {
+    return v === null || v === undefined || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+  }
+
+  onTitleChange(event: Event): void {
+    const v = (event.target as HTMLInputElement).value;
+    this.editTitle(v);
+  }
+
+  onBindChange(instanceId: string, key: string, event: Event): void {
+    const v = (event.target as HTMLInputElement).value;
+    this.editWidgetBind(instanceId, key, v);
+  }
+
+  onOptionChange(instanceId: string, key: string, event: Event): void {
+    const v = (event.target as HTMLInputElement).value;
+    // Zachowaj typ — jeśli numeryczne, parsuj
+    const n = Number(v);
+    const parsed = v !== '' && !Number.isNaN(n) ? n : v === 'true' ? true : v === 'false' ? false : v;
+    this.editWidgetOption(instanceId, key, parsed);
   }
 
   private collectPages(): ReadonlyArray<PageEntry> {
