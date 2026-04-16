@@ -974,21 +974,29 @@ interface PageEntry {
 export class DesignerShellComponent {
   readonly pages: ReadonlyArray<PageEntry> = this.collectPages();
   readonly selectedId = signal<string>(this.pages[0]?.id ?? '');
+  /**
+   * selectedPage — base entry (z registry lub z draftPages). CELOWO NIE czyta
+   * draftModel/draftVersion żeby uniknąć circular dependency z effectem który
+   * rebuilds draftModel na zmianę selectedId (effect pisze → computed by re-ran
+   * → read draftModel znów ... infinite loop → browser hang).
+   *
+   * Edit-mode dynamic title/widgetCount dostajemy przez osobne computed
+   * (selectedPageLive — używane tylko tam gdzie naprawdę potrzeba draftu).
+   */
   readonly selectedPage = computed<PageEntry | null>(() => {
     const id = this.selectedId();
-    const base = this.pages.find((p) => p.id === id) ?? this.draftPages().find((p) => p.id === id) ?? null;
+    return this.pages.find((p) => p.id === id) ?? this.draftPages().find((p) => p.id === id) ?? null;
+  });
+
+  /** Dodatkowa warstwa — pokazuje draft title/widgetCount gdy edit mode ON. Nie używana w effect. */
+  readonly selectedPageLive = computed<PageEntry | null>(() => {
+    const base = this.selectedPage();
     if (!base) return null;
-    // W edit mode bierzemy title z draftModel (bo user mógł go edytować)
     this.draftVersion();
     const model = this.draftModel();
     if (!model) return base;
     const draft = model.snapshot();
-    const widgetCount = draft.widgets.length;
-    return {
-      ...base,
-      title: draft.title,
-      widgetCount,
-    };
+    return { ...base, title: draft.title, widgetCount: draft.widgets.length };
   });
   readonly previewLoading = signal<boolean>(false);
   readonly selectedWidgetType = signal<string | null>(null);
@@ -1338,20 +1346,31 @@ export class DesignerShellComponent {
       this.previewLoading.set(true);
     });
 
-    // Gdy zmienia się wybrana strona LUB włączamy edit mode — rebuild draftModel
+    // Gdy zmienia się wybrana strona LUB włączamy edit mode — rebuild draftModel.
+    // CELOWO NIE używamy selectedPage() (computed) tylko źródłowe signals, żeby
+    // tracking dependency nie łapał draftVersion/draftModel które sami tu zapisujemy.
     effect(() => {
-      const p = this.selectedPage();
+      const id = this.selectedId();
+      // draftPages czytamy żeby dostać config dla draftów w pamięci
+      const drafts = this.draftPages();
       const enabled = this.editMode();
-      if (!p || !enabled) {
-        this.draftModel.set(null);
-        this.canUndo.set(false);
-        this.canRedo.set(false);
+      const base = this.pages.find((p) => p.id === id) ?? drafts.find((p) => p.id === id);
+
+      if (!base || !enabled) {
+        // untracked: set draftModel/canUndo/canRedo bez triggerowania effect's deps
+        queueMicrotask(() => {
+          this.draftModel.set(null);
+          this.canUndo.set(false);
+          this.canRedo.set(false);
+        });
         return;
       }
-      const model = PageDesignerModel.fromPageConfig(p.config);
-      this.draftModel.set(model);
-      this.refreshUndoRedo();
-      this.draftVersion.update((v) => v + 1);
+      const model = PageDesignerModel.fromPageConfig(base.config);
+      queueMicrotask(() => {
+        this.draftModel.set(model);
+        this.refreshUndoRedo();
+        this.draftVersion.update((v) => v + 1);
+      });
     });
   }
 
