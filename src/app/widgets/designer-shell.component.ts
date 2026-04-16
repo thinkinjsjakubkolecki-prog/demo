@@ -21,6 +21,7 @@ import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import { WIDGET_REGISTRY } from '@echelon-framework/core';
 import type { PageConfig, WidgetManifest, WidgetRegistry } from '@echelon-framework/core';
+import { PageDesignerModel, serialize } from '@echelon-framework/designer-page';
 
 interface PaletteGroup {
   readonly id: string;
@@ -120,22 +121,45 @@ interface PageEntry {
         <section class="canvas-area">
           @if (selectedPage(); as p) {
             <div class="preview-toolbar">
-              <span class="preview-mode">🔍 Read-only preview</span>
+              <div class="tabs">
+                <button type="button" class="tab" [class.active]="viewMode() === 'preview'" (click)="viewMode.set('preview')">
+                  🔍 Preview
+                </button>
+                <button type="button" class="tab" [class.active]="viewMode() === 'source-ts'" (click)="viewMode.set('source-ts')">
+                  📄 PageBuilder TS
+                </button>
+                <button type="button" class="tab" [class.active]="viewMode() === 'source-json'" (click)="viewMode.set('source-json')">
+                  ⚙ JSON config
+                </button>
+              </div>
               <div class="preview-actions">
-                <button type="button" (click)="reloadPreview()" title="Przeładuj preview">↻</button>
-                <a [href]="p.route" target="_blank" rel="noopener" title="Otwórz w nowej karcie">↗ Open</a>
+                @if (viewMode() === 'preview') {
+                  <button type="button" (click)="reloadPreview()" title="Przeładuj preview">↻</button>
+                  <a [href]="p.route" target="_blank" rel="noopener" title="Otwórz w nowej karcie">↗ Open</a>
+                }
+                @if (viewMode() !== 'preview') {
+                  <button type="button" (click)="copySource()" title="Kopiuj do schowka">📋 Copy</button>
+                  <span class="src-size muted">{{ sourceLineCount() }} linii</span>
+                }
               </div>
             </div>
-            <div class="preview-frame" [class.loading]="previewLoading()">
-              <iframe #previewFrame
-                      [src]="previewUrl()"
-                      sandbox="allow-same-origin allow-scripts allow-forms"
-                      (load)="onPreviewLoad()"
-                      title="Page Preview"></iframe>
-              @if (previewLoading()) {
-                <div class="preview-spinner">⏳ Ładowanie…</div>
-              }
-            </div>
+
+            @if (viewMode() === 'preview') {
+              <div class="preview-frame" [class.loading]="previewLoading()">
+                <iframe #previewFrame
+                        [src]="previewUrl()"
+                        sandbox="allow-same-origin allow-scripts allow-forms"
+                        (load)="onPreviewLoad()"
+                        title="Page Preview"></iframe>
+                @if (previewLoading()) {
+                  <div class="preview-spinner">⏳ Ładowanie…</div>
+                }
+              </div>
+            } @else {
+              <div class="source-view">
+                <pre><code [innerHTML]="highlightedSource()"></code></pre>
+              </div>
+            }
           } @else {
             <div class="placeholder">Wybierz stronę z dropdown żeby zobaczyć preview</div>
           }
@@ -345,6 +369,22 @@ interface PageEntry {
     .wli-id { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #60a5fa; }
     .wli-type { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #93c5fd; font-size: 10px; }
     .source-link { display: flex; gap: 6px; align-items: center; font-size: 11px; }
+
+    .tabs { display: flex; gap: 4px; }
+    .tab { padding: 4px 10px; background: transparent; border: 1px solid transparent; color: var(--muted, #9ca3af); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .tab:hover { color: var(--fg, #e5e7eb); background: #1f2937; }
+    .tab.active { background: var(--panel, #0f172a); border-color: #58a6ff; color: #58a6ff; }
+    .src-size { font-size: 11px; margin-left: 8px; }
+
+    .source-view { width: 100%; flex: 1; min-height: 500px; border: 1px solid var(--border, #374151); border-radius: 0 0 4px 4px; overflow: auto; background: #0b1120; }
+    .source-view pre { margin: 0; padding: 16px; font-size: 12px; line-height: 1.6; color: #d1d5db; font-family: ui-monospace, SFMono-Regular, Menlo, 'Cascadia Code', monospace; tab-size: 2; }
+    .source-view code { background: transparent; padding: 0; font-size: inherit; color: inherit; }
+    .tk-kw { color: #c792ea; }
+    .tk-str { color: #c3e88d; }
+    .tk-num { color: #f78c6c; }
+    .tk-com { color: #676e95; font-style: italic; }
+    .tk-dec { color: #ffcb6b; }
+    .tk-key { color: #82aaff; }
   `],
 })
 export class DesignerShellComponent {
@@ -357,6 +397,25 @@ export class DesignerShellComponent {
   readonly selectedWidgetType = signal<string | null>(null);
   readonly filter = signal<string>('');
   readonly inspectedInstanceId = signal<string | null>(null);
+  readonly viewMode = signal<'preview' | 'source-ts' | 'source-json'>('preview');
+
+  readonly generatedSource = computed<string>(() => {
+    const p = this.selectedPage();
+    if (!p) return '';
+    const mode = this.viewMode();
+    if (mode === 'preview') return '';
+    const draft = PageDesignerModel.fromPageConfig(p.config).snapshot();
+    return serialize(draft, { target: mode === 'source-ts' ? 'page-builder' : 'json' });
+  });
+
+  readonly sourceLineCount = computed<number>(() => {
+    const src = this.generatedSource();
+    return src ? src.split('\n').length : 0;
+  });
+
+  readonly highlightedSource = computed<string>(() => {
+    return highlightSource(this.generatedSource(), this.viewMode());
+  });
 
   readonly pageWidgets = computed<ReadonlyArray<{ instanceId: string; type: string }>>(() => {
     const p = this.selectedPage();
@@ -457,6 +516,13 @@ export class DesignerShellComponent {
     return String(v);
   }
 
+  copySource(): void {
+    const src = this.generatedSource();
+    if (typeof navigator !== 'undefined' && navigator.clipboard && src) {
+      void navigator.clipboard.writeText(src);
+    }
+  }
+
   private collectPages(): ReadonlyArray<PageEntry> {
     const classes = getRegisteredPageClasses() as Array<{ name?: string; config?: PageConfig }>;
     const out: PageEntry[] = [];
@@ -491,3 +557,40 @@ export class DesignerShellComponent {
 function humanize(id: string): string {
   return id.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+const TS_KEYWORDS = /\b(import|from|export|class|static|readonly|const|return|true|false|null|undefined|type|interface|this)\b/g;
+const TS_DECORATORS = /(@\w+)/g;
+const TS_STRINGS = /(&#39;[^&]*?&#39;|&quot;[^&]*?&quot;|&#96;[^&]*?&#96;)/g;
+const TS_COMMENTS = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g;
+const TS_NUMBERS = /\b(\d+\.?\d*)\b/g;
+const JSON_STRINGS = /(&quot;[^&]*?&quot;)(?=\s*:)/g;
+const JSON_STRINGS_VALUE = /:(\s*)(&quot;[^&]*?&quot;)/g;
+const JSON_KEYWORDS = /\b(true|false|null)\b/g;
+
+function highlightSource(src: string, mode: 'preview' | 'source-ts' | 'source-json'): string {
+  if (!src) return '';
+  const esc = src
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/`/g, '&#96;');
+  if (mode === 'source-ts') {
+    return esc
+      .replace(TS_COMMENTS, '<span class="tk-com">$1</span>')
+      .replace(TS_STRINGS, '<span class="tk-str">$1</span>')
+      .replace(TS_DECORATORS, '<span class="tk-dec">$1</span>')
+      .replace(TS_KEYWORDS, '<span class="tk-kw">$1</span>')
+      .replace(TS_NUMBERS, '<span class="tk-num">$1</span>');
+  }
+  // JSON
+  return esc
+    .replace(JSON_STRINGS, '<span class="tk-key">$1</span>')
+    .replace(JSON_STRINGS_VALUE, ':$1<span class="tk-str">$2</span>')
+    .replace(JSON_KEYWORDS, '<span class="tk-kw">$1</span>')
+    .replace(JSON_NUMBERS_SAFE, (m) => `<span class="tk-num">${m}</span>`);
+}
+
+// JSON number matcher applied after strings/keywords — safe regex
+const JSON_NUMBERS_SAFE = /(?<=[:\s,[])-?\d+\.?\d*(?=[\s,}\]])/g;
