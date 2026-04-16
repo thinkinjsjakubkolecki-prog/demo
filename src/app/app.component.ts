@@ -5,10 +5,9 @@
  * można go używać przez `imports: [...]` w template.
  */
 import { ChangeDetectionStrategy, Component, inject, DestroyRef } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule, NavigationEnd } from '@angular/router';
-import { filter, map, startWith } from 'rxjs/operators';
+import { RouterModule } from '@angular/router';
 import { EVENT_BUS } from '@echelon-framework/core';
 import { menu } from './bootstrap/menu';
 import type { MenuItem } from '@echelon-framework/page-builders';
@@ -20,8 +19,9 @@ import { exportPositionsToCsv } from './bootstrap/framework-integrations';
   imports: [CommonModule, RouterModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (embedMode()) {
-      <!-- Embed mode — iframe preview, bez chrome-u. Trigger: ?embed=1 w URL -->
+    @if (embedMode) {
+      <!-- Embed mode — aplikacja w iframe, bez chrome-u (sidebar+menu).
+           Detekcja: window.self !== window.top. -->
       <main class="embed"><router-outlet /></main>
     } @else {
       <div class="shell">
@@ -102,30 +102,26 @@ export class AppComponent {
   readonly envLabel: string = (document.documentElement.dataset['env'] ?? 'dev').toUpperCase();
   readonly menu: ReadonlyArray<MenuItem> = menu;
 
-  private readonly router = inject(Router);
-
   /**
-   * Embed mode — gdy URL ma query param `?embed=1`, chrome (sidebar + menu)
-   * jest ukryty. Używane przez designer-shell preview iframe — pokazuje
-   * stronę bez menu żeby user widział tylko content strony.
+   * Embed mode — true gdy aplikacja renderuje się w iframe.
    *
-   * Reaktywne na route events — iframe mount ma czasem race z Router init,
-   * więc IIFE w konstruktorze niewystarczał.
+   * Najbezpieczniejsza metoda detekcji: `window.self !== window.top`.
+   * Przeglądarka sama wie czy jest w iframe, niezależnie od URL, query params,
+   * Router event timing itd. Synchroniczny check w konstruktorze → gotowa
+   * wartość przed pierwszym render-em template-a. Zero signal tracking, zero
+   * race conditions.
+   *
+   * Safe try/catch dla cross-origin iframe (np. gdy parent to inny origin —
+   * SecurityError — wtedy też jesteśmy w iframe, więc fallback na true).
    */
-  readonly embedMode = toSignal(
-    this.router.events.pipe(
-      filter((e) => e instanceof NavigationEnd),
-      startWith(null),
-      map(() => {
-        if (typeof window === 'undefined') return false;
-        return new URLSearchParams(window.location.search).get('embed') === '1';
-      }),
-    ),
-    { initialValue: (() => {
-      if (typeof window === 'undefined') return false;
-      return new URLSearchParams(window.location.search).get('embed') === '1';
-    })() },
-  );
+  readonly embedMode: boolean = (() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true; // cross-origin parent access throws → znaczy że JESTEŚMY w iframe
+    }
+  })();
 
   private readonly expanded = new Set<string>(menu.filter((i) => i.defaultOpen).map((i) => i.id));
   private readonly destroyRef = inject(DestroyRef);

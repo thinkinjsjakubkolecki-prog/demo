@@ -1386,13 +1386,12 @@ export class DesignerShellComponent {
   readonly previewUrl = computed<SafeUrl | null>(() => {
     const p = this.selectedPage();
     if (!p) return null;
-    // Drafty mają teraz dynamic route /draft/:id — iframe renderuje je
-    // przez DraftPageRendererComponent (czyta z localStorage). Nie ma
-    // więcej infinite recursion problemu.
-    // ?embed=1 — AppComponent chowa shell (menu+sidebar), pokazuje sam content.
+    // Drafty mają dynamic route /draft/:id — iframe renderuje je przez
+    // DraftPageRendererComponent (czyta z localStorage).
+    // Menu/chrome jest chowany przez AppComponent.embedMode który wykrywa
+    // iframe przez window.self !== window.top — niezależnie od URL.
     const bust = this.reloadTrigger();
-    const separator = p.route.includes('?') ? '&' : '?';
-    const url = `${p.route}${separator}embed=1${bust > 0 ? `&_reload=${bust}` : ''}`;
+    const url = bust > 0 ? `${p.route}?_reload=${bust}` : p.route;
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   });
 
