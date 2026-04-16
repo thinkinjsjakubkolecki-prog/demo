@@ -396,7 +396,7 @@ interface PageEntry {
               Datasources
               <span class="count-pill">{{ pageDatasources().length }}</span>
               @if (editMode()) {
-                <span class="ro-badge" title="Edycja wymaga rozszerzenia PageDesignerModel (planowane rc.16)">read-only</span>
+                <button type="button" class="btn-mini" (click)="addDatasource()" title="Dodaj datasource">+ ds</button>
               }
             </div>
             <div class="widget-list">
@@ -406,6 +406,9 @@ interface PageEntry {
                     <span class="wli-id">{{ ds.id }}</span>
                     <span class="wli-type">{{ ds.kind }}{{ ds.transport ? ' : ' + ds.transport : '' }}{{ ds.endpoint ? ' → ' + ds.endpoint : '' }}</span>
                   </div>
+                  @if (editMode()) {
+                    <button type="button" class="btn-rm" (click)="removeDatasource(ds.id)" title="Usuń">✕</button>
+                  }
                 </div>
               }
               @if (pageDatasources().length === 0) {
@@ -419,7 +422,7 @@ interface PageEntry {
               Computed
               <span class="count-pill">{{ pageComputed().length }}</span>
               @if (editMode()) {
-                <span class="ro-badge" title="Edycja wymaga rozszerzenia PageDesignerModel (planowane rc.16)">read-only</span>
+                <button type="button" class="btn-mini" (click)="addComputed()" title="Dodaj computed">+ fn</button>
               }
             </div>
             <div class="widget-list">
@@ -429,6 +432,9 @@ interface PageEntry {
                     <span class="wli-id">{{ c.id }}</span>
                     <span class="wli-type">{{ c.fn || 'expr' }} ← [{{ c.deps.join(', ') || '—' }}]</span>
                   </div>
+                  @if (editMode()) {
+                    <button type="button" class="btn-rm" (click)="removeComputed(c.id)" title="Usuń">✕</button>
+                  }
                 </div>
               }
               @if (pageComputed().length === 0) {
@@ -442,7 +448,7 @@ interface PageEntry {
               Event handlers
               <span class="count-pill">{{ pageHandlers().length }}</span>
               @if (editMode()) {
-                <span class="ro-badge" title="Edycja handlerów wymaga rozszerzenia PageDesignerModel (planowane rc.16)">read-only</span>
+                <button type="button" class="btn-mini" (click)="addHandler()" title="Dodaj handler">+ handler</button>
               }
             </div>
             <div class="widget-list">
@@ -452,6 +458,9 @@ interface PageEntry {
                     <span class="wli-id">{{ h.on }}</span>
                     <span class="wli-type">{{ h.actionSummary }}</span>
                   </div>
+                  @if (editMode()) {
+                    <button type="button" class="btn-rm" (click)="removeHandler(h.handlerId)" title="Usuń">✕</button>
+                  }
                 </div>
               }
               @if (pageHandlers().length === 0) {
@@ -884,6 +893,20 @@ export class DesignerShellComponent {
     const p = this.selectedPage();
     if (!p) return [];
     this.draftVersion();
+    const model = this.draftModel();
+    // Edit mode: czytaj z draftu (lista z rc.16)
+    if (model) {
+      return model.snapshot().datasources.map((d) => {
+        const cfg = d.config;
+        const out: { id: string; kind: string; transport?: string; endpoint?: string } = {
+          id: d.id,
+          kind: cfg.kind ?? 'transport',
+        };
+        if (cfg.transport) out.transport = cfg.transport;
+        if (cfg.endpoint) out.endpoint = cfg.endpoint;
+        return out;
+      });
+    }
     const dss = p.config.page.datasources ?? {};
     return Object.entries(dss).map(([id, d]) => {
       const out: { id: string; kind: string; transport?: string; endpoint?: string } = {
@@ -900,6 +923,19 @@ export class DesignerShellComponent {
     const p = this.selectedPage();
     if (!p) return [];
     this.draftVersion();
+    const model = this.draftModel();
+    if (model) {
+      return model.snapshot().computed.map((c) => {
+        const def = c.config as { fn?: string; expr?: string; deps?: ReadonlyArray<string>; inputs?: ReadonlyArray<string> };
+        const out: { id: string; fn?: string; deps: ReadonlyArray<string> } = {
+          id: c.id,
+          deps: def.deps ?? def.inputs ?? [],
+        };
+        if (def.fn) out.fn = def.fn;
+        else if (def.expr) out.fn = def.expr;
+        return out;
+      });
+    }
     const cs = p.config.page.computed ?? {};
     return Object.entries(cs).map(([id, c]) => {
       const def = c as { fn?: string; expr?: string; deps?: ReadonlyArray<string>; inputs?: ReadonlyArray<string> };
@@ -913,24 +949,36 @@ export class DesignerShellComponent {
     });
   });
 
-  readonly pageHandlers = computed<ReadonlyArray<{ idx: number; on: string; actionSummary: string }>>(() => {
+  readonly pageHandlers = computed<ReadonlyArray<{ idx: number; handlerId: string; on: string; actionSummary: string }>>(() => {
     const p = this.selectedPage();
     if (!p) return [];
     this.draftVersion();
+    const model = this.draftModel();
+    const summarize = (actions: ReadonlyArray<unknown>): string => actions.map((a) => {
+      const obj = a as Record<string, unknown>;
+      if ('emit' in obj) return `emit(${String(obj['emit'])})`;
+      if ('setDatasource' in obj) return `set(${String(obj['setDatasource'])})`;
+      if ('clearDatasource' in obj) return `clear(${String(obj['clearDatasource'])})`;
+      if ('call' in obj) return `call(${String(obj['call'])})`;
+      if ('callComputed' in obj) return `compute(${String(obj['callComputed'])})`;
+      if ('fetch' in obj) return `fetch(${String(obj['fetch'])})`;
+      return '?';
+    }).join(' → ');
+
+    if (model) {
+      return model.snapshot().handlers.map((h, idx) => ({
+        idx,
+        handlerId: h.id,
+        on: h.config.on,
+        actionSummary: summarize(h.config.do),
+      }));
+    }
     const handlers = p.config.page.eventHandlers ?? [];
     return handlers.map((h, idx) => ({
       idx,
+      handlerId: `read-${idx}`,
       on: h.on,
-      actionSummary: h.do.map((a) => {
-        const obj = a as Record<string, unknown>;
-        if ('emit' in obj) return `emit(${String(obj['emit'])})`;
-        if ('setDatasource' in obj) return `set(${String(obj['setDatasource'])})`;
-        if ('clearDatasource' in obj) return `clear(${String(obj['clearDatasource'])})`;
-        if ('call' in obj) return `call(${String(obj['call'])})`;
-        if ('callComputed' in obj) return `compute(${String(obj['callComputed'])})`;
-        if ('fetch' in obj) return `fetch(${String(obj['fetch'])})`;
-        return '?';
-      }).join(' → '),
+      actionSummary: summarize(h.do),
     }));
   });
 
@@ -1389,6 +1437,65 @@ export class DesignerShellComponent {
         setTimeout(() => this.saveCopied.set(false), 2000);
       });
     }
+  }
+
+  addDatasource(): void {
+    const id = this.promptKey('datasource (np. clientsList)');
+    if (!id) return;
+    const kindRaw = (typeof window !== 'undefined') ? window.prompt('Kind (transport/local/computed):', 'transport') : 'transport';
+    const kind = (kindRaw === 'local' || kindRaw === 'computed' || kindRaw === 'transport') ? kindRaw : 'transport';
+    this.applyDraft((dm) =>
+      dm.addDatasource({
+        id,
+        config: kind === 'local'
+          ? { kind: 'local' }
+          : kind === 'computed'
+          ? { kind: 'computed', fn: 'TODO', inputs: [] }
+          : { kind: 'transport', transport: 'http', endpoint: `/${id}` },
+      }),
+    );
+  }
+
+  removeDatasource(id: string): void {
+    if (typeof window !== 'undefined' && !window.confirm(`Usunąć datasource "${id}"?`)) return;
+    this.applyDraft((dm) => dm.removeDatasource(id));
+  }
+
+  addComputed(): void {
+    const id = this.promptKey('computed (np. totalPnl)');
+    if (!id) return;
+    const fn = (typeof window !== 'undefined') ? window.prompt('Nazwa funkcji (zarejestrowana w functions/):', 'myFunction') : 'myFunction';
+    if (!fn) return;
+    const depsRaw = (typeof window !== 'undefined') ? window.prompt('Dependencies (comma-separated):', '') : '';
+    const deps = (depsRaw ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    this.applyDraft((dm) =>
+      dm.addComputed({
+        id,
+        config: { expr: fn, deps } as never,
+      }),
+    );
+  }
+
+  removeComputed(id: string): void {
+    if (typeof window !== 'undefined' && !window.confirm(`Usunąć computed "${id}"?`)) return;
+    this.applyDraft((dm) => dm.removeComputed(id));
+  }
+
+  addHandler(): void {
+    const on = (typeof window !== 'undefined') ? window.prompt('Event name (np. form.submit):', '') : '';
+    if (!on) return;
+    const handlerId = `h${Date.now()}-${on.replace(/[^a-zA-Z0-9]/g, '')}`;
+    this.applyDraft((dm) =>
+      dm.addHandler({
+        id: handlerId,
+        config: { on, do: [] as never[] },
+      }),
+    );
+  }
+
+  removeHandler(handlerId: string): void {
+    if (typeof window !== 'undefined' && !window.confirm(`Usunąć handler "${handlerId}"?`)) return;
+    this.applyDraft((dm) => dm.removeHandler(handlerId));
   }
 
   deleteInspectedWidget(): void {
