@@ -24,6 +24,7 @@ import '../pages/new-transaction.page';
 import '../pages/process-flow.page';
 import '../pages/business-flow.page';
 import '../pages/designer.page';
+import '../pages/menu-editor.page';
 
 export const { pages, routes, declarations } = collectRegisteredPages({
   component: EchelonPageRouterComponent,

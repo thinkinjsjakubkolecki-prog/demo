@@ -29,6 +29,7 @@ import { CandlestickChartComponent } from '../widgets/candlestick-chart.componen
 import { FlowDiagramComponent } from '../widgets/flow-diagram.component';
 import { BusinessFlowComponent } from '../widgets/business-flow.component';
 import { DesignerShellComponent } from '../widgets/designer-shell.component';
+import { MenuEditorComponent } from '../widgets/menu-editor.component';
 
 export const widgets = [
   // Generic — framework
@@ -47,4 +48,6 @@ export const widgets = [
   BusinessFlowComponent,
   // Page Inspector shell — Faza 1 visual designer (M1+)
   DesignerShellComponent,
+  // Menu editor — kreator struktury menu (M20)
+  MenuEditorComponent,
 ];
