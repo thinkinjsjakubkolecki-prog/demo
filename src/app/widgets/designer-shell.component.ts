@@ -244,9 +244,19 @@ interface PageEntry {
                         </div>
                         @if (editMode()) {
                           <div class="prim-actions" (click)="$event.stopPropagation()">
-                            <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'up')" title="Przesuń w górę (y--)">↑</button>
-                            <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'down')" title="Przesuń w dół (y++)">↓</button>
+                            <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'up')" title="y--">↑</button>
+                            <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'down')" title="y++">↓</button>
+                            <button type="button" class="btn-tiny" (click)="splitHorizontal(w.instanceId)" title="Podziel w poziomie (duplikat obok)">⇔</button>
+                            <button type="button" class="btn-tiny" (click)="splitVertical(w.instanceId)" title="Podziel w pionie (duplikat pod)">⇕</button>
                             <button type="button" class="btn-tiny danger" (click)="removeWidgetById(w.instanceId)" title="Usuń">✕</button>
+                          </div>
+                          <div class="prim-fractions" (click)="$event.stopPropagation()">
+                            <button type="button" class="frac" [class.active]="w.w === 3" (click)="setWidgetFraction(w.instanceId, '1/4')" title="1/4 szerokości (w=3)">¼</button>
+                            <button type="button" class="frac" [class.active]="w.w === 4" (click)="setWidgetFraction(w.instanceId, '1/3')" title="1/3 (w=4)">⅓</button>
+                            <button type="button" class="frac" [class.active]="w.w === 6" (click)="setWidgetFraction(w.instanceId, '1/2')" title="1/2 (w=6)">½</button>
+                            <button type="button" class="frac" [class.active]="w.w === 8" (click)="setWidgetFraction(w.instanceId, '2/3')" title="2/3 (w=8)">⅔</button>
+                            <button type="button" class="frac" [class.active]="w.w === 9" (click)="setWidgetFraction(w.instanceId, '3/4')" title="3/4 (w=9)">¾</button>
+                            <button type="button" class="frac" [class.active]="(w.w ?? 12) === 12" (click)="setWidgetFraction(w.instanceId, '1/1')" title="Full (w=12)">1</button>
                           </div>
                         }
                       </div>
@@ -1371,6 +1381,12 @@ interface PageEntry {
     .prim-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; background: rgba(26, 35, 50, 0.9); padding: 2px; border-radius: 3px; }
     .primitive-card:hover .prim-actions, .primitive-card.active .prim-actions { opacity: 1; }
 
+    .prim-fractions { position: absolute; bottom: 4px; left: 4px; right: 4px; display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; background: rgba(11, 17, 32, 0.95); padding: 3px; border-radius: 3px; border: 1px solid var(--border, #374151); }
+    .primitive-card:hover .prim-fractions, .primitive-card.active .prim-fractions { opacity: 1; }
+    .frac { flex: 1; padding: 2px 0; background: transparent; border: 1px solid transparent; color: var(--muted, #9ca3af); border-radius: 2px; font-size: 11px; cursor: pointer; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .frac:hover { background: #1f2937; border-color: var(--border, #374151); color: var(--fg, #e5e7eb); }
+    .frac.active { background: #1e3a5f; border-color: #3b82f6; color: #e0f2fe; font-weight: 600; }
+
     .layout-empty { grid-column: 1 / -1; grid-row: 1 / span 4; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 10px; color: var(--muted, #9ca3af); text-align: center; }
     .empty-icon { font-size: 48px; opacity: 0.4; }
     .empty-title { font-size: 16px; font-weight: 600; }
@@ -2184,15 +2200,35 @@ export class DesignerShellComponent {
     if (!m) return;
     const instanceId = this.generateInstanceId(type);
     const nextY = this.findNextFreeY();
+    const defaultW = this.defaultWidthFor(type);
     this.applyDraft((dm) =>
       dm.addWidget({
         id: instanceId,
         type,
-        layout: { widget: instanceId, x: 0, y: nextY, w: 12 },
+        layout: { widget: instanceId, x: 0, y: nextY, w: defaultW },
         widget: { type },
       }),
     );
     this.inspectedInstanceId.set(instanceId);
+  }
+
+  /**
+   * Smart default szerokości widgetu — na podstawie category/name heurystyki.
+   * User nie musi ręcznie zwężać każdego widget z w=12. Trafia do naturalnej
+   * wielkości: tytuły pełne, formularze/tabele full lub half w zależności.
+   */
+  private defaultWidthFor(type: string): number {
+    const manifest = this.registry?.get(type)?.manifest;
+    const cat = manifest?.category ?? '';
+    // Presets per kategoria
+    if (type.includes('page-title') || type === 'title') return 12;
+    if (type.includes('actions-bar') || type.includes('toolbar')) return 12;
+    if (cat === 'table' || type.includes('grid') || type.includes('table')) return 12;
+    if (type.includes('chart')) return 8;
+    if (type.includes('form')) return 8;
+    if (cat === 'kpi' || type.includes('stat') || type.includes('tile')) return 4;
+    if (type.includes('card')) return 6;
+    return 6; // sensowny default — połówka
   }
 
   /** Generator unikalnych instance ID — baza od typu + inkrementacja. */
@@ -2410,6 +2446,82 @@ export class DesignerShellComponent {
 
   resizeHalf(instanceId: string): void {
     this.applyDraft((dm) => dm.moveWidget(instanceId, { w: 6 }));
+  }
+
+  /**
+   * Ustaw szerokość widgeta jako frakcję 12-col grid.
+   * Mapowanie: 1/4=3, 1/3=4, 1/2=6, 2/3=8, 3/4=9, 1/1=12.
+   * Pozwala user-owi myśleć proporcjami zamiast kolumnami.
+   */
+  setWidgetFraction(instanceId: string, fraction: '1/4' | '1/3' | '1/2' | '2/3' | '3/4' | '1/1'): void {
+    const widths: Record<typeof fraction, number> = {
+      '1/4': 3, '1/3': 4, '1/2': 6, '2/3': 8, '3/4': 9, '1/1': 12,
+    };
+    this.applyDraft((dm) => dm.moveWidget(instanceId, { w: widths[fraction] }));
+  }
+
+  /**
+   * Split horizontal: dodaje duplikat widget-a obok, obie połówki w/2.
+   * Ograniczenie: widget musi mieć parzystą szerokość (w=2 → 2×1, w=4 → 2×2,
+   * w=6 → 2×3, w=8 → 2×4, w=12 → 2×6). Dla nieparzystych — zaokrągl w górę.
+   */
+  splitHorizontal(instanceId: string): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const target = m.snapshot().widgets.find((wd) => wd.id === instanceId);
+    if (!target) return;
+    const curW = target.layout.w ?? 12;
+    const halfW = Math.max(1, Math.floor(curW / 2));
+    const newX = (target.layout.x ?? 0) + halfW;
+    const newId = this.generateInstanceId(target.type);
+    // Zmniejsz oryginalny
+    this.applyDraft((dm) => dm.moveWidget(instanceId, { w: halfW }));
+    // Dodaj duplikat obok
+    this.applyDraft((dm) =>
+      dm.addWidget({
+        id: newId,
+        type: target.type,
+        layout: {
+          widget: newId,
+          x: newX,
+          y: target.layout.y ?? 0,
+          w: halfW,
+          ...(target.layout.h !== undefined ? { h: target.layout.h } : {}),
+        },
+        widget: { ...target.widget },
+      }),
+    );
+    this.inspectedInstanceId.set(newId);
+  }
+
+  /**
+   * Split vertical: dodaje duplikat pod (y+h), obie zachowują pełną szerokość,
+   * oryginalnego wysokość zostaje, nowy dostaje tę samą.
+   */
+  splitVertical(instanceId: string): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const target = m.snapshot().widgets.find((wd) => wd.id === instanceId);
+    if (!target) return;
+    const curH = target.layout.h ?? 1;
+    const curY = target.layout.y ?? 0;
+    const newY = curY + curH;
+    const newId = this.generateInstanceId(target.type);
+    this.applyDraft((dm) =>
+      dm.addWidget({
+        id: newId,
+        type: target.type,
+        layout: {
+          widget: newId,
+          ...(target.layout.x !== undefined ? { x: target.layout.x } : {}),
+          y: newY,
+          ...(target.layout.w !== undefined ? { w: target.layout.w } : {}),
+          ...(target.layout.h !== undefined ? { h: target.layout.h } : {}),
+        },
+        widget: { ...target.widget },
+      }),
+    );
+    this.inspectedInstanceId.set(newId);
   }
 
   openSaveDialog(): void {
