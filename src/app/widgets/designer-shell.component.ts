@@ -197,6 +197,8 @@ interface PageEntry {
             <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>Undo</dd>
             <dt><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd>Redo</dd>
             <dt><kbd>Ctrl</kbd>+<kbd>E</kbd></dt><dd>Toggle edit</dd>
+            <dt><kbd>Shift</kbd>+<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></dt><dd>Move widget</dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></dt><dd>Resize widget</dd>
           </dl>
         </details>
         @if (inspectedWidget(); as iw) {
@@ -1452,6 +1454,63 @@ export class DesignerShellComponent {
     if ((event.key === 'Delete' || event.key === 'Backspace') && !inInput && this.editMode() && this.inspectedInstanceId()) {
       event.preventDefault();
       this.deleteInspectedWidget();
+      return;
+    }
+
+    // Shift + arrows — przesuwa zaznaczony widget po gridzie (tylko edit mode, widget selected)
+    if (event.shiftKey && !inInput && this.editMode() && this.inspectedInstanceId()) {
+      const id = this.inspectedInstanceId()!;
+      const iw = this.inspectedWidget();
+      if (!iw) return;
+      const curX = iw.layout.x ?? 0;
+      const curY = iw.layout.y ?? 0;
+      const curW = iw.layout.w ?? 12;
+      const curH = iw.layout.h ?? 1;
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.applyDraft((dm) => dm.moveWidget(id, { y: Math.max(0, curY - 1) }));
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.applyDraft((dm) => dm.moveWidget(id, { y: curY + 1 }));
+        return;
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        this.applyDraft((dm) => dm.moveWidget(id, { x: Math.max(0, curX - 1) }));
+        return;
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        this.applyDraft((dm) => dm.moveWidget(id, { x: Math.min(12 - curW, curX + 1) }));
+        return;
+      }
+
+      // Ctrl/Cmd + Shift + arrows — resize
+      if (event.ctrlKey || event.metaKey) {
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          this.applyDraft((dm) => dm.moveWidget(id, { w: Math.max(1, curW - 1) }));
+          return;
+        }
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          this.applyDraft((dm) => dm.moveWidget(id, { w: Math.min(12 - curX, curW + 1) }));
+          return;
+        }
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          this.applyDraft((dm) => dm.moveWidget(id, { h: curH + 1 }));
+          return;
+        }
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          this.applyDraft((dm) => dm.moveWidget(id, { h: Math.max(1, curH - 1) }));
+          return;
+        }
+      }
     }
   }
 
