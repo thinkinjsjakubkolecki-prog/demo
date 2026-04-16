@@ -12,9 +12,11 @@
  * Cel v1.0: edytor z którym BA tworzy strony bez dotykania kodu.
  * Ten widget to trzon Fazy 1 (read-only).
  */
-import { computed, signal } from '@angular/core';
+import { computed, effect, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, type SafeUrl } from '@angular/platform-browser';
+import { inject } from '@angular/core';
 import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
@@ -79,7 +81,27 @@ interface PageEntry {
           }
         </header>
         <section class="canvas-area">
-          <div class="placeholder">⏳ M3 — preview wybranej strony (read-only)</div>
+          @if (selectedPage(); as p) {
+            <div class="preview-toolbar">
+              <span class="preview-mode">🔍 Read-only preview</span>
+              <div class="preview-actions">
+                <button type="button" (click)="reloadPreview()" title="Przeładuj preview">↻</button>
+                <a [href]="p.route" target="_blank" rel="noopener" title="Otwórz w nowej karcie">↗ Open</a>
+              </div>
+            </div>
+            <div class="preview-frame" [class.loading]="previewLoading()">
+              <iframe #previewFrame
+                      [src]="previewUrl()"
+                      sandbox="allow-same-origin allow-scripts allow-forms"
+                      (load)="onPreviewLoad()"
+                      title="Page Preview"></iframe>
+              @if (previewLoading()) {
+                <div class="preview-spinner">⏳ Ładowanie…</div>
+              }
+            </div>
+          } @else {
+            <div class="placeholder">Wybierz stronę z dropdown żeby zobaczyć preview</div>
+          }
         </section>
       </main>
 
@@ -158,6 +180,17 @@ interface PageEntry {
     .meta { margin-left: auto; display: flex; gap: 10px; font-size: 12px; color: var(--muted, #9ca3af); }
     .meta span { display: flex; align-items: center; gap: 4px; }
     .meta .ic { font-size: 13px; }
+
+    .preview-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #1f2937; border: 1px solid var(--border, #374151); border-bottom: none; border-radius: 4px 4px 0 0; font-size: 12px; }
+    .preview-mode { color: var(--muted, #9ca3af); }
+    .preview-actions { display: flex; gap: 6px; }
+    .preview-actions button, .preview-actions a { padding: 3px 8px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 12px; cursor: pointer; text-decoration: none; }
+    .preview-actions button:hover, .preview-actions a:hover { border-color: #58a6ff; }
+
+    .preview-frame { position: relative; width: 100%; flex: 1; min-height: 500px; border: 1px solid var(--border, #374151); border-radius: 0 0 4px 4px; overflow: hidden; background: #fff; }
+    .preview-frame iframe { width: 100%; height: 100%; min-height: 500px; border: none; display: block; background: var(--panel, #0f172a); }
+    .preview-frame.loading iframe { opacity: 0.3; }
+    .preview-spinner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--muted, #9ca3af); background: rgba(15, 23, 42, 0.6); }
   `],
 })
 export class DesignerShellComponent {
@@ -166,6 +199,33 @@ export class DesignerShellComponent {
   readonly selectedPage = computed<PageEntry | null>(() =>
     this.pages.find((p) => p.id === this.selectedId()) ?? null,
   );
+  readonly previewLoading = signal<boolean>(false);
+  private readonly sanitizer = inject(DomSanitizer);
+  private readonly reloadTrigger = signal<number>(0);
+  readonly previewUrl = computed<SafeUrl | null>(() => {
+    const p = this.selectedPage();
+    if (!p) return null;
+    const bust = this.reloadTrigger();
+    const url = bust > 0 ? `${p.route}?_reload=${bust}` : p.route;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  });
+
+  constructor() {
+    effect(() => {
+      // Gdy zmienia się selected page — ustaw loading dopóki iframe nie wywoła onPreviewLoad
+      this.selectedId();
+      this.previewLoading.set(true);
+    });
+  }
+
+  onPreviewLoad(): void {
+    this.previewLoading.set(false);
+  }
+
+  reloadPreview(): void {
+    this.previewLoading.set(true);
+    this.reloadTrigger.update((v) => v + 1);
+  }
 
   private collectPages(): ReadonlyArray<PageEntry> {
     const classes = getRegisteredPageClasses() as Array<{ name?: string; config?: PageConfig }>;
