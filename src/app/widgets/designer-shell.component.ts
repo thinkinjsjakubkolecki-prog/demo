@@ -22,6 +22,7 @@ import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import { WIDGET_REGISTRY } from '@echelon-framework/core';
 import type { PageConfig, WidgetManifest, WidgetRegistry } from '@echelon-framework/core';
 import { PageDesignerModel, serialize } from '@echelon-framework/designer-page';
+import { DraftPageStoreService } from '../services/draft-page-store.service';
 
 interface PaletteGroup {
   readonly id: string;
@@ -112,6 +113,9 @@ interface PageEntry {
             </select>
           </label>
           <button type="button" class="btn-new" (click)="openNewPageDialog()" title="Nowa strona (pusta)">➕ New page</button>
+          @if (isDraftPage()) {
+            <button type="button" class="btn-danger small" (click)="deleteDraft()" title="Usuń ten draft z localStorage">🗑 Delete draft</button>
+          }
           @if (selectedPage(); as p) {
             <div class="breadcrumb">
               <span class="crumb class">{{ p.sourceClassName }}</span>
@@ -165,41 +169,16 @@ interface PageEntry {
             </div>
 
             @if (viewMode() === 'preview') {
-              @if (isDraftPage()) {
-                <div class="draft-preview-notice">
-                  <div class="draft-icon">⚡</div>
-                  <div class="draft-title">Draft page — preview niedostępny</div>
-                  <div class="draft-desc">
-                    Ta strona istnieje tylko w pamięci designera.
-                    Preview iframe wymaga zarejestrowanej strony w Angular Routerze.
-                  </div>
-                  <div class="draft-actions">
-                    <button type="button" class="primary" (click)="viewMode.set('source-ts')">📄 Zobacz source</button>
-                    <button type="button" (click)="openSaveDialog()">💾 Exportuj do .page.ts</button>
-                  </div>
-                  <div class="draft-hint">
-                    Żeby zobaczyć live preview:
-                    <ol>
-                      <li>Edytuj draft w designer-ie (Edit ON)</li>
-                      <li>💾 Save → skopiuj source</li>
-                      <li>Wklej do <code>src/app/pages/{{ selectedPage()?.id }}.page.ts</code></li>
-                      <li>Dodaj import w <code>bootstrap/pages.ts</code></li>
-                      <li>ng serve hot-reload → strona pojawi się w routerze</li>
-                    </ol>
-                  </div>
-                </div>
-              } @else {
-                <div class="preview-frame" [class.loading]="previewLoading()">
-                  <iframe #previewFrame
-                          [src]="previewUrl()"
-                          sandbox="allow-same-origin allow-scripts allow-forms"
-                          (load)="onPreviewLoad()"
-                          title="Page Preview"></iframe>
-                  @if (previewLoading()) {
-                    <div class="preview-spinner">⏳ Ładowanie…</div>
-                  }
-                </div>
-              }
+              <div class="preview-frame" [class.loading]="previewLoading()">
+                <iframe #previewFrame
+                        [src]="previewUrl()"
+                        sandbox="allow-same-origin allow-scripts allow-forms"
+                        (load)="onPreviewLoad()"
+                        title="Page Preview"></iframe>
+                @if (previewLoading()) {
+                  <div class="preview-spinner">⏳ Ładowanie…</div>
+                }
+              </div>
             } @else {
               <div class="source-view">
                 <pre><code [innerHTML]="highlightedSource()"></code></pre>
@@ -1030,8 +1009,27 @@ export class DesignerShellComponent {
   readonly newPageTemplate = signal<'empty' | 'list' | 'dashboard' | 'form'>('empty');
   readonly newPageError = signal<string>('');
 
-  /** In-memory draft pages (utworzone przez designera, nie jeszcze w kodzie). */
-  readonly draftPages = signal<ReadonlyArray<PageEntry>>([]);
+  private readonly draftStore = inject(DraftPageStoreService);
+
+  /**
+   * Draft pages — teraz czyta z persystentnego storu (localStorage via
+   * DraftPageStoreService). Nie jest już lokalny signal, tylko derived
+   * z store. Każdy page dostaje route '/draft/{id}' żeby można było do
+   * niego nawigować bez rebuildu appki.
+   */
+  readonly draftPages = computed<ReadonlyArray<PageEntry>>(() => {
+    return this.draftStore.all().map((d) => ({
+      id: d.id,
+      title: d.title,
+      route: `/draft/${d.id}`,
+      config: d.config,
+      widgetCount: Object.keys(d.config.page.widgets).length,
+      dsCount: Object.keys(d.config.page.datasources ?? {}).length,
+      computedCount: Object.keys(d.config.page.computed ?? {}).length,
+      handlerCount: (d.config.page.eventHandlers ?? []).length,
+      sourceClassName: d.className,
+    }));
+  });
 
   /** Który handler jest rozwinięty w inspectorze (ID z draftu). */
   readonly expandedHandlerId = signal<string | null>(null);
@@ -1330,10 +1328,9 @@ export class DesignerShellComponent {
   readonly previewUrl = computed<SafeUrl | null>(() => {
     const p = this.selectedPage();
     if (!p) return null;
-    // Draft pages nie istnieją w routerze — iframe pada na app-shell fallback
-    // i rekurencyjnie renderuje designer → wiszenie. Zwracamy null, template
-    // pokaże placeholder.
-    if (this.isDraftPage()) return null;
+    // Drafty mają teraz dynamic route /draft/:id — iframe renderuje je
+    // przez DraftPageRendererComponent (czyta z localStorage). Nie ma
+    // więcej infinite recursion problemu.
     const bust = this.reloadTrigger();
     const url = bust > 0 ? `${p.route}?_reload=${bust}` : p.route;
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
@@ -1370,6 +1367,24 @@ export class DesignerShellComponent {
         this.draftModel.set(model);
         this.refreshUndoRedo();
         this.draftVersion.update((v) => v + 1);
+      });
+    });
+
+    // Auto-save draftów: każda zmiana draftVersion gdy selectedId wskazuje na
+    // draft (z draftStore) → persist update w localStorage. Nie dotyka
+    // zarejestrowanych stron (te nie są w store).
+    effect(() => {
+      const version = this.draftVersion();
+      const id = this.selectedId();
+      if (version === 0 || !id) return;
+      const model = this.draftModel();
+      if (!model) return;
+      const draftInStore = this.draftStore.get(id);
+      if (!draftInStore) return; // to zarejestrowana strona, nie draft
+      const snapshot = model.snapshot();
+      const nextConfig = buildConfigFromDraft(snapshot, draftInStore.config.$schemaVersion);
+      queueMicrotask(() => {
+        this.draftStore.update(id, nextConfig, snapshot.title);
       });
     });
   }
@@ -1647,6 +1662,17 @@ export class DesignerShellComponent {
     this.newPageDialogOpen.set(false);
   }
 
+  deleteDraft(): void {
+    const id = this.selectedId();
+    if (!id || !this.isDraftPage()) return;
+    if (typeof window !== 'undefined' && !window.confirm(`Usunąć draft "${id}" z localStorage? Tej operacji nie można cofnąć.`)) return;
+    this.draftStore.remove(id);
+    // Po remove draftPages się aktualizuje → selectedPage staje się null
+    // Przełączamy na pierwszą zarejestrowaną stronę.
+    this.selectedId.set(this.pages[0]?.id ?? '');
+    this.editMode.set(false);
+  }
+
   /** Input handler z auto-fill route/title z id (do czasu gdy user sam coś wpisze). */
   onNewIdInput(event: Event): void {
     const raw = (event.target as HTMLInputElement).value;
@@ -1666,7 +1692,8 @@ export class DesignerShellComponent {
   createNewPage(): void {
     const id = this.newPageId().trim();
     const title = this.newPageTitle().trim() || id;
-    const route = this.newPageRoute().trim() || `/${id}`;
+    // Route zawsze /draft/<id> — niezależnie od tego co user wpisał.
+    // Draft ma dynamiczny route przez DraftPageRendererComponent.
     const template = this.newPageTemplate();
 
     if (!id) { this.newPageError.set('Page ID jest wymagane'); return; }
@@ -1675,24 +1702,18 @@ export class DesignerShellComponent {
       this.newPageError.set(`Strona o ID "${id}" już istnieje`);
       return;
     }
-    if (!route.startsWith('/')) { this.newPageError.set('Route musi zaczynać się od /'); return; }
 
     const config = buildTemplateConfig(id, title, template);
     const className = id.split('-').map((s) => s ? s[0]!.toUpperCase() + s.slice(1) : '').join('') + 'Page';
-    const entry: PageEntry = {
-      id, title, route, config,
-      widgetCount: Object.keys(config.page.widgets).length,
-      dsCount: Object.keys(config.page.datasources ?? {}).length,
-      computedCount: Object.keys(config.page.computed ?? {}).length,
-      handlerCount: (config.page.eventHandlers ?? []).length,
-      sourceClassName: className,
-    };
-    this.draftPages.update((list) => [...list, entry]);
+
+    // Zapisz do persystentnego storu — draftPages computed od razu reaktywne.
+    // Route '/draft/{id}' jest dostępny w Angular routerze przez wildcard.
+    this.draftStore.upsert({ id, title, route: `/draft/${id}`, config, className });
+
     this.selectedId.set(id);
     this.editMode.set(true);
-    // Draft nie ma route w Angular routerze — preview iframe by pętlił
-    // się w infinite recursion (app-shell renderuje designer w iframe).
-    // Auto-switch na source-ts żeby user od razu widział generated code.
+    // Draft ma teraz real route — można pokazać preview iframe (ale source
+    // jest też użyteczne na start żeby zobaczyć co wygenerowaliśmy).
     this.viewMode.set('source-ts');
     this.closeNewPageDialog();
   }
@@ -2182,6 +2203,37 @@ export class DesignerShellComponent {
 
 function humanize(id: string): string {
   return id.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Serializacja DraftPage → PageConfig — do zapisania w storze. Odwrotna
+ * operacja do PageDesignerModel.fromPageConfig.
+ */
+function buildConfigFromDraft(draft: { id: string; title: string; widgets: readonly { id: string; type: string; layout: { widget: string; x?: number; y?: number; w?: number; h?: number }; widget: unknown }[]; datasources?: readonly { id: string; config: unknown }[]; computed?: readonly { id: string; config: unknown }[]; handlers?: readonly { id: string; config: unknown }[] }, schemaVersion: PageConfig['$schemaVersion']): PageConfig {
+  const layoutItems = draft.widgets.map((w) => ({
+    widget: w.id,
+    ...(w.layout.x !== undefined ? { x: w.layout.x } : {}),
+    ...(w.layout.y !== undefined ? { y: w.layout.y } : {}),
+    ...(w.layout.w !== undefined ? { w: w.layout.w } : {}),
+    ...(w.layout.h !== undefined ? { h: w.layout.h } : {}),
+  }));
+  const widgets = Object.fromEntries(draft.widgets.map((w) => [w.id, w.widget]));
+  const page: Record<string, unknown> = {
+    id: draft.id,
+    title: draft.title,
+    layout: { type: 'grid', items: layoutItems },
+    widgets,
+  };
+  if (draft.datasources && draft.datasources.length > 0) {
+    page['datasources'] = Object.fromEntries(draft.datasources.map((d) => [d.id, d.config]));
+  }
+  if (draft.computed && draft.computed.length > 0) {
+    page['computed'] = Object.fromEntries(draft.computed.map((c) => [c.id, c.config]));
+  }
+  if (draft.handlers && draft.handlers.length > 0) {
+    page['eventHandlers'] = draft.handlers.map((h) => h.config);
+  }
+  return { $schemaVersion: schemaVersion, page: page as never } as PageConfig;
 }
 
 /**
