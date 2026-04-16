@@ -1,0 +1,50 @@
+/**
+ * Lista wszystkich widgetów dostępnych dla `provideEchelon` —
+ * generic z `widgets-core` + domenowe (FX-specific) z `app/widgets/`.
+ */
+import {
+  DataTableComponent,
+  FilterFormComponent,
+  ActionsBarComponent,
+  EntityHeaderComponent,
+  TabStripComponent,
+  PaginationComponent,
+  PageToolbarComponent,
+  EditableTableComponent,
+  ProfileFormComponent,
+  ValidatedFormComponent,
+  EntityListComponent,
+  ContextSidebarComponent,
+  SectionHeaderComponent,
+  KvListComponent,
+  BoolChipsComponent,
+} from '@echelon-framework/widgets-core';
+
+import { PageTitleComponent } from '../widgets/page-title.component';
+import { StatTileComponent } from '../widgets/stat-tile.component';
+import { ClientCardComponent } from '../widgets/client-card.component';
+import { PositionRowComponent } from '../widgets/position-row.component';
+import { DealerQuoteFormComponent } from '../widgets/dealer-quote-form.component';
+import { CandlestickChartComponent } from '../widgets/candlestick-chart.component';
+import { FlowDiagramComponent } from '../widgets/flow-diagram.component';
+import { BusinessFlowComponent } from '../widgets/business-flow.component';
+import { DesignerShellComponent } from '../widgets/designer-shell.component';
+
+export const widgets = [
+  // Generic — framework
+  DataTableComponent, FilterFormComponent, ActionsBarComponent, EntityHeaderComponent,
+  TabStripComponent, PaginationComponent, PageToolbarComponent,
+  EditableTableComponent, ProfileFormComponent, ValidatedFormComponent, EntityListComponent, ContextSidebarComponent,
+  SectionHeaderComponent, KvListComponent, BoolChipsComponent,
+  // Domain — FX dealera
+  PageTitleComponent, StatTileComponent, ClientCardComponent,
+  PositionRowComponent, DealerQuoteFormComponent,
+  // v0.2 rc.15 integracja — chart z ECharts adapter + feature-flag gate
+  CandlestickChartComponent,
+  // Process Flow Designer demo — mermaid renderer dla dowolnej PageConfig
+  FlowDiagramComponent,
+  // Business Flow — realne biznesowe procesy z mappingiem na kod
+  BusinessFlowComponent,
+  // Page Inspector shell — Faza 1 visual designer (M1+)
+  DesignerShellComponent,
+];

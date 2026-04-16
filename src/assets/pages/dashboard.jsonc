@@ -1,0 +1,42 @@
+{
+  "$schemaVersion": "2026.04-alpha",
+  // Overview — KPIs + live spot. Pierwsza strona po wejściu (/d/dashboard).
+  "page": {
+    "id": "dashboard",
+    "title": "Dealer Overview",
+    "layout": {
+      "cols": 12,
+      "items": [
+        { "widget": "title",  "x": 0, "y": 0, "w": 12 },
+        { "widget": "spotMid","x": 0, "y": 1, "w": 3 },
+        { "widget": "spread", "x": 3, "y": 1, "w": 3 },
+        { "widget": "openPos","x": 6, "y": 1, "w": 3 },
+        { "widget": "totPnl", "x": 9, "y": 1, "w": 3 }
+      ]
+    },
+    "datasources": {
+      "spotUsdPln":    {},
+      "positionsList": {},
+      "spotMidVal":    { "kind": "computed", "fn": "computeDealerRate",
+                         "inputs": ["spotUsdPln"] },
+      "totalPnl":      { "kind": "computed", "fn": "positionsTotalPnl",
+                         "inputs": ["positionsList", "spotUsdPln"] }
+    },
+    "widgets": {
+      "title":   { "type": "page-title",
+                   "options": { "title": "Dealer Overview", "subtitle": "Live FX desk monitor" } },
+      "spotMid": { "type": "stat-tile",
+                   "bind":    { "value": "spotUsdPln.bid" },
+                   "options": { "label": "USD/PLN bid", "tone": "accent" } },
+      "spread":  { "type": "stat-tile",
+                   "bind":    { "value": "spotUsdPln.ask" },
+                   "options": { "label": "USD/PLN ask", "tone": "accent" } },
+      "openPos": { "type": "stat-tile",
+                   "bind":    { "value": "positionsList.length" },
+                   "options": { "label": "Open positions" } },
+      "totPnl":  { "type": "stat-tile",
+                   "bind":    { "value": "totalPnl" },
+                   "options": { "label": "Live P&L", "tone": "profit" } }
+    }
+  }
+}

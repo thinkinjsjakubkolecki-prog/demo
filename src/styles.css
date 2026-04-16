@@ -1,0 +1,124 @@
+:root {
+  /* IntelliJ Darcula-inspired palette */
+  --bg:         #2b2b2b;   /* editor background */
+  --panel:      #3c3f41;   /* tool window / panel */
+  --panel-alt:  #313335;   /* secondary panel */
+  --border:     #515151;   /* divider */
+  --border-mut: #323232;   /* subtle divider */
+  --fg:         #a9b7c6;   /* primary text */
+  --fg-strong:  #bbbbbb;   /* emphasized text */
+  --muted:      #808080;   /* muted / labels */
+  --accent:     #499c54;   /* prod default — green */
+  --accent-alt: #cc7832;   /* Darcula orange */
+  --selection:  #214283;   /* selection blue */
+  --buy:        #6a8759;   /* Darcula string green */
+  --sell:       #cc7832;
+  --err:        #cf6b56;
+  --warn:       #d9a652;
+  --info:       #6897bb;
+  /* Aliases for framework widgets (--ech-*) — mapped to Darcula */
+  --ech-bg:      var(--bg);
+  --ech-panel:   var(--panel);
+  --ech-border:  var(--border);
+  --ech-fg:      var(--fg);
+  --ech-muted:   var(--muted);
+  --ech-accent:  var(--accent);
+}
+
+/* Darcula scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #5c5c5c; border-radius: 5px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: #787878; }
+
+::selection { background: var(--selection); color: var(--fg-strong); }
+
+/* Env-driven accent. main.ts ustawia [data-env] na <html>. */
+:root[data-env="dev"]  { --accent: #cc7832; --selection: #5a3c1c; }  /* orange */
+:root[data-env="test"] { --accent: #d9a652; --selection: #5a4a1c; }  /* amber  */
+:root[data-env="prod"] { --accent: #499c54; --selection: #1c5a2a; }  /* green  */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+input, select, textarea {
+  font: inherit;
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+/* Material-ish density override dla filter-form & profile-form kontrolek */
+ech-filter-form .bar,
+ech-profile-form .card {
+  padding: 18px 20px;
+}
+ech-filter-form label,
+ech-profile-form label {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.3px !important;
+  margin-bottom: 6px;
+}
+ech-filter-form input,
+ech-filter-form select,
+ech-profile-form input,
+ech-profile-form select {
+  font-size: 14px !important;
+  padding: 11px 14px !important;
+  height: 44px;
+  border-width: 1.5px !important;
+  border-radius: 6px !important;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+ech-filter-form input:hover,
+ech-filter-form select:hover,
+ech-profile-form input:hover,
+ech-profile-form select:hover {
+  border-color: var(--muted) !important;
+}
+ech-filter-form input:focus,
+ech-filter-form select:focus,
+ech-profile-form input:focus,
+ech-profile-form select:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(88,166,255,0.18);
+  outline: none !important;
+}
+ech-filter-form .chips {
+  min-height: 44px;
+  padding: 6px 8px !important;
+  border-radius: 6px !important;
+  border-width: 1.5px !important;
+}
+ech-filter-form .chips input {
+  height: auto;
+  padding: 4px 6px !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+ech-filter-form .chip {
+  font-size: 13px !important;
+  padding: 4px 8px 4px 12px !important;
+  border-radius: 18px !important;
+}
+ech-filter-form .actions button,
+ech-profile-form .actions button {
+  height: 40px;
+  padding: 0 22px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border-radius: 6px !important;
+}

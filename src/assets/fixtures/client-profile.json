@@ -1,0 +1,9 @@
+{
+  "name": "V Sp. z o.o.",
+  "subtitle": "Warszawa",
+  "tags": [
+    { "label": "LOI XXX (bp1)", "variant": "info" },
+    { "label": "XXX Zuzanna (xxx)", "variant": "info" },
+    { "label": "Marża preferencyjna", "variant": "enabled" }
+  ]
+}

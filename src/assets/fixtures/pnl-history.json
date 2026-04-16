@@ -1,0 +1,10 @@
+[
+  { "timestamp": "2026-04-09", "open": 12500, "high": 13200, "low": 12100, "close": 13000 },
+  { "timestamp": "2026-04-10", "open": 13000, "high": 13800, "low": 12800, "close": 13500 },
+  { "timestamp": "2026-04-11", "open": 13500, "high": 13600, "low": 12900, "close": 13100 },
+  { "timestamp": "2026-04-12", "open": 13100, "high": 14100, "low": 13050, "close": 14000 },
+  { "timestamp": "2026-04-13", "open": 14000, "high": 14500, "low": 13700, "close": 14200 },
+  { "timestamp": "2026-04-14", "open": 14200, "high": 14800, "low": 14100, "close": 14600 },
+  { "timestamp": "2026-04-15", "open": 14600, "high": 15100, "low": 14300, "close": 14900 },
+  { "timestamp": "2026-04-16", "open": 14900, "high": 15500, "low": 14800, "close": 15300 }
+]

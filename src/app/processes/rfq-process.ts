@@ -1,0 +1,185 @@
+/**
+ * RFQ (Request For Quote) — realny flow dealera FX na stronie `/quote`.
+ *
+ * Każdy krok z `impl` odnosi się do konkretnej linii kodu którą user może
+ * otworzyć i zweryfikować. `howToSee` mówi co zrobić w aplikacji.
+ */
+import type { BusinessProcess } from './types.js';
+
+const LANES = [
+  { id: 'client' as const,     label: 'Klient',       color: '#60a5fa' },
+  { id: 'dealer' as const,     label: 'Dealer FX',    color: '#10b981' },
+  { id: 'system' as const,     label: 'System',       color: '#f59e0b' },
+  { id: 'compliance' as const, label: 'Compliance',   color: '#a78bfa' },
+];
+
+export const rfqProcess: BusinessProcess = {
+  id: 'rfq',
+  title: 'RFQ — Request For Quote',
+  description: 'Klient prosi o kwotę na parę USD/PLN. Dealer wybiera klienta, ustawia margin, system wylicza rate. Wszystko działa na /quote — możesz to przeklikać teraz.',
+  entryRoute: '/quote',
+  lanes: LANES,
+  steps: [
+    {
+      id: 's1',
+      lane: 'dealer',
+      kind: 'start',
+      label: '1. Wejście dealera na RFQ',
+      description: 'Dealer otwiera stronę kwotowań. Runtime renderuje layout z PageBuilder.config.',
+      status: 'implemented',
+      impl: {
+        page: 'quote',
+        route: '/quote',
+        file: 'src/app/pages/quote.page.ts',
+      },
+      howToSee: 'Menu → Panel kwotowań (lub bezpośrednio /quote).',
+    },
+    {
+      id: 's2',
+      lane: 'dealer',
+      kind: 'task',
+      label: '2. Wybór klienta z listy',
+      description: 'Klik wiersza w client-list emituje "list.select". Handler w page configu ustawia $local.selectedClient.',
+      status: 'implemented',
+      impl: {
+        widget: 'client-list',
+        event: 'list.select',
+        handler: 'list.select',
+        datasource: 'selectedClient',
+        file: 'src/app/pages/quote.page.ts',
+      },
+      howToSee: 'Kliknij dowolnego klienta w lewym panelu /quote — zobaczysz że formularz dostanie code.',
+    },
+    {
+      id: 's3',
+      lane: 'compliance',
+      kind: 'gateway',
+      label: '3. Limit klienta OK?',
+      description: 'Compliance kontrakt w framework (complianceService.check) — projekt nie ma jeszcze implementacji reguł. TODO dla zespołu compliance.',
+      status: 'todo',
+      impl: {
+        note: 'Framework ma ComplianceService contract + CompliancePolicy — projekt implementuje reguły domain-specific (MiFID2, KYC limits, itp.). Dzisiaj brak reguł = pass-through.',
+        file: 'node_modules/@echelon-framework/core/dist/compliance/index.d.ts',
+      },
+      howToSee: 'Obecnie niewidoczne w GUI — brak odrzucenia ze względu na limit. Do dopisania.',
+    },
+    {
+      id: 's4',
+      lane: 'dealer',
+      kind: 'task',
+      label: '4. Dealer wpisuje amount, side (BUY/SELL), marginPips',
+      description: 'Formularz dealer-quote-form pokazuje spot z $ds.spotUsdPln (live simulator). Dealer ustawia parametry.',
+      status: 'implemented',
+      impl: {
+        widget: 'dealer-quote-form',
+        datasource: 'spotUsdPln',
+        file: 'src/app/widgets/dealer-quote-form.component.ts',
+      },
+      howToSee: 'Wpisz amount (np. 100000), wybierz BUY/SELL, ustaw marginPips (np. 5).',
+    },
+    {
+      id: 's5',
+      lane: 'dealer',
+      kind: 'event',
+      label: '5. Klik "Get Quote" — submit',
+      description: 'Form emituje "form.submit" z payloadem { amount, side, spot, marginPips }. Handler w configu wywołuje callComputed.',
+      status: 'implemented',
+      impl: {
+        widget: 'dealer-quote-form',
+        event: 'form.submit',
+        handler: 'form.submit',
+        file: 'src/app/pages/quote.page.ts',
+      },
+      howToSee: 'Kliknij przycisk "Get Quote" / submit w środkowym panelu.',
+    },
+    {
+      id: 's6',
+      lane: 'system',
+      kind: 'script',
+      label: '6. computeDealerRate — kalkulacja bid/ask z marginem',
+      description: 'PureFunction dostaje (spot, side, marginPips) i zwraca rate. BUY = spot*(1+margin/10000), SELL = spot*(1-margin/10000).',
+      status: 'implemented',
+      impl: {
+        computed: 'computeDealerRate',
+        file: 'src/app/functions/compute-dealer-rate.ts',
+      },
+      howToSee: 'Wynik widzisz w prawym panelu "Last quote rate" — odświeża się na każdy submit.',
+    },
+    {
+      id: 's7',
+      lane: 'dealer',
+      kind: 'task',
+      label: '7. Wynik w stat-tile (tone: accent)',
+      description: 'Handler "form.submit" robi into: "quoteResult". Widget stat-tile z when={ exists: true } pokazuje wartość.',
+      status: 'implemented',
+      impl: {
+        widget: 'stat-tile',
+        datasource: 'quoteResult',
+        file: 'src/app/pages/quote.page.ts',
+      },
+      howToSee: 'Prawy panel /quote — widoczne dopiero po submit (warunkowy render via when.exists).',
+    },
+    {
+      id: 's8',
+      lane: 'system',
+      kind: 'task',
+      label: '8. Persystencja draftu (localStorage)',
+      description: 'Local "draftQuote" jest trzymany w localStorage przez DatasourcePersistenceManager. Reload strony przywraca stan formularza.',
+      status: 'partial',
+      impl: {
+        datasource: 'draftQuote',
+        file: 'src/app/pages/quote.page.ts',
+        note: 'Persistence manager + LocalStorageAdapter są wire ale handler form.change który zasila draftQuote nie jest emitowany z dealer-quote-form (wymaga rozszerzenia emitu w komponencie). Rc.16 todo.',
+      },
+      howToSee: 'Po rc.16 — wypełnij formularz, reload strony, pola wrócą. Dzisiaj draft nie działa bo form nie emituje change.',
+    },
+    {
+      id: 's9',
+      lane: 'client',
+      kind: 'event',
+      label: '9. Wysłanie oferty do klienta',
+      description: 'Dzisiaj poza scope — quoteResult pokazywany tylko dealerowi. Brak channelu do klienta.',
+      status: 'todo',
+      impl: {
+        note: 'Wymaga backend endpoint + WebSocket push do klienta. Framework ma kontrakt Transport+WS — projekt implementuje endpoint.',
+      },
+      howToSee: 'TODO — na razie dealer widzi wynik, klient nie.',
+    },
+    {
+      id: 's10',
+      lane: 'client',
+      kind: 'gateway',
+      label: '10. Klient akceptuje?',
+      description: 'TODO — brak UI klienta. Zewnętrzny klient (RFQ portal) to osobna aplikacja.',
+      status: 'todo',
+      impl: { note: 'Poza zakresem dealer-fx-app.' },
+    },
+    {
+      id: 's11',
+      lane: 'backoffice',
+      kind: 'end',
+      label: '11. Booking transakcji (fx-transactions)',
+      description: 'Zatwierdzona kwota staje się transakcją — dodawana do fx-transactions DS (widoczna na /positions).',
+      status: 'partial',
+      impl: {
+        datasource: 'fx-transactions',
+        file: 'src/app/datasources/fx-transactions.ds.ts',
+        note: 'fx-transactions.json fixture istnieje, ale brak handlera który dodaje nowy wiersz po akceptacji. Dzisiaj tylko odczyt static fixture.',
+      },
+      howToSee: 'Otwórz /positions — widzisz historyczne transakcje. Brak flow "zaakceptuj → zapisz".',
+    },
+  ],
+  edges: [
+    { from: 's1', to: 's2' },
+    { from: 's2', to: 's3' },
+    { from: 's3', to: 's4', label: 'limit OK' },
+    { from: 's3', to: 's11', label: 'odrzuć (TODO)' },
+    { from: 's4', to: 's5' },
+    { from: 's5', to: 's6' },
+    { from: 's6', to: 's7' },
+    { from: 's4', to: 's8', label: 'change' },
+    { from: 's7', to: 's9' },
+    { from: 's9', to: 's10' },
+    { from: 's10', to: 's11', label: 'akceptuje' },
+  ],
+};

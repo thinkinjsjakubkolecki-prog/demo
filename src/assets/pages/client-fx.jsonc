@@ -1,0 +1,139 @@
+{
+  "$schemaVersion": "2026.04-alpha",
+  // FX klienta — szukajka + paginacja nad tabelą transakcji.
+  "page": {
+    "id": "client-fx",
+    "title": "Klient — FX",
+    "layout": {
+      "cols": 12,
+      "items": [
+        { "widget": "tabs",       "x": 0, "y": 0, "w": 12 },
+        { "widget": "header",     "x": 0, "y": 1, "w": 12 },
+        { "widget": "actions",    "x": 0, "y": 2, "w": 12 },
+        { "widget": "search",     "x": 0, "y": 3, "w": 12 },
+        { "widget": "table",      "x": 0, "y": 4, "w": 12 },
+        { "widget": "pagination", "x": 0, "y": 5, "w": 12 }
+      ]
+    },
+    "datasources": {
+      "fxTransactions": {},
+      "activeTab":      { "kind": "local", "initial": "transakcje-fx" },
+      "filtersState":   { "kind": "local", "initial": null },
+      "page":           { "kind": "local", "initial": 1 },
+      "pageSize":       { "kind": "local", "initial": 10 },
+      "filteredAll":    { "kind": "computed", "fn": "searchRows",
+                          "inputs": ["fxTransactions", "filtersState"] },
+      "filteredPage":   { "kind": "computed", "fn": "paginate",
+                          "inputs": ["filteredAll", "page", "pageSize"] },
+      "totalPages":     { "kind": "computed", "fn": "totalPages",
+                          "inputs": ["filteredAll", "pageSize"] }
+    },
+    "widgets": {
+      "tabs":    { "type": "tab-strip",
+                   "bind":    { "activeId": "activeTab" },
+                   "options": {
+                     "tabs": [
+                       { "id": "klienci",       "label": "Klienci" },
+                       { "id": "profil",        "label": "Profil" },
+                       { "id": "uzytkownicy",   "label": "Użytkownicy" },
+                       { "id": "transakcje-fx", "label": "Transakcje FX" },
+                       { "id": "oferty-fx",     "label": "Oferty FX" },
+                       { "id": "alerty",        "label": "Alerty Kursowe" },
+                       { "id": "ex-ante",       "label": "Matryca EX-ANTE" }
+                     ]
+                   } },
+      "header":  { "type": "entity-header",
+                   "options": {
+                     "name": "Velo Sp. z o.o.",
+                     "tags": [
+                       { "label": "TODAY",   "variant": "enabled" },
+                       { "label": "SPOT",    "variant": "enabled" },
+                       { "label": "FORWARD", "variant": "enabled" },
+                       { "label": "SWAP",    "variant": "enabled" },
+                       { "label": "+ SFP",   "variant": "extended" },
+                       { "label": "+ DCD",   "variant": "extended" }
+                     ]
+                   } },
+      "actions": { "type": "actions-bar",
+                   "options": {
+                     "actions": [
+                       { "id": "fx",        "label": "TRANSAKCJA FX",    "icon": "💱", "variant": "primary" },
+                       { "id": "swap",      "label": "SWAP",             "icon": "⇄",  "variant": "primary" },
+                       { "id": "spot-pay",  "label": "SPOT FOR PAYMENT", "icon": "₴",  "variant": "primary" },
+                       { "id": "multi-fwd", "label": "MULTIFORWARD",     "icon": "⇉",  "variant": "primary" },
+                       { "id": "par-fwd",   "label": "PARFORWARD",       "icon": "≡",  "variant": "primary" }
+                     ]
+                   } },
+      "search":  { "type": "filter-form",
+                   "options": {
+                     "cols": 6,
+                     "fields": [
+                       { "id": "nrFx",   "label": "Nr FX",    "type": "text",   "placeholder": "np. FX-00123" },
+                       { "id": "client", "label": "Klient",   "type": "text",   "placeholder": "np. Velo" },
+                       { "id": "type",   "label": "Typ",      "type": "select",
+                         "options": [
+                           { "value": "SPOT",       "label": "SPOT" },
+                           { "value": "FX FORWARD", "label": "FX FORWARD" },
+                           { "value": "SWAP",       "label": "SWAP" }
+                         ] },
+                       { "id": "status", "label": "Status",   "type": "select",
+                         "options": [
+                           { "value": "Wykonana",   "label": "Wykonana" },
+                           { "value": "Rozliczona", "label": "Rozliczona" }
+                         ] },
+                       { "id": "direction", "label": "Kierunek", "type": "select",
+                         "options": [
+                           { "value": "INTERNET", "label": "INTERNET" },
+                           { "value": "DEALER",   "label": "DEALER" }
+                         ] },
+                       { "id": "q",      "label": "Szukaj (wszędzie)", "type": "text",
+                         "placeholder": "dowolny tekst" }
+                     ]
+                   } },
+      "table":   { "type": "data-table",
+                   "bind":    { "rows": "filteredPage" },
+                   "options": {
+                     "rowKey": "nrFx",
+                     "columns": [
+                       { "key": "nrFx",            "label": "Nr FX",          "format": "mono" },
+                       { "key": "client",          "label": "Klient",         "format": "text" },
+                       { "key": "dateTraded",      "label": "Data zawarcia",  "format": "mono" },
+                       { "key": "valueDate",       "label": "Data waluty",    "format": "mono" },
+                       { "key": "type",            "label": "Typ",            "format": "tag",
+                         "tagColors": { "SPOT": "#58a6ff", "FX FORWARD": "#d29922", "SWAP": "#da6bc1" } },
+                       { "key": "rate",            "label": "Kurs",           "format": "number", "decimals": 4, "align": "right" },
+                       { "key": "amount",          "label": "Suma",           "format": "currency", "decimals": 2, "align": "right" },
+                       { "key": "direction",       "label": "Kierunek",       "format": "badge",
+                         "badges": { "INTERNET": "ok", "DEALER": "muted" } },
+                       { "key": "status",          "label": "Status",         "format": "badge",
+                         "badges": { "Wykonana": "info", "Rozliczona": "ok" } },
+                       { "key": "profile",         "label": "Profil",         "format": "text" },
+                       { "key": "holderId",        "label": "Posiadacz ID",   "format": "mono" },
+                       { "key": "transactionDate", "label": "Data transakcji","format": "mono" }
+                     ]
+                   } },
+      "pagination": { "type": "pagination",
+                      "bind": { "page": "page", "totalPages": "totalPages", "pageSize": "pageSize" } }
+    },
+    "eventHandlers": [
+      { "on": "tabs.tabChange",            "do": [ { "setDatasource": "activeTab", "from": "$event" } ] },
+      { "on": "actions.actionClick",       "do": [ { "emit": "fx.action.requested", "payload": "$event" } ] },
+      { "on": "table.rowClick",            "do": [ { "emit": "fx.transaction.opened", "payload": "$event" } ] },
+      { "on": "search.search",
+        "do": [
+          { "setDatasource": "filtersState", "from": "$event" },
+          { "setDatasource": "page", "from": "static:1" }
+        ] },
+      { "on": "search.clear",
+        "do": [
+          { "setDatasource": "filtersState", "from": "static:" },
+          { "setDatasource": "page", "from": "static:1" }
+        ] },
+      { "on": "pagination.pageChange",     "do": [ { "setDatasource": "page", "from": "$event" } ] },
+      { "on": "pagination.pageSizeChange", "do": [
+          { "setDatasource": "pageSize", "from": "$event" },
+          { "setDatasource": "page", "from": "static:1" }
+        ] }
+    ]
+  }
+}
