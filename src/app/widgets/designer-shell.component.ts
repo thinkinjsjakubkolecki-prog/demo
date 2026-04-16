@@ -12,7 +12,7 @@
  * Cel v1.0: edytor z którym BA tworzy strony bez dotykania kodu.
  * Ten widget to trzon Fazy 1 (read-only).
  */
-import { computed, effect, signal } from '@angular/core';
+import { computed, effect, signal, DestroyRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, type SafeUrl } from '@angular/platform-browser';
@@ -70,7 +70,7 @@ interface PageEntry {
     <div class="shell" data-testid="designer-shell" data-echelon-state="ready">
       <aside class="palette">
         <h3>Palette <span class="palette-count">{{ totalWidgets() }}</span></h3>
-        <input type="search" class="palette-filter" placeholder="Filter widgets…"
+        <input #filterInput type="search" class="palette-filter" placeholder="Filter widgets… (/)"
                [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
         @if (editMode()) {
           <div class="palette-hint">Klik na widget → dodaje do strony</div>
@@ -183,6 +183,17 @@ interface PageEntry {
 
       <aside class="inspector">
         <h3>Inspector</h3>
+        <details class="shortcuts-help">
+          <summary>⌨ Skróty</summary>
+          <dl>
+            <dt><kbd>/</kbd></dt><dd>Filter palette</dd>
+            <dt><kbd>Esc</kbd></dt><dd>Odznacz widget</dd>
+            <dt><kbd>Del</kbd></dt><dd>Usuń zaznaczony</dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>Undo</dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></dt><dd>Redo</dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>E</kbd></dt><dd>Toggle edit</dd>
+          </dl>
+        </details>
         @if (inspectedWidget(); as iw) {
           <div class="inspector-block">
             <div class="inspector-header-row">
@@ -504,6 +515,15 @@ interface PageEntry {
     .inspector-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
     .btn-danger { padding: 4px 10px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fee2e2; border-radius: 3px; font-size: 11px; cursor: pointer; font-family: inherit; flex-shrink: 0; }
     .btn-danger:hover { background: #7f1d1d66; }
+
+    .shortcuts-help { margin: -4px 0 12px; padding: 6px 10px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); border-radius: 4px; font-size: 10px; }
+    .shortcuts-help summary { cursor: pointer; color: var(--muted, #9ca3af); user-select: none; font-size: 11px; }
+    .shortcuts-help summary:hover { color: var(--fg, #e5e7eb); }
+    .shortcuts-help dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 8px 0 0; }
+    .shortcuts-help dt { white-space: nowrap; color: var(--muted, #9ca3af); }
+    .shortcuts-help dd { margin: 0; color: var(--fg, #e5e7eb); }
+    kbd { display: inline-block; padding: 1px 5px; background: #1f2937; border: 1px solid var(--border, #374151); border-radius: 2px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #93c5fd; }
+    kbd + kbd { margin-left: 1px; }
   `],
 })
 export class DesignerShellComponent {
@@ -931,6 +951,70 @@ export class DesignerShellComponent {
     this.applyDraft((dm) => dm.removeWidget(id));
     this.inspectedInstanceId.set(null);
   }
+
+  /**
+   * Globalny keyboard handler — działa na całą stronę designera.
+   * Skróty:
+   *   /                  — focus palette filter
+   *   Ctrl/Cmd + Z       — undo
+   *   Ctrl/Cmd + Shift+Z — redo
+   *   Ctrl/Cmd + Y       — redo (alternatywa Windows)
+   *   Esc                — cofnij zaznaczenie widgetu / schowaj filter
+   *   Delete / Backspace — usuń zaznaczony widget (tylko gdy focus poza inputem)
+   *   Ctrl/Cmd + E       — toggle edit mode
+   */
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement;
+    const inInput = target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+    if (event.key === '/' && !inInput) {
+      event.preventDefault();
+      this.focusFilter();
+      return;
+    }
+
+    const ctrl = event.ctrlKey || event.metaKey;
+
+    if (ctrl && (event.key === 'z' || event.key === 'Z')) {
+      event.preventDefault();
+      if (event.shiftKey) this.redo();
+      else this.undo();
+      return;
+    }
+
+    if (ctrl && (event.key === 'y' || event.key === 'Y')) {
+      event.preventDefault();
+      this.redo();
+      return;
+    }
+
+    if (ctrl && (event.key === 'e' || event.key === 'E')) {
+      event.preventDefault();
+      this.toggleEditMode();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      if (inInput) return; // natywne clear searcha
+      this.inspectedInstanceId.set(null);
+      return;
+    }
+
+    if ((event.key === 'Delete' || event.key === 'Backspace') && !inInput && this.editMode() && this.inspectedInstanceId()) {
+      event.preventDefault();
+      this.deleteInspectedWidget();
+    }
+  }
+
+  private focusFilter(): void {
+    if (typeof document === 'undefined') return;
+    const el = document.querySelector<HTMLInputElement>('.palette-filter');
+    el?.focus();
+    el?.select();
+  }
+
+  private readonly destroyRef = inject(DestroyRef);
 
   private collectPages(): ReadonlyArray<PageEntry> {
     const classes = getRegisteredPageClasses() as Array<{ name?: string; config?: PageConfig }>;
