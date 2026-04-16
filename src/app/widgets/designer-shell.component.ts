@@ -149,6 +149,9 @@ interface PageEntry {
           @if (selectedPage(); as p) {
             <div class="preview-toolbar">
               <div class="tabs">
+                <button type="button" class="tab" [class.active]="viewMode() === 'layout'" (click)="viewMode.set('layout')">
+                  🧱 Layout
+                </button>
                 <button type="button" class="tab" [class.active]="viewMode() === 'preview'" (click)="viewMode.set('preview')">
                   🔍 Preview
                 </button>
@@ -171,7 +174,79 @@ interface PageEntry {
               </div>
             </div>
 
-            @if (viewMode() === 'preview') {
+            @if (viewMode() === 'layout') {
+              <div class="layout-canvas"
+                   [class.drop-active]="draggingPaletteType() !== null"
+                   (dragover)="onCanvasDragOver($event)"
+                   (drop)="onCanvasDrop($event)">
+                <div class="layout-grid">
+                  @for (w of layoutCells(); track w.instanceId) {
+                    <div class="primitive-card"
+                         [style.grid-column]="'span ' + (w.w || 12)"
+                         [style.grid-row-start]="(w.y ?? 0) + 1"
+                         [style.grid-row-end]="'span ' + (w.h || 1)"
+                         [style.grid-column-start]="(w.x ?? 0) + 1"
+                         [class.active]="inspectedInstanceId() === w.instanceId"
+                         [attr.draggable]="editMode() ? 'true' : null"
+                         (click)="inspectedInstanceId.set(w.instanceId)"
+                         (dragstart)="onPrimitiveDragStart(w.instanceId, $event)"
+                         (dragover)="onPrimitiveDragOver($event)"
+                         (drop)="onPrimitiveDrop(w.instanceId, $event)"
+                         (dragend)="onPrimitiveDragEnd()">
+                      <div class="prim-header">
+                        <span class="prim-icon">{{ w.icon || '🔲' }}</span>
+                        <span class="prim-id">{{ w.instanceId }}</span>
+                        <span class="prim-type">{{ w.type }}</span>
+                      </div>
+                      <div class="prim-body">
+                        @if (w.bindings.length > 0) {
+                          <div class="prim-bindings">
+                            @for (b of w.bindings; track b.key) {
+                              <span class="prim-bind" [title]="b.key + ' = ' + b.value">{{ b.key }}</span>
+                            }
+                          </div>
+                        }
+                        <div class="prim-layout">
+                          <span>x:{{ w.x ?? 0 }}</span>
+                          <span>y:{{ w.y ?? 0 }}</span>
+                          <span>w:{{ w.w ?? 12 }}</span>
+                          @if (w.h) { <span>h:{{ w.h }}</span> }
+                        </div>
+                      </div>
+                      @if (editMode()) {
+                        <div class="prim-actions" (click)="$event.stopPropagation()">
+                          <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'up')" title="Przesuń w górę">↑</button>
+                          <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'down')" title="Przesuń w dół">↓</button>
+                          <button type="button" class="btn-tiny danger" (click)="removeWidgetById(w.instanceId)" title="Usuń">✕</button>
+                        </div>
+                      }
+                    </div>
+                  }
+                  @if (layoutCells().length === 0) {
+                    <div class="layout-empty">
+                      <div class="empty-icon">📐</div>
+                      <div class="empty-title">Pusta strona</div>
+                      <div class="empty-desc">
+                        @if (editMode()) {
+                          Klik widget w palette albo przeciągnij go tutaj żeby dodać.
+                        } @else {
+                          Włącz Edit ON (Ctrl+E) żeby dodawać widgety.
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+                @if (editMode() && draggingPaletteType()) {
+                  <div class="layout-drop-overlay">
+                    <div class="drop-hint">
+                      <span class="drop-icon">📥</span>
+                      <span class="drop-label">Upuść widget</span>
+                      <span class="drop-type">{{ draggingPaletteType() }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else if (viewMode() === 'preview') {
               <div class="preview-frame" [class.loading]="previewLoading()">
                 <iframe #previewFrame
                         [src]="previewUrl()"
@@ -180,17 +255,6 @@ interface PageEntry {
                         title="Page Preview"></iframe>
                 @if (previewLoading()) {
                   <div class="preview-spinner">⏳ Ładowanie…</div>
-                }
-                @if (editMode() && draggingPaletteType()) {
-                  <div class="canvas-drop-zone"
-                       (dragover)="onCanvasDragOver($event)"
-                       (drop)="onCanvasDrop($event)">
-                    <div class="drop-hint">
-                      <span class="drop-icon">📥</span>
-                      <span class="drop-label">Upuść widget żeby dodać do strony</span>
-                      <span class="drop-type">{{ draggingPaletteType() }}</span>
-                    </div>
-                  </div>
                 }
               </div>
             } @else {
@@ -1001,6 +1065,66 @@ interface PageEntry {
     .drop-icon { font-size: 32px; }
     .drop-label { font-size: 14px; color: var(--fg, #e5e7eb); font-weight: 500; }
     .drop-type { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #93c5fd; background: #1f2937; padding: 3px 10px; border-radius: 3px; }
+
+    .layout-canvas {
+      position: relative; width: 100%; flex: 1; min-height: 500px;
+      border: 1px solid var(--border, #374151); border-radius: 0 0 4px 4px;
+      background:
+        linear-gradient(to right, #1f2937 1px, transparent 1px) 0 0 / calc(100% / 12) 100%,
+        #0b1120;
+      padding: 12px;
+      overflow: auto;
+    }
+    .layout-canvas.drop-active { border-color: #58a6ff; background-color: #1e3a5f11; }
+    .layout-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      grid-auto-rows: minmax(60px, auto);
+      gap: 8px;
+      min-height: 400px;
+    }
+    .primitive-card {
+      background: var(--panel-alt, #111827);
+      border: 1px solid var(--border, #374151);
+      border-radius: 4px;
+      padding: 8px 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      min-height: 60px;
+    }
+    .primitive-card:hover { border-color: #58a6ff66; }
+    .primitive-card.active { border-color: #58a6ff; box-shadow: 0 0 0 2px #58a6ff33; }
+    .primitive-card[draggable="true"] { cursor: grab; }
+    .primitive-card[draggable="true"]:active { cursor: grabbing; }
+
+    .prim-header { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .prim-icon { font-size: 14px; }
+    .prim-id { flex: 1; color: #93c5fd; font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+    .prim-type { color: var(--muted, #9ca3af); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; background: #1f2937; padding: 1px 6px; border-radius: 2px; }
+    .prim-body { display: flex; flex-direction: column; gap: 4px; }
+    .prim-bindings { display: flex; flex-wrap: wrap; gap: 3px; }
+    .prim-bind { font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #10b981; background: #064e3b33; padding: 1px 5px; border-radius: 2px; }
+    .prim-layout { display: flex; gap: 6px; font-size: 9px; color: var(--muted, #6b7280); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .prim-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
+    .primitive-card:hover .prim-actions, .primitive-card.active .prim-actions { opacity: 1; }
+
+    .layout-empty { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; gap: 10px; color: var(--muted, #9ca3af); text-align: center; }
+    .empty-icon { font-size: 48px; opacity: 0.4; }
+    .empty-title { font-size: 16px; font-weight: 600; }
+    .empty-desc { font-size: 13px; max-width: 400px; }
+
+    .layout-drop-overlay {
+      position: absolute; inset: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(30, 58, 95, 0.75);
+      border: 3px dashed #58a6ff;
+      border-radius: 0 0 4px 4px;
+      pointer-events: none;
+    }
   `],
 })
 export class DesignerShellComponent {
@@ -1039,7 +1163,7 @@ export class DesignerShellComponent {
   readonly draggingWidgetIdx = signal<number | null>(null);
   readonly dragOverWidgetIdx = signal<number | null>(null);
   readonly draggingPaletteType = signal<string | null>(null);
-  readonly viewMode = signal<'preview' | 'source-ts' | 'source-json'>('source-ts');
+  readonly viewMode = signal<'layout' | 'preview' | 'source-ts' | 'source-json'>('layout');
   /**
    * Edit mode — przełącznik globalny. Default OFF (read-only zgodnie z Fazą 1).
    * ON → PageDesignerModel przejmuje kontrolę, wszystkie zmiany lecą przez
@@ -1164,7 +1288,10 @@ export class DesignerShellComponent {
   });
 
   readonly highlightedSource = computed<string>(() => {
-    return highlightSource(this.generatedSource(), this.viewMode());
+    const mode = this.viewMode();
+    const safeMode: 'preview' | 'source-ts' | 'source-json' =
+      mode === 'source-ts' || mode === 'source-json' || mode === 'preview' ? mode : 'source-ts';
+    return highlightSource(this.generatedSource(), safeMode);
   });
 
   readonly fullFileSource = computed<string>(() => {
@@ -1295,6 +1422,50 @@ export class DesignerShellComponent {
       on: h.on,
       actions: h.do.map(describeAction),
     }));
+  });
+
+  /**
+   * Layout cells — reprezentacja widgetów jako prymitywy z grid pozycjami.
+   * Używane przez Layout view (canvas bez renderu iframe).
+   */
+  readonly layoutCells = computed<ReadonlyArray<{
+    instanceId: string;
+    type: string;
+    icon?: string;
+    x?: number;
+    y?: number;
+    w?: number;
+    h?: number;
+    bindings: ReadonlyArray<{ key: string; value: string }>;
+  }>>(() => {
+    const p = this.selectedPage();
+    if (!p) return [];
+    this.draftVersion();
+    const model = this.draftModel();
+    if (model) {
+      return model.snapshot().widgets.map((w) => ({
+        instanceId: w.id,
+        type: w.type,
+        icon: this.registry?.get(w.type)?.manifest.icon,
+        x: w.layout.x,
+        y: w.layout.y,
+        w: w.layout.w,
+        h: w.layout.h,
+        bindings: Object.entries(w.widget.bind ?? {}).map(([key, value]) => ({ key, value: String(value) })),
+      }));
+    }
+    const widgets = p.config.page.widgets ?? {};
+    const layoutItems = p.config.page.layout.items;
+    return Object.entries(widgets).map(([id, w]) => {
+      const item = (layoutItems.find((it) => it.widget === id) ?? {}) as { x?: number; y?: number; w?: number; h?: number };
+      return {
+        instanceId: id,
+        type: w.type,
+        icon: this.registry?.get(w.type)?.manifest.icon,
+        x: item.x, y: item.y, w: item.w, h: item.h,
+        bindings: Object.entries(w.bind ?? {}).map(([key, value]) => ({ key, value: String(value) })),
+      };
+    });
   });
 
   readonly pageWidgets = computed<ReadonlyArray<{ instanceId: string; type: string }>>(() => {
@@ -1775,6 +1946,54 @@ export class DesignerShellComponent {
     if (!type) return;
     // Reuse istniejącej logiki dodawania z palette klik
     this.onPaletteClick(type);
+  }
+
+  // ───── Primitive card DnD (Layout view) ─────
+
+  private readonly draggingPrimitiveId = signal<string | null>(null);
+
+  onPrimitiveDragStart(id: string, event: DragEvent): void {
+    if (!this.editMode()) { event.preventDefault(); return; }
+    this.draggingPrimitiveId.set(id);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('application/x-echelon-primitive-id', id);
+    }
+  }
+
+  onPrimitiveDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  }
+
+  onPrimitiveDrop(targetId: string, event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const sourceId = this.draggingPrimitiveId() ?? event.dataTransfer?.getData('application/x-echelon-primitive-id');
+    this.draggingPrimitiveId.set(null);
+    if (!sourceId || sourceId === targetId) return;
+    const m = this.draftModel();
+    if (!m) return;
+    const widgets = m.snapshot().widgets;
+    const ids = widgets.map((w) => w.id);
+    const srcIdx = ids.indexOf(sourceId);
+    const tgtIdx = ids.indexOf(targetId);
+    if (srcIdx === -1 || tgtIdx === -1) return;
+    const [moved] = ids.splice(srcIdx, 1);
+    if (!moved) return;
+    ids.splice(tgtIdx, 0, moved);
+    this.applyDraft((dm) => dm.reorderWidgets(ids));
+  }
+
+  onPrimitiveDragEnd(): void {
+    this.draggingPrimitiveId.set(null);
+  }
+
+  /** Usuwa widget po ID — używane przez primitive card action button. */
+  removeWidgetById(instanceId: string): void {
+    if (typeof window !== 'undefined' && !window.confirm(`Usunąć widget "${instanceId}"?`)) return;
+    this.applyDraft((dm) => dm.removeWidget(instanceId));
+    if (this.inspectedInstanceId() === instanceId) this.inspectedInstanceId.set(null);
   }
 
   resizeFull(instanceId: string): void {
