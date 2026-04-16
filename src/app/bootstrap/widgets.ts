@@ -30,6 +30,7 @@ import { FlowDiagramComponent } from '../widgets/flow-diagram.component';
 import { BusinessFlowComponent } from '../widgets/business-flow.component';
 import { DesignerShellComponent } from '../widgets/designer-shell.component';
 import { MenuEditorComponent } from '../widgets/menu-editor.component';
+import { ContainerComponent } from '../widgets/container.component';
 
 export const widgets = [
   // Generic — framework
@@ -50,4 +51,6 @@ export const widgets = [
   DesignerShellComponent,
   // Menu editor — kreator struktury menu (M20)
   MenuEditorComponent,
+  // fx-container — widget z children (hierarchia bloczków w bloczkach, M29)
+  ContainerComponent,
 ];

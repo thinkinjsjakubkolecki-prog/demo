@@ -190,6 +190,21 @@ interface PageEntry {
                    [class.drop-active]="draggingPaletteType() !== null"
                    (dragover)="onCanvasDragOver($event)"
                    (drop)="onCanvasDrop($event)">
+                @if (scopeStack().length > 0) {
+                  <div class="scope-breadcrumb">
+                    <button type="button" class="scope-crumb" (click)="exitToTop()">📄 Top</button>
+                    @for (step of scopeStack(); track step.containerId; let last = $last) {
+                      <span class="scope-sep">›</span>
+                      @if (last) {
+                        <span class="scope-crumb current">📦 {{ step.title }}</span>
+                      } @else {
+                        <button type="button" class="scope-crumb">📦 {{ step.title }}</button>
+                      }
+                    }
+                    <button type="button" class="scope-exit" (click)="exitContainer()" title="Wyjdź z container">⬅ Back</button>
+                  </div>
+                }
+
                 <!-- Column ruler — 12 slotów zgodnie z Echelon 12-col grid -->
                 <div class="col-ruler">
                   @for (c of COLS; track c) {
@@ -215,6 +230,7 @@ interface PageEntry {
                            [style.grid-row-end]="'span ' + (w.h || 1)"
                            [class.active]="inspectedInstanceId() === w.instanceId"
                            [class.required-empty]="w.hasRequiredUnfilled"
+                           [class.is-container]="w.type === 'container'"
                            [attr.draggable]="editMode() ? 'true' : null"
                            (click)="inspectedInstanceId.set(w.instanceId)"
                            (dragstart)="onPrimitiveDragStart(w.instanceId, $event)"
@@ -244,6 +260,9 @@ interface PageEntry {
                         </div>
                         @if (editMode()) {
                           <div class="prim-actions" (click)="$event.stopPropagation()">
+                            @if (w.type === 'container') {
+                              <button type="button" class="btn-tiny container-enter" (click)="enterContainer(w.instanceId)" title="Wejdź w scope container (M29 — init + breadcrumb)">⬇ Enter</button>
+                            }
                             <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'up')" title="y--">↑</button>
                             <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'down')" title="y++">↓</button>
                             <button type="button" class="btn-tiny" (click)="splitHorizontal(w.instanceId)" title="Podziel w poziomie (duplikat obok)">⇔</button>
@@ -1378,6 +1397,27 @@ interface PageEntry {
     .prim-bind .b-val { color: #10b981; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
     .prim-warning { font-size: 9px; color: #ef4444; font-weight: 600; margin-top: 2px; }
 
+    /* Container widget — visual: dashed border + specjalne tło */
+    .primitive-card.is-container {
+      border-style: dashed;
+      border-width: 2px;
+      border-color: #a78bfa;
+      background: linear-gradient(135deg, #5b21b611 0%, #1a2332 100%);
+    }
+    .primitive-card.is-container:hover { border-color: #c4b5fd; }
+    .primitive-card.is-container.active { border-color: #c4b5fd; background: #5b21b633; }
+    .container-enter { background: #5b21b633; border-color: #a78bfa; color: #ddd6fe; }
+    .container-enter:hover { background: #5b21b666; }
+
+    /* Scope breadcrumb — widoczny gdy wszedł do container */
+    .scope-breadcrumb { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #5b21b622; border-bottom: 1px solid #a78bfa; font-size: 12px; }
+    .scope-crumb { background: transparent; border: 1px solid transparent; padding: 3px 8px; border-radius: 3px; color: var(--fg, #e5e7eb); font-size: 12px; cursor: pointer; font-family: inherit; }
+    .scope-crumb:hover { background: #1f2937; border-color: var(--border, #374151); }
+    .scope-crumb.current { background: #5b21b633; border-color: #a78bfa; color: #ddd6fe; font-weight: 600; cursor: default; }
+    .scope-sep { color: var(--muted, #6b7280); font-size: 14px; }
+    .scope-exit { margin-left: auto; background: #1f2937; border: 1px solid var(--border, #374151); padding: 3px 10px; border-radius: 3px; color: var(--fg, #e5e7eb); font-size: 11px; cursor: pointer; font-family: inherit; }
+    .scope-exit:hover { border-color: #58a6ff; }
+
     .prim-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; background: rgba(26, 35, 50, 0.9); padding: 2px; border-radius: 3px; }
     .primitive-card:hover .prim-actions, .primitive-card.active .prim-actions { opacity: 1; }
 
@@ -1467,6 +1507,79 @@ export class DesignerShellComponent {
    * edycji (undo stack, redo stack, current DraftPage).
    */
   private readonly draftModel = signal<PageDesignerModel | null>(null);
+
+  /**
+   * Container scope stack — ścieżka do aktualnego containera w hierarchii.
+   * Pusty array = top-level page. [container1_id] = edytujemy childConfig
+   * container1. [container1_id, container2_id] = edytujemy container2 INSIDE
+   * container1.
+   *
+   * Designer UI pokazuje breadcrumb + "enter" action na container card.
+   *
+   * Mechanizm: TOP-LEVEL draftModel zawsze wskazuje na page config. Gdy user
+   * wchodzi w container, scope stack rośnie — wszystkie UI operacje
+   * (palette add, layout edit, inspector) odczytują i mutują child config
+   * container-a przez ścieżkę scope stacka.
+   */
+  readonly scopeStack = signal<ReadonlyArray<{ containerId: string; title: string }>>([]);
+
+  /**
+   * Dodaj pusty childConfig do container widgetu gdy user kliknie "Init container".
+   * childConfig to zagnieżdżona PageConfig — renderuje się rekursywnie przez
+   * framework-owy PageRendererComponent.
+   */
+  initContainer(instanceId: string): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const w = m.snapshot().widgets.find((wd) => wd.id === instanceId);
+    if (!w || w.type !== 'container') return;
+    const existing = (w.widget.options ?? {}) as Record<string, unknown>;
+    if (existing['childConfig']) return; // już zainicjowany
+    const emptyChildConfig: PageConfig = {
+      $schemaVersion: '2026.04-alpha' as PageConfig['$schemaVersion'],
+      page: {
+        id: `${instanceId}-inner`,
+        title: existing['title'] as string ?? instanceId,
+        layout: { type: 'grid', items: [] },
+        widgets: {},
+      },
+    };
+    this.applyDraft((dm) => dm.updateWidget(instanceId, {
+      options: { ...existing, childConfig: emptyChildConfig },
+    }));
+  }
+
+  /**
+   * Enter container — rozwija scope stack. W M29 tylko UI hint w breadcrumb;
+   * pełna scope-aware edycja canvas/palette/inspector przyjdzie w M30.
+   */
+  enterContainer(instanceId: string): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const w = m.snapshot().widgets.find((wd) => wd.id === instanceId);
+    if (!w || w.type !== 'container') return;
+    const existing = (w.widget.options ?? {}) as Record<string, unknown>;
+    if (!existing['childConfig']) {
+      // Init first — potem user może wejść
+      this.initContainer(instanceId);
+      return;
+    }
+    const title = (existing['title'] as string) ?? instanceId;
+    this.scopeStack.update((stack) => [...stack, { containerId: instanceId, title }]);
+    if (typeof window !== 'undefined') {
+      window.alert(`⚡ Scope navigation (M30) — widzisz container "${title}" jako scope w breadcrumb.\n\nPełna edycja children wymaga dalszego refactora canvas. W M29 edytuj options.childConfig ręcznie w sekcji Bind/Options JAKO JSON (inline JSON edit trafi w M30).`);
+    }
+  }
+
+  /** Wyjdź z container scope — cofnij breadcrumb o jeden level. */
+  exitContainer(): void {
+    this.scopeStack.update((stack) => stack.slice(0, -1));
+  }
+
+  /** Wyjdź do top-level page. */
+  exitToTop(): void {
+    this.scopeStack.set([]);
+  }
   readonly canUndo = signal<boolean>(false);
   readonly canRedo = signal<boolean>(false);
   /** Licznik zmian — zwiększany po każdym apply żeby wymusić re-render computed. */
