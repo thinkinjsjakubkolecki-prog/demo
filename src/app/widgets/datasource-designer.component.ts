@@ -23,6 +23,17 @@ import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { DataBus, PageConfig, DatasourceConfig } from '@echelon-framework/core';
 import { DraftPageStoreService } from '../services/draft-page-store.service';
 
+interface DraftDsForm {
+  targetPageId: string;
+  dsId: string;
+  kind: 'transport' | 'local' | 'computed';
+  transport: 'http' | 'websocket' | 'mock';
+  endpoint: string;
+  valueJson: string;
+  computedExpr: string;
+  computedDeps: string;
+}
+
 interface DsEntry {
   readonly id: string;
   readonly pageId: string;
@@ -63,6 +74,11 @@ interface DsEntry {
         </div>
         <input type="search" class="search" placeholder="Szukaj po id / page..."
                [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
+        <button type="button" class="btn-new" (click)="openCreateDialog()"
+                [disabled]="draftStore.all().length === 0"
+                [title]="draftStore.all().length === 0 ? 'Musisz mieć co najmniej 1 draft page — stwórz w Pages Designer' : 'Dodaj nowy datasource do wybranego drafta'">
+          + Nowy
+        </button>
       </div>
 
       <div class="layout">
@@ -108,6 +124,9 @@ interface DsEntry {
               </div>
               <div class="detail-actions">
                 <button type="button" (click)="testDatasource(sel)" class="btn-primary">▶ Test / Snapshot</button>
+                @if (sel.isDraft) {
+                  <button type="button" (click)="deleteDatasource(sel)" class="btn-danger" title="Usuń z drafta">🗑 Usuń</button>
+                }
               </div>
             </div>
 
@@ -155,6 +174,79 @@ interface DsEntry {
           }
         </main>
       </div>
+
+      @if (createDialogOpen()) {
+        <div class="modal-backdrop" (click)="closeCreateDialog()"></div>
+        <div class="modal">
+          <div class="modal-header">
+            <h3>+ Nowy datasource</h3>
+            <button type="button" class="btn-close" (click)="closeCreateDialog()">✕</button>
+          </div>
+          <div class="modal-body">
+            <label class="field">
+              <span class="field-label">Draft page (target)</span>
+              <select [ngModel]="form().targetPageId" (ngModelChange)="updateForm('targetPageId', $event)">
+                @for (d of draftStore.all(); track d.id) {
+                  <option [value]="d.id">{{ d.title }} ({{ d.id }})</option>
+                }
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field-label">ID (identyfikator)</span>
+              <input type="text" [ngModel]="form().dsId" (ngModelChange)="updateForm('dsId', $event)" placeholder="np. clientsList" />
+            </label>
+
+            <label class="field">
+              <span class="field-label">Rodzaj</span>
+              <select [ngModel]="form().kind" (ngModelChange)="updateForm('kind', $event)">
+                <option value="transport">transport — http/websocket</option>
+                <option value="local">local — statyczna wartość (JSON)</option>
+                <option value="computed">computed — wyliczana z innych ds</option>
+              </select>
+            </label>
+
+            @if (form().kind === 'transport') {
+              <label class="field">
+                <span class="field-label">Transport</span>
+                <select [ngModel]="form().transport" (ngModelChange)="updateForm('transport', $event)">
+                  <option value="http">http</option>
+                  <option value="websocket">websocket</option>
+                  <option value="mock">mock</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Endpoint</span>
+                <input type="text" [ngModel]="form().endpoint" (ngModelChange)="updateForm('endpoint', $event)" placeholder="/api/clients" />
+              </label>
+            }
+
+            @if (form().kind === 'local') {
+              <label class="field">
+                <span class="field-label">Initial value (JSON)</span>
+                <textarea rows="4" [ngModel]="form().valueJson" (ngModelChange)="updateForm('valueJson', $event)" placeholder='np. "hello" albo { "a": 1 }'></textarea>
+              </label>
+            }
+
+            @if (form().kind === 'computed') {
+              <label class="field">
+                <span class="field-label">Wyrażenie (funkcja)</span>
+                <input type="text" [ngModel]="form().computedExpr" (ngModelChange)="updateForm('computedExpr', $event)" placeholder="np. sumPnl" />
+              </label>
+              <label class="field">
+                <span class="field-label">Dependencies (CSV ds ids)</span>
+                <input type="text" [ngModel]="form().computedDeps" (ngModelChange)="updateForm('computedDeps', $event)" placeholder="positionsList,spotRate" />
+              </label>
+            }
+
+            @if (createError()) { <div class="error-box">{{ createError() }}</div> }
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-ghost" (click)="closeCreateDialog()">Anuluj</button>
+            <button type="button" class="btn-primary" (click)="createDatasource()">Zapisz</button>
+          </div>
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -215,10 +307,32 @@ interface DsEntry {
     .empty-icon { font-size: 48px; opacity: 0.4; }
     .empty-title { font-size: 16px; font-weight: 600; color: var(--fg, #e5e7eb); }
     .empty-desc { font-size: 13px; }
+
+    .btn-new { padding: 6px 14px; background: #064e3b; border: 1px solid #10b981; color: #d1fae5; border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .btn-new:hover:not(:disabled) { background: #065f46; }
+    .btn-new:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-danger { padding: 6px 12px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fecaca; border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .btn-danger:hover { background: #7f1d1d66; }
+    .btn-ghost { padding: 6px 14px; background: transparent; border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .btn-ghost:hover { background: #1f2937; }
+    .btn-close { background: transparent; border: none; color: var(--muted, #9ca3af); font-size: 18px; cursor: pointer; padding: 4px 8px; }
+    .btn-close:hover { color: var(--fg, #e5e7eb); }
+
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; }
+    .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 101; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); border-radius: 6px; width: 480px; max-width: calc(100vw - 40px); max-height: calc(100vh - 80px); display: flex; flex-direction: column; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border, #1f2937); }
+    .modal-header h3 { margin: 0; font-size: 14px; color: var(--fg, #e5e7eb); font-weight: 600; }
+    .modal-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border, #1f2937); }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--muted, #9ca3af); font-weight: 600; }
+    .field input, .field select, .field textarea { padding: 6px 10px; background: var(--panel-alt, #1f2937); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 12px; font-family: inherit; }
+    .field textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
+    .error-box { padding: 8px 10px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fecaca; border-radius: 3px; font-size: 11px; }
   `],
 })
 export class DatasourceDesignerComponent {
-  private readonly draftStore = inject(DraftPageStoreService);
+  readonly draftStore = inject(DraftPageStoreService);
   private readonly dataBus = inject(DATA_BUS, { optional: true }) as DataBus | null;
   private readonly destroyRef = inject(DestroyRef);
 
@@ -227,6 +341,10 @@ export class DatasourceDesignerComponent {
   readonly testStatus = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');
   readonly snapshotValue = signal<unknown>(undefined);
   readonly snapshotError = signal<string | null>(null);
+
+  readonly createDialogOpen = signal<boolean>(false);
+  readonly createError = signal<string | null>(null);
+  readonly form = signal<DraftDsForm>(this.emptyForm());
 
   readonly allDatasources = computed<ReadonlyArray<DsEntry>>(() => {
     const out: DsEntry[] = [];
@@ -372,5 +490,91 @@ export class DatasourceDesignerComponent {
       this.testStatus.set('error');
       this.snapshotError.set(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  private emptyForm(): DraftDsForm {
+    const firstDraft = this.draftStore.all()[0];
+    return {
+      targetPageId: firstDraft?.id ?? '',
+      dsId: '',
+      kind: 'transport',
+      transport: 'http',
+      endpoint: '',
+      valueJson: '',
+      computedExpr: '',
+      computedDeps: '',
+    };
+  }
+
+  openCreateDialog(): void {
+    this.form.set(this.emptyForm());
+    this.createError.set(null);
+    this.createDialogOpen.set(true);
+  }
+
+  closeCreateDialog(): void {
+    this.createDialogOpen.set(false);
+  }
+
+  updateForm<K extends keyof DraftDsForm>(key: K, value: DraftDsForm[K]): void {
+    this.form.update((f) => ({ ...f, [key]: value }));
+  }
+
+  createDatasource(): void {
+    this.createError.set(null);
+    const f = this.form();
+    const draft = this.draftStore.get(f.targetPageId);
+    if (!draft) { this.createError.set('Nieznany target draft'); return; }
+    if (!f.dsId.trim()) { this.createError.set('Podaj ID datasource'); return; }
+    if (draft.config.page.datasources?.[f.dsId]) { this.createError.set(`ds "${f.dsId}" już istnieje w tym draft-cie`); return; }
+
+    let cfg: DatasourceConfig;
+    try {
+      if (f.kind === 'transport') {
+        if (!f.endpoint.trim()) { this.createError.set('Podaj endpoint'); return; }
+        cfg = { kind: 'transport', transport: f.transport, endpoint: f.endpoint } as DatasourceConfig;
+      } else if (f.kind === 'local') {
+        let initial: unknown = undefined;
+        if (f.valueJson.trim()) {
+          try { initial = JSON.parse(f.valueJson); }
+          catch { initial = f.valueJson; }
+        }
+        cfg = { kind: 'local', initial } as DatasourceConfig;
+      } else {
+        if (!f.computedExpr.trim()) { this.createError.set('Podaj nazwę funkcji computed'); return; }
+        const deps = f.computedDeps.split(',').map((s) => s.trim()).filter(Boolean);
+        cfg = { kind: 'computed', fn: f.computedExpr, deps } as DatasourceConfig;
+      }
+    } catch (e) {
+      this.createError.set(e instanceof Error ? e.message : String(e));
+      return;
+    }
+
+    const nextConfig: PageConfig = {
+      ...draft.config,
+      page: {
+        ...draft.config.page,
+        datasources: {
+          ...(draft.config.page.datasources ?? {}),
+          [f.dsId]: cfg,
+        },
+      },
+    };
+    this.draftStore.update(draft.id, nextConfig);
+    this.closeCreateDialog();
+  }
+
+  deleteDatasource(ds: DsEntry): void {
+    if (!ds.isDraft) return;
+    const draft = this.draftStore.get(ds.pageId);
+    if (!draft) return;
+    const current = draft.config.page.datasources ?? {};
+    const { [ds.id]: _removed, ...rest } = current;
+    const nextConfig: PageConfig = {
+      ...draft.config,
+      page: { ...draft.config.page, datasources: rest },
+    };
+    this.draftStore.update(draft.id, nextConfig);
+    this.selected.set(null);
   }
 }
