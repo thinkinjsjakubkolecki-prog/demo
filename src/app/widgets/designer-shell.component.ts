@@ -126,6 +126,7 @@ interface PageEntry {
               @if (editMode()) {
                 <button type="button" class="btn-undo" [disabled]="!canUndo()" (click)="undo()" title="Cofnij (Ctrl+Z)">↶ Undo</button>
                 <button type="button" class="btn-redo" [disabled]="!canRedo()" (click)="redo()" title="Przywróć (Ctrl+Shift+Z)">↷ Redo</button>
+                <button type="button" class="btn-save" [disabled]="!hasChanges()" (click)="openSaveDialog()" [title]="hasChanges() ? 'Zapisz do .page.ts' : 'Brak zmian'">💾 Save…</button>
               }
               <button type="button" class="btn-edit" [class.on]="editMode()" (click)="toggleEditMode()" [title]="editMode() ? 'Wyłącz tryb edycji' : 'Włącz tryb edycji'">
                 {{ editMode() ? '✏ Edit ON' : '🔒 Read-only' }}
@@ -385,6 +386,48 @@ interface PageEntry {
         }
       </aside>
     </div>
+
+    @if (saveDialogOpen()) {
+      <div class="modal-backdrop" (click)="closeSaveDialog()">
+        <div class="modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <span>💾 Save to .page.ts</span>
+            <button type="button" class="btn-close" (click)="closeSaveDialog()">✕</button>
+          </div>
+          <div class="modal-body">
+            <p class="muted small">
+              Faza 2 MVP — designer nie ma jeszcze write-back API (REST + ts-morph).
+              W międzyczasie kopiujesz source poniżej i ręcznie wklejasz do pliku.
+            </p>
+            <div class="save-target">
+              <div class="save-target-line">
+                <span class="muted">Target file:</span>
+                <code>src/app/pages/{{ selectedPage()?.id }}.page.ts</code>
+              </div>
+              <div class="save-target-line">
+                <span class="muted">Class:</span>
+                <code>{{ selectedPage()?.sourceClassName }}</code>
+              </div>
+              <div class="save-target-line">
+                <span class="muted">Method:</span>
+                <span>Zamień <code>static readonly config</code> na wygenerowany below</span>
+              </div>
+            </div>
+            <pre class="save-preview"><code [innerHTML]="highlightedSaveSource()"></code></pre>
+            <div class="save-actions">
+              <button type="button" class="btn-primary" (click)="copySaveSource()">📋 Kopiuj cały plik</button>
+              <button type="button" class="btn-primary" (click)="copyConfigOnly()">📋 Kopiuj tylko config</button>
+              @if (saveCopied()) { <span class="save-copied">✓ Skopiowano!</span> }
+            </div>
+            <div class="save-roadmap">
+              <strong>📋 Roadmap Faza 2 (M13+):</strong> dev-only REST endpoint +
+              <code>ts-morph</code> AST merge — zapisuje tylko <code>config</code>,
+              zachowuje importy/komentarze/metody klasy. Dzisiaj musisz wkleić ręcznie.
+            </div>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: [`
     :host { display: block; width: 100%; height: 100%; min-height: calc(100vh - 120px); }
@@ -553,6 +596,28 @@ interface PageEntry {
     .layout-grid label { display: flex; flex-direction: column; gap: 2px; font-size: 10px; color: var(--muted, #9ca3af); }
     .layout-grid input { width: 100%; }
     .layout-actions { display: flex; gap: 3px; flex-wrap: wrap; }
+
+    .btn-save { padding: 4px 10px; background: #064e3b33; border: 1px solid #10b981; color: #d1fae5; border-radius: 3px; font-size: 11px; cursor: pointer; font-family: inherit; }
+    .btn-save:hover:not(:disabled) { background: #064e3b66; }
+    .btn-save:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+    .modal { background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); border-radius: 6px; width: 100%; max-width: 900px; max-height: 90vh; display: flex; flex-direction: column; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border, #1f2937); font-weight: 600; color: var(--accent, #58a6ff); }
+    .btn-close { background: transparent; border: none; color: var(--muted, #9ca3af); font-size: 16px; cursor: pointer; padding: 2px 6px; }
+    .btn-close:hover { color: var(--fg, #e5e7eb); }
+    .modal-body { padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .save-target { background: var(--panel-alt, #111827); border: 1px solid var(--border, #1f2937); border-radius: 4px; padding: 10px 12px; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+    .save-target-line { display: flex; gap: 8px; align-items: center; }
+    .save-target code { background: #1f2937; padding: 2px 6px; border-radius: 2px; color: #93c5fd; font-size: 11px; }
+    .save-preview { margin: 0; padding: 12px; background: #0b1120; border: 1px solid var(--border, #1f2937); border-radius: 4px; font-size: 11px; line-height: 1.5; color: #d1d5db; max-height: 400px; overflow: auto; }
+    .save-actions { display: flex; gap: 8px; align-items: center; }
+    .btn-primary { padding: 6px 14px; background: #1e3a5f; border: 1px solid #3b82f6; color: #e0f2fe; border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .btn-primary:hover { background: #1e40af; }
+    .save-copied { color: #10b981; font-size: 12px; font-weight: 600; animation: flash 0.3s; }
+    @keyframes flash { from { opacity: 0; } to { opacity: 1; } }
+    .save-roadmap { padding: 10px 12px; background: #713f1233; border-left: 3px solid #f59e0b; border-radius: 2px; font-size: 11px; color: #fef3c7; }
+    .save-roadmap code { background: #1f2937; padding: 1px 4px; border-radius: 2px; color: #fcd34d; }
   `],
 })
 export class DesignerShellComponent {
@@ -593,6 +658,19 @@ export class DesignerShellComponent {
   readonly canRedo = signal<boolean>(false);
   /** Licznik zmian — zwiększany po każdym apply żeby wymusić re-render computed. */
   private readonly draftVersion = signal<number>(0);
+  /** Save dialog state. */
+  readonly saveDialogOpen = signal<boolean>(false);
+  readonly saveCopied = signal<boolean>(false);
+  /** Flaga: czy draft różni się od oryginalnego configu (proste sprawdzenie po serialize). */
+  readonly hasChanges = computed<boolean>(() => {
+    const p = this.selectedPage();
+    const m = this.draftModel();
+    if (!p || !m) return false;
+    this.draftVersion();
+    const originalDraft = PageDesignerModel.fromPageConfig(p.config).snapshot();
+    const currentDraft = m.snapshot();
+    return serialize(originalDraft, { target: 'json' }) !== serialize(currentDraft, { target: 'json' });
+  });
 
   readonly generatedSource = computed<string>(() => {
     const p = this.selectedPage();
@@ -613,6 +691,19 @@ export class DesignerShellComponent {
 
   readonly highlightedSource = computed<string>(() => {
     return highlightSource(this.generatedSource(), this.viewMode());
+  });
+
+  readonly fullFileSource = computed<string>(() => {
+    const p = this.selectedPage();
+    if (!p) return '';
+    this.draftVersion();
+    const model = this.draftModel();
+    const draft = model ? model.snapshot() : PageDesignerModel.fromPageConfig(p.config).snapshot();
+    return serialize(draft, { target: 'page-builder' });
+  });
+
+  readonly highlightedSaveSource = computed<string>(() => {
+    return highlightSource(this.fullFileSource(), 'source-ts');
   });
 
   /** Lista dostępnych bind targets dla bieżącej strony — datasources + computed + local. */
@@ -998,6 +1089,37 @@ export class DesignerShellComponent {
 
   resizeHalf(instanceId: string): void {
     this.applyDraft((dm) => dm.moveWidget(instanceId, { w: 6 }));
+  }
+
+  openSaveDialog(): void {
+    this.saveDialogOpen.set(true);
+    this.saveCopied.set(false);
+  }
+
+  closeSaveDialog(): void {
+    this.saveDialogOpen.set(false);
+  }
+
+  copySaveSource(): void {
+    this.writeToClipboard(this.fullFileSource());
+  }
+
+  /** Kopiuje sam content `static readonly config = ...` — do wklejenia w istniejącej klasie. */
+  copyConfigOnly(): void {
+    const full = this.fullFileSource();
+    // Wyciągnij tylko blok "PageBuilder.create(...)....build();" z pełnego pliku
+    const match = full.match(/static readonly config = ([\s\S]+?\.build\(\));/);
+    const configExpr = match ? match[1] : full;
+    this.writeToClipboard(configExpr ?? '');
+  }
+
+  private writeToClipboard(text: string): void {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && text) {
+      void navigator.clipboard.writeText(text).then(() => {
+        this.saveCopied.set(true);
+        setTimeout(() => this.saveCopied.set(false), 2000);
+      });
+    }
   }
 
   deleteInspectedWidget(): void {
