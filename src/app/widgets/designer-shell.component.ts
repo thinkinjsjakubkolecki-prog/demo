@@ -19,7 +19,14 @@ import { DomSanitizer, type SafeUrl } from '@angular/platform-browser';
 import { inject } from '@angular/core';
 import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
-import type { PageConfig } from '@echelon-framework/core';
+import { WIDGET_REGISTRY } from '@echelon-framework/core';
+import type { PageConfig, WidgetManifest, WidgetRegistry } from '@echelon-framework/core';
+
+interface PaletteGroup {
+  readonly id: string;
+  readonly label: string;
+  readonly items: ReadonlyArray<WidgetManifest>;
+}
 
 interface PageEntry {
   readonly id: string;
@@ -50,8 +57,27 @@ interface PageEntry {
   template: `
     <div class="shell" data-testid="designer-shell" data-echelon-state="ready">
       <aside class="palette">
-        <h3>Palette</h3>
-        <div class="placeholder">⏳ M4 — tutaj lista zarejestrowanych widgetów</div>
+        <h3>Palette <span class="palette-count">{{ totalWidgets() }}</span></h3>
+        <input type="search" class="palette-filter" placeholder="Filter widgets…"
+               [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
+        @if (paletteGroups().length === 0) {
+          <div class="placeholder">Brak widgetów pasujących do filtru</div>
+        }
+        @for (g of paletteGroups(); track g.id) {
+          <div class="palette-group">
+            <div class="palette-group-header">{{ g.label }} <span class="palette-group-count">{{ g.items.length }}</span></div>
+            @for (item of g.items; track item.type) {
+              <button type="button" class="palette-item"
+                      [title]="item.description || item.type"
+                      (click)="selectedWidgetType.set(item.type)"
+                      [class.active]="selectedWidgetType() === item.type">
+                <span class="p-icon">{{ item.icon || '🔲' }}</span>
+                <span class="p-name">{{ item.type }}</span>
+                <span class="p-version">v{{ item.version }}</span>
+              </button>
+            }
+          </div>
+        }
       </aside>
 
       <main class="canvas">
@@ -191,6 +217,18 @@ interface PageEntry {
     .preview-frame iframe { width: 100%; height: 100%; min-height: 500px; border: none; display: block; background: var(--panel, #0f172a); }
     .preview-frame.loading iframe { opacity: 0.3; }
     .preview-spinner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--muted, #9ca3af); background: rgba(15, 23, 42, 0.6); }
+
+    .palette-count, .palette-group-count { background: #1f2937; color: var(--muted, #9ca3af); font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: normal; }
+    .palette-filter { width: 100%; padding: 6px 10px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 4px; font-size: 12px; margin-bottom: 10px; box-sizing: border-box; }
+    .palette-filter:focus { outline: none; border-color: #58a6ff; }
+    .palette-group { margin-bottom: 10px; }
+    .palette-group-header { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted, #6b7280); margin-bottom: 4px; font-weight: 600; }
+    .palette-item { display: flex; align-items: center; gap: 6px; width: 100%; padding: 5px 8px; background: transparent; border: 1px solid transparent; color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 12px; cursor: pointer; text-align: left; margin-bottom: 2px; font-family: inherit; }
+    .palette-item:hover { background: #1a2332; border-color: var(--border, #374151); }
+    .palette-item.active { background: #1e3a5f33; border-color: #58a6ff; }
+    .p-icon { width: 16px; text-align: center; font-size: 13px; }
+    .p-name { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: #93c5fd; }
+    .p-version { font-size: 9px; color: var(--muted, #6b7280); }
   `],
 })
 export class DesignerShellComponent {
@@ -200,6 +238,37 @@ export class DesignerShellComponent {
     this.pages.find((p) => p.id === this.selectedId()) ?? null,
   );
   readonly previewLoading = signal<boolean>(false);
+  readonly selectedWidgetType = signal<string | null>(null);
+  readonly filter = signal<string>('');
+  private readonly registry = inject(WIDGET_REGISTRY as never, { optional: true }) as WidgetRegistry | null;
+  private readonly allManifests = computed<ReadonlyArray<WidgetManifest>>(() => {
+    return this.registry ? [...this.registry.all()] : [];
+  });
+  readonly totalWidgets = computed<number>(() => this.allManifests().length);
+  readonly paletteGroups = computed<ReadonlyArray<PaletteGroup>>(() => {
+    const q = this.filter().trim().toLowerCase();
+    const filtered = q
+      ? this.allManifests().filter((m) =>
+          m.type.toLowerCase().includes(q) ||
+          (m.description ?? '').toLowerCase().includes(q) ||
+          (m.category ?? '').toLowerCase().includes(q),
+        )
+      : this.allManifests();
+    const byCategory = new Map<string, WidgetManifest[]>();
+    for (const m of filtered) {
+      const cat = m.category ?? 'general';
+      const bucket = byCategory.get(cat) ?? [];
+      bucket.push(m);
+      byCategory.set(cat, bucket);
+    }
+    const groups: PaletteGroup[] = [];
+    for (const [id, items] of byCategory) {
+      items.sort((a, b) => a.type.localeCompare(b.type));
+      groups.push({ id, label: humanize(id), items });
+    }
+    groups.sort((a, b) => a.label.localeCompare(b.label));
+    return groups;
+  });
   private readonly sanitizer = inject(DomSanitizer);
   private readonly reloadTrigger = signal<number>(0);
   readonly previewUrl = computed<SafeUrl | null>(() => {
@@ -256,4 +325,8 @@ export class DesignerShellComponent {
     const meta = (cls as { __echelonPage__?: { route?: string } }).__echelonPage__;
     return meta?.route;
   }
+}
+
+function humanize(id: string): string {
+  return id.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
