@@ -72,6 +72,11 @@ interface PageEntry {
         <h3>Palette <span class="palette-count">{{ totalWidgets() }}</span></h3>
         <input type="search" class="palette-filter" placeholder="Filter widgets…"
                [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
+        @if (editMode()) {
+          <div class="palette-hint">Klik na widget → dodaje do strony</div>
+        } @else {
+          <div class="palette-hint muted-hint">Włącz Edit ON żeby dodawać</div>
+        }
         @if (paletteGroups().length === 0) {
           <div class="placeholder">Brak widgetów pasujących do filtru</div>
         }
@@ -81,8 +86,9 @@ interface PageEntry {
             @for (item of g.items; track item.type) {
               <button type="button" class="palette-item"
                       [title]="item.description || item.type"
-                      (click)="selectedWidgetType.set(item.type)"
-                      [class.active]="selectedWidgetType() === item.type">
+                      (click)="onPaletteClick(item.type)"
+                      [class.active]="selectedWidgetType() === item.type"
+                      [disabled]="!editMode()">
                 <span class="p-icon">{{ item.icon || '🔲' }}</span>
                 <span class="p-name">{{ item.type }}</span>
                 <span class="p-version">v{{ item.version }}</span>
@@ -179,8 +185,15 @@ interface PageEntry {
         <h3>Inspector</h3>
         @if (inspectedWidget(); as iw) {
           <div class="inspector-block">
-            <div class="inspector-title">{{ iw.instanceId }}</div>
-            <div class="inspector-subtitle">{{ iw.type }} <span class="muted">v{{ iw.manifest?.version ?? '?' }}</span></div>
+            <div class="inspector-header-row">
+              <div>
+                <div class="inspector-title">{{ iw.instanceId }}</div>
+                <div class="inspector-subtitle">{{ iw.type }} <span class="muted">v{{ iw.manifest?.version ?? '?' }}</span></div>
+              </div>
+              @if (editMode()) {
+                <button type="button" class="btn-danger" (click)="deleteInspectedWidget()" title="Usuń widget z strony">🗑 Delete</button>
+              }
+            </div>
             @if (iw.manifest?.description) {
               <div class="inspector-desc">{{ iw.manifest?.description }}</div>
             }
@@ -482,6 +495,15 @@ interface PageEntry {
     .btn-mini:hover { border-color: #58a6ff; color: var(--fg, #e5e7eb); }
     .btn-rm { padding: 0 4px; font-size: 10px; background: transparent; border: none; color: #ef4444; cursor: pointer; opacity: 0.6; }
     .btn-rm:hover { opacity: 1; }
+
+    .palette-hint { font-size: 10px; color: #10b981; padding: 4px 6px; background: #064e3b33; border-radius: 3px; margin-bottom: 8px; text-align: center; }
+    .palette-hint.muted-hint { color: var(--muted, #9ca3af); background: #1f2937; }
+    .palette-item:disabled { opacity: 0.5; cursor: not-allowed; }
+    .palette-item:disabled:hover { background: transparent; border-color: transparent; }
+
+    .inspector-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .btn-danger { padding: 4px 10px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fee2e2; border-radius: 3px; font-size: 11px; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+    .btn-danger:hover { background: #7f1d1d66; }
   `],
 })
 export class DesignerShellComponent {
@@ -845,6 +867,69 @@ export class DesignerShellComponent {
       return null;
     }
     return key;
+  }
+
+  /**
+   * Klik w palette:
+   *  - Edit OFF → tylko highlight (selectedWidgetType)
+   *  - Edit ON  → dodaj nową instancję widgetu do strony
+   */
+  onPaletteClick(type: string): void {
+    this.selectedWidgetType.set(type);
+    if (!this.editMode()) return;
+    const m = this.draftModel();
+    if (!m) return;
+    const instanceId = this.generateInstanceId(type);
+    const nextY = this.findNextFreeY();
+    this.applyDraft((dm) =>
+      dm.addWidget({
+        id: instanceId,
+        type,
+        layout: { widget: instanceId, x: 0, y: nextY, w: 12 },
+        widget: { type },
+      }),
+    );
+    this.inspectedInstanceId.set(instanceId);
+  }
+
+  /** Generator unikalnych instance ID — baza od typu + inkrementacja. */
+  private generateInstanceId(type: string): string {
+    const m = this.draftModel();
+    if (!m) return type;
+    const existing = new Set(m.snapshot().widgets.map((w) => w.id));
+    const base = type.replace(/[^a-zA-Z0-9]/g, '');
+    let candidate = base;
+    let n = 2;
+    while (existing.has(candidate)) {
+      candidate = `${base}${n}`;
+      n += 1;
+    }
+    return candidate;
+  }
+
+  /** Znajduje pierwszy wolny Y w gridzie 12-col — proste, bez rozwiązywania pełnego packera. */
+  private findNextFreeY(): number {
+    const m = this.draftModel();
+    if (!m) return 0;
+    let maxBottom = 0;
+    for (const w of m.snapshot().widgets) {
+      const top = w.layout.y ?? 0;
+      const h = w.layout.h ?? 1;
+      maxBottom = Math.max(maxBottom, top + h);
+    }
+    return maxBottom;
+  }
+
+  /** Usuwa bieżąco zaznaczony widget ze strony. */
+  deleteInspectedWidget(): void {
+    const id = this.inspectedInstanceId();
+    if (!id) return;
+    if (typeof window !== 'undefined') {
+      const confirmed = window.confirm(`Usunąć widget "${id}"?`);
+      if (!confirmed) return;
+    }
+    this.applyDraft((dm) => dm.removeWidget(id));
+    this.inspectedInstanceId.set(null);
   }
 
   private collectPages(): ReadonlyArray<PageEntry> {
