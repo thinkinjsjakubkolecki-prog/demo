@@ -20,7 +20,8 @@ export const menu = defineMenu([
   { id: 'reports',            label: 'Raporty',             icon: '▥', children: [] },
   { id: 'permissions',        label: 'Uprawnienia',         icon: '▥', children: [] },
   { id: 'dev',                label: 'Dev',                 icon: '⚙', defaultOpen: true, children: [
-      { id: 'designer',      label: 'Page Inspector',         icon: '🎨', route: '/designer' },
+      { id: 'designer',      label: 'Pages Designer',         icon: '🎨', route: '/designer' },
+      { id: 'ds-designer',   label: 'Data Sources',           icon: '📦', route: '/designer/datasources' },
       { id: 'menu-editor',   label: 'Menu Editor',            icon: '🧭', route: '/menu-editor' },
       { id: 'business-flow', label: 'Business Flow (realne)', icon: '🎯', route: '/business-flow' },
       { id: 'process-flow',  label: 'Process Flow (technical)', icon: '🔀', route: '/process-flow' },

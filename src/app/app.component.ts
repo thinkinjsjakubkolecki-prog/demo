@@ -8,7 +8,8 @@ import { ChangeDetectionStrategy, Component, inject, DestroyRef } from '@angular
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { EVENT_BUS } from '@echelon-framework/core';
+import { EVENT_BUS } from '@echelon-framework/runtime';
+import type { EventBus } from '@echelon-framework/core';
 import { menu } from './bootstrap/menu';
 import type { MenuItem } from '@echelon-framework/page-builders';
 import { exportPositionsToCsv } from './bootstrap/framework-integrations';
@@ -125,7 +126,7 @@ export class AppComponent {
 
   private readonly expanded = new Set<string>(menu.filter((i) => i.defaultOpen).map((i) => i.id));
   private readonly destroyRef = inject(DestroyRef);
-  private readonly eventBus = inject(EVENT_BUS);
+  private readonly eventBus = inject(EVENT_BUS) as EventBus;
 
   constructor() {
     // Side-effect handler dla CSV export requestowanego z positions.page.

@@ -31,6 +31,7 @@ import { BusinessFlowComponent } from '../widgets/business-flow.component';
 import { DesignerShellComponent } from '../widgets/designer-shell.component';
 import { MenuEditorComponent } from '../widgets/menu-editor.component';
 import { ContainerComponent } from '../widgets/container.component';
+import { DatasourceDesignerComponent } from '../widgets/datasource-designer.component';
 
 export const widgets = [
   // Generic — framework
@@ -53,4 +54,6 @@ export const widgets = [
   MenuEditorComponent,
   // fx-container — widget z children (hierarchia bloczków w bloczkach, M29)
   ContainerComponent,
+  // Data Sources Designer — dedykowana sekcja z listą ds + test/snapshot (M30)
+  DatasourceDesignerComponent,
 ];
