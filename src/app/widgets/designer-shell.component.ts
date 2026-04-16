@@ -15,6 +15,7 @@
 import { computed, effect, signal, DestroyRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { DomSanitizer, type SafeUrl } from '@angular/platform-browser';
 import { inject } from '@angular/core';
 import { EchelonWidget, WIDGET_REGISTRY } from '@echelon-framework/runtime';
@@ -76,7 +77,7 @@ interface PageEntry {
     testability: { interactions: [], observables: ['designer-shell'], lifecycleGates: ['ready'] },
   },
   selector: 'fx-designer-shell',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="shell" data-testid="designer-shell" data-echelon-state="ready">
       <aside class="palette">
@@ -664,25 +665,19 @@ interface PageEntry {
             <div class="inspector-section">
               Datasources
               <span class="count-pill">{{ pageDatasources().length }}</span>
-              @if (editMode()) {
-                <button type="button" class="btn-mini" (click)="addDatasource()" title="Dodaj datasource">+ ds</button>
-              }
+              <a routerLink="/designer/datasources" class="btn-mini" title="Edycja / test / create w dedykowanej sekcji">↗ DS Designer</a>
             </div>
             <div class="widget-list">
               @for (ds of pageDatasources(); track ds.id) {
-                <div class="ds-row" [class.clickable]="editMode()" (click)="editMode() && editDatasource(ds.id)">
+                <div class="ds-row">
                   <div class="ds-main">
                     <span class="wli-id">{{ ds.id }}</span>
                     <span class="wli-type">{{ ds.kind }}{{ ds.transport ? ' : ' + ds.transport : '' }}{{ ds.endpoint ? ' → ' + ds.endpoint : '' }}</span>
                   </div>
-                  @if (editMode()) {
-                    <button type="button" class="btn-tiny" (click)="editDatasource(ds.id); $event.stopPropagation()" title="Edytuj">✎</button>
-                    <button type="button" class="btn-rm" (click)="removeDatasource(ds.id); $event.stopPropagation()" title="Usuń">✕</button>
-                  }
                 </div>
               }
               @if (pageDatasources().length === 0) {
-                <div class="muted small">Strona nie używa datasources</div>
+                <div class="muted small">Brak datasources — dodaj w <a routerLink="/designer/datasources">Data Sources Designer</a></div>
               }
             </div>
           </div>
