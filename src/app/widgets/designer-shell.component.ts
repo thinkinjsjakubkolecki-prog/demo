@@ -759,12 +759,50 @@ interface PageEntry {
             <label class="form-label">
               <span>Kind</span>
               <select class="inline-edit" [value]="dsFormKind()" (change)="dsFormKind.set(($any($event.target)).value)">
+                <option value="value">💎 wartość (string / number / boolean / JSON)</option>
                 <option value="transport">transport (HTTP / WebSocket / mock)</option>
                 <option value="static">static (JSON z URL / fixture)</option>
-                <option value="local">local (w pamięci)</option>
+                <option value="local">local (w pamięci, JSON)</option>
                 <option value="computed">computed (derived z innych)</option>
               </select>
             </label>
+
+            @if (dsFormKind() === 'value') {
+              <label class="form-label">
+                <span>Typ</span>
+                <select class="inline-edit" [value]="dsFormValueType()" (change)="dsFormValueType.set(($any($event.target)).value)">
+                  <option value="string">string</option>
+                  <option value="number">number</option>
+                  <option value="boolean">boolean</option>
+                  <option value="json">JSON (object / array)</option>
+                </select>
+              </label>
+              @if (dsFormValueType() === 'boolean') {
+                <label class="form-label">
+                  <span>Wartość</span>
+                  <select class="inline-edit" [value]="dsFormValueInput()" (change)="dsFormValueInput.set(($any($event.target)).value)">
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                  </select>
+                </label>
+              } @else if (dsFormValueType() === 'json') {
+                <label class="form-label">
+                  <span>Wartość (JSON)</span>
+                  <input type="text" class="inline-edit" placeholder='{"items": []} albo [1,2,3]'
+                         [value]="dsFormValueInput()" (input)="dsFormValueInput.set(($any($event.target)).value)" />
+                  <small class="muted">Musi być poprawny JSON — cudzysłowy dla kluczy/wartości string</small>
+                </label>
+              } @else {
+                <label class="form-label">
+                  <span>Wartość</span>
+                  <input [type]="dsFormValueType() === 'number' ? 'number' : 'text'"
+                         class="inline-edit"
+                         [placeholder]="dsFormValueType() === 'number' ? 'np. 42' : 'np. Alice'"
+                         [value]="dsFormValueInput()" (input)="dsFormValueInput.set(($any($event.target)).value)" />
+                </label>
+              }
+              <small class="muted form-hint">Wartość dostępna jako <code>$ds.{{ dsFormId() || 'id' }}</code> — np. do bind tytułu, user name, threshold liczbowy, flag itp.</small>
+            }
 
             @if (dsFormKind() === 'transport') {
               <label class="form-label">
@@ -1120,6 +1158,8 @@ interface PageEntry {
     .form-label span { font-weight: 600; }
     .form-label small { font-size: 10px; font-style: italic; }
     .form-error { padding: 6px 10px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fee2e2; border-radius: 3px; font-size: 12px; }
+    .form-hint { font-style: italic; margin-top: -4px; }
+    .form-hint code { background: #1f2937; padding: 1px 5px; border-radius: 2px; color: #93c5fd; font-size: 10px; }
 
     .count-pill { background: #1f2937; color: var(--muted, #9ca3af); font-size: 9px; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: normal; }
     .ro-badge { margin-left: auto; background: #713f1233; color: #fcd34d; font-size: 9px; padding: 1px 6px; border-radius: 8px; font-weight: 500; }
@@ -1350,7 +1390,9 @@ export class DesignerShellComponent {
   readonly dsDialogOpen = signal<boolean>(false);
   readonly dsEditingId = signal<string | null>(null); // null = create, string = edit
   readonly dsFormId = signal<string>('');
-  readonly dsFormKind = signal<'transport' | 'local' | 'computed' | 'static'>('transport');
+  readonly dsFormKind = signal<'transport' | 'local' | 'computed' | 'static' | 'value'>('value');
+  readonly dsFormValueType = signal<'string' | 'number' | 'boolean' | 'json'>('string');
+  readonly dsFormValueInput = signal<string>('');
   readonly dsFormTransport = signal<string>('http');
   readonly dsFormEndpoint = signal<string>('');
   readonly dsFormChannel = signal<string>('');
@@ -2363,7 +2405,9 @@ export class DesignerShellComponent {
   addDatasource(): void {
     this.dsEditingId.set(null);
     this.dsFormId.set('');
-    this.dsFormKind.set('transport');
+    this.dsFormKind.set('value'); // default: prosta wartość — najczęstszy case
+    this.dsFormValueType.set('string');
+    this.dsFormValueInput.set('');
     this.dsFormTransport.set('http');
     this.dsFormEndpoint.set('');
     this.dsFormChannel.set('');
@@ -2385,14 +2429,34 @@ export class DesignerShellComponent {
     this.dsEditingId.set(id);
     this.dsFormId.set(id);
     const kind = cfg.kind ?? 'transport';
-    // 'static' jest transport z kind 'transport' + transport: 'static' albo url field
-    if ((cfg as { url?: string }).url) this.dsFormKind.set('static');
-    else this.dsFormKind.set(kind === 'local' || kind === 'computed' ? kind : 'transport');
+    // Inferencja formy:
+    //   'local' z initial value prostej (string/number/boolean) → kind 'value'
+    //   'local' z initial object/array → kind 'local' (JSON edit)
+    //   'local' bez initial → kind 'local'
+    //   'transport' z url field → 'static'
+    //   resztę jak kind w configu
+    if ((cfg as { url?: string }).url) {
+      this.dsFormKind.set('static');
+    } else if (kind === 'local' && cfg.initial !== undefined && isPrimitive(cfg.initial)) {
+      this.dsFormKind.set('value');
+      if (typeof cfg.initial === 'string') {
+        this.dsFormValueType.set('string');
+        this.dsFormValueInput.set(cfg.initial);
+      } else if (typeof cfg.initial === 'number') {
+        this.dsFormValueType.set('number');
+        this.dsFormValueInput.set(String(cfg.initial));
+      } else if (typeof cfg.initial === 'boolean') {
+        this.dsFormValueType.set('boolean');
+        this.dsFormValueInput.set(cfg.initial ? 'true' : 'false');
+      }
+    } else {
+      this.dsFormKind.set(kind === 'local' || kind === 'computed' ? kind : 'transport');
+    }
     this.dsFormTransport.set(cfg.transport ?? 'http');
     this.dsFormEndpoint.set(cfg.endpoint ?? '');
     this.dsFormChannel.set(cfg.channel ?? '');
     this.dsFormStaticUrl.set((cfg as { url?: string }).url ?? '');
-    this.dsFormInitial.set(cfg.initial !== undefined ? JSON.stringify(cfg.initial) : '');
+    this.dsFormInitial.set(cfg.initial !== undefined && !isPrimitive(cfg.initial) ? JSON.stringify(cfg.initial) : '');
     this.dsFormFn.set(cfg.fn ?? '');
     this.dsFormInputs.set((cfg.inputs ?? []).join(', '));
     this.dsFormError.set('');
@@ -2437,6 +2501,24 @@ export class DesignerShellComponent {
 
   private buildDsConfigFromForm(): DatasourceConfigShape | null {
     const kind = this.dsFormKind();
+    if (kind === 'value') {
+      const raw = this.dsFormValueInput();
+      const type = this.dsFormValueType();
+      let initial: unknown;
+      if (type === 'number') {
+        const n = Number(raw);
+        if (Number.isNaN(n)) return null;
+        initial = n;
+      } else if (type === 'boolean') {
+        initial = raw === 'true' || raw === '1' || raw === 'yes';
+      } else if (type === 'json') {
+        try { initial = JSON.parse(raw); } catch { return null; }
+      } else {
+        // string — nawet pusty akceptujemy (empty-string ds)
+        initial = raw;
+      }
+      return { kind: 'local', initial };
+    }
     if (kind === 'local') {
       const raw = this.dsFormInitial().trim();
       let initial: unknown = undefined;
@@ -2912,6 +2994,10 @@ export class DesignerShellComponent {
 
 function humanize(id: string): string {
   return id.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function isPrimitive(v: unknown): boolean {
+  return v === null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
 }
 
 /**
