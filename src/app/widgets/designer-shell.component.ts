@@ -246,6 +246,76 @@ interface PageEntry {
             </div>
           }
 
+          @if (iw.type === 'validated-form') {
+            <div class="inspector-block form-builder-block">
+              <div class="inspector-section">
+                📋 Form Builder
+                <span class="count-pill">{{ formFields().length }} pól</span>
+                @if (editMode()) {
+                  <button type="button" class="btn-mini" (click)="addFormField(iw.instanceId)" title="Dodaj pole formularza">+ field</button>
+                }
+              </div>
+              <div class="fb-fields">
+                @for (f of formFields(); track f.id; let fi = $index) {
+                  <div class="fb-field" [class.expanded]="expandedFormFieldId() === f.id">
+                    <div class="fb-field-header" (click)="toggleFormField(f.id)">
+                      <span class="fb-caret">{{ expandedFormFieldId() === f.id ? '▾' : '▸' }}</span>
+                      <span class="fb-type">{{ f.type }}</span>
+                      <span class="fb-id">{{ f.id }}</span>
+                      @if (f.required) { <span class="fb-badge">req</span> }
+                      @if (editMode()) {
+                        <span class="action-controls">
+                          <button type="button" class="btn-tiny" (click)="moveFormField(iw.instanceId, fi, -1); $event.stopPropagation()" title="Do góry">↑</button>
+                          <button type="button" class="btn-tiny" (click)="moveFormField(iw.instanceId, fi, 1); $event.stopPropagation()" title="W dół">↓</button>
+                          <button type="button" class="btn-tiny danger" (click)="removeFormField(iw.instanceId, f.id); $event.stopPropagation()" title="Usuń pole">✕</button>
+                        </span>
+                      }
+                    </div>
+                    @if (expandedFormFieldId() === f.id && editMode()) {
+                      <div class="fb-field-body">
+                        <label class="fb-label"><span>id</span><input type="text" class="inline-edit" [value]="f.id" (change)="onFormFieldIdChange(iw.instanceId, f.id, $event)"/></label>
+                        <label class="fb-label"><span>label</span><input type="text" class="inline-edit" [value]="f.label" (change)="onFormFieldChange(iw.instanceId, f.id, 'label', $event)"/></label>
+                        <label class="fb-label"><span>type</span>
+                          <select class="inline-edit" [value]="f.type" (change)="onFormFieldChange(iw.instanceId, f.id, 'type', $event)">
+                            <option value="text">text</option>
+                            <option value="number">number</option>
+                            <option value="decimal">decimal</option>
+                            <option value="email">email</option>
+                            <option value="password">password</option>
+                            <option value="checkbox">checkbox</option>
+                            <option value="select">select</option>
+                            <option value="textarea">textarea</option>
+                            <option value="date">date</option>
+                          </select>
+                        </label>
+                        <label class="fb-label"><span>placeholder</span><input type="text" class="inline-edit" [value]="f.placeholder ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'placeholder', $event)"/></label>
+                        <label class="fb-label"><span>hint</span><input type="text" class="inline-edit" [value]="f.hint ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'hint', $event)"/></label>
+                        <label class="fb-label"><span>section</span><input type="text" class="inline-edit" [value]="f.section ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'section', $event)"/></label>
+                        <div class="fb-inline">
+                          <label class="fb-check"><input type="checkbox" [checked]="!!f.required" (change)="onFormFieldChange(iw.instanceId, f.id, 'required', $event)"/> required</label>
+                          <label class="fb-check"><input type="checkbox" [checked]="!!f.readonly" (change)="onFormFieldChange(iw.instanceId, f.id, 'readonly', $event)"/> readonly</label>
+                        </div>
+                        <div class="fb-validators">
+                          <div class="fb-label-small">Walidacja:</div>
+                          <div class="fb-grid">
+                            <label class="fb-label"><span>min</span><input type="number" class="inline-edit" [value]="f.min ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'min', $event)"/></label>
+                            <label class="fb-label"><span>max</span><input type="number" class="inline-edit" [value]="f.max ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'max', $event)"/></label>
+                            <label class="fb-label"><span>minLength</span><input type="number" class="inline-edit" [value]="f.minLength ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'minLength', $event)"/></label>
+                            <label class="fb-label"><span>maxLength</span><input type="number" class="inline-edit" [value]="f.maxLength ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'maxLength', $event)"/></label>
+                          </div>
+                          <label class="fb-label"><span>pattern (regex)</span><input type="text" class="inline-edit" [value]="f.pattern ?? ''" (change)="onFormFieldChange(iw.instanceId, f.id, 'pattern', $event)"/></label>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+                @if (formFields().length === 0) {
+                  <div class="muted small">Brak pól — dodaj pierwsze klikiem "+ field"</div>
+                }
+              </div>
+            </div>
+          }
+
           <div class="inspector-block">
             <div class="inspector-section">
               Bind / Options {{ editMode() ? '(edytuj)' : '' }}
@@ -842,6 +912,26 @@ interface PageEntry {
     .action-add-row { display: flex; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border, #1f2937); }
     .action-add-row select { flex: 1; font-size: 11px; }
     .btn-primary.small { padding: 4px 10px; font-size: 11px; }
+
+    .form-builder-block { border-color: #10b981; background: #064e3b0a; }
+    .fb-fields { display: flex; flex-direction: column; gap: 4px; }
+    .fb-field { background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); border-left: 2px solid #10b981; border-radius: 3px; }
+    .fb-field.expanded { border-color: #58a6ff; border-left-color: #10b981; }
+    .fb-field-header { display: flex; align-items: center; gap: 6px; padding: 5px 8px; cursor: pointer; user-select: none; font-size: 11px; }
+    .fb-field-header:hover { background: #1a2332; }
+    .fb-caret { font-size: 9px; color: var(--muted, #6b7280); width: 10px; }
+    .fb-type { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; background: #064e3b33; color: #10b981; padding: 1px 6px; border-radius: 2px; font-weight: 600; }
+    .fb-id { flex: 1; color: #93c5fd; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+    .fb-badge { background: #7f1d1d; color: #fee2e2; font-size: 9px; padding: 1px 5px; border-radius: 2px; font-weight: 600; }
+    .fb-field-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--border, #1f2937); background: #0b1120; }
+    .fb-label { display: flex; flex-direction: column; gap: 2px; font-size: 10px; color: var(--muted, #9ca3af); }
+    .fb-label span { text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    .fb-label-small { font-size: 10px; color: var(--muted, #6b7280); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .fb-inline { display: flex; gap: 12px; }
+    .fb-check { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--fg, #e5e7eb); cursor: pointer; }
+    .fb-check input { margin: 0; }
+    .fb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .fb-validators { padding-top: 6px; border-top: 1px dashed var(--border, #1f2937); }
   `],
 })
 export class DesignerShellComponent {
@@ -900,6 +990,50 @@ export class DesignerShellComponent {
 
   /** Który handler jest rozwinięty w inspectorze (ID z draftu). */
   readonly expandedHandlerId = signal<string | null>(null);
+
+  /** Który field formularza jest rozwinięty (form-builder). */
+  readonly expandedFormFieldId = signal<string | null>(null);
+
+  /** Lista pól formularza dla aktualnie wybranego validated-form widgetu. */
+  readonly formFields = computed<ReadonlyArray<{
+    id: string;
+    label: string;
+    type: string;
+    placeholder?: string;
+    hint?: string;
+    section?: string;
+    required?: boolean;
+    readonly?: boolean;
+    min?: number;
+    max?: number;
+    minLength?: number;
+    maxLength?: number;
+    pattern?: string;
+  }>>(() => {
+    const iw = this.inspectedWidget();
+    if (!iw || iw.type !== 'validated-form') return [];
+    const options = iw.options as Record<string, unknown> | undefined;
+    const fieldsRaw = options?.['fields'];
+    if (!Array.isArray(fieldsRaw)) return [];
+    return fieldsRaw.map((f) => {
+      const field = f as Record<string, unknown>;
+      return {
+        id: String(field['id'] ?? ''),
+        label: String(field['label'] ?? field['id'] ?? ''),
+        type: String(field['type'] ?? 'text'),
+        placeholder: field['placeholder'] as string | undefined,
+        hint: field['hint'] as string | undefined,
+        section: field['section'] as string | undefined,
+        required: field['required'] === true,
+        readonly: field['readonly'] === true,
+        min: field['min'] as number | undefined,
+        max: field['max'] as number | undefined,
+        minLength: field['minLength'] as number | undefined,
+        maxLength: field['maxLength'] as number | undefined,
+        pattern: field['pattern'] as string | undefined,
+      };
+    });
+  });
   /** Flaga: czy draft różni się od oryginalnego configu (proste sprawdzenie po serialize). */
   readonly hasChanges = computed<boolean>(() => {
     const p = this.selectedPage();
@@ -1723,6 +1857,94 @@ export class DesignerShellComponent {
         window.alert('Nieznany typ akcji: ' + type);
         return null;
     }
+  }
+
+  toggleFormField(fieldId: string): void {
+    this.expandedFormFieldId.update((cur) => cur === fieldId ? null : fieldId);
+  }
+
+  addFormField(instanceId: string): void {
+    const id = this.promptKey('field (np. clientName)');
+    if (!id) return;
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().widgets.find((w) => w.id === instanceId);
+    if (!current) return;
+    const currentOptions = (current.widget.options ?? {}) as Record<string, unknown>;
+    const currentFields = Array.isArray(currentOptions['fields']) ? currentOptions['fields'] : [];
+    const newField = { id, label: humanize(id), type: 'text' };
+    const nextFields = [...currentFields, newField];
+    this.applyDraft((dm) => dm.updateWidget(instanceId, { options: { ...currentOptions, fields: nextFields } }));
+    this.expandedFormFieldId.set(id);
+  }
+
+  removeFormField(instanceId: string, fieldId: string): void {
+    if (typeof window !== 'undefined' && !window.confirm(`Usunąć pole "${fieldId}"?`)) return;
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().widgets.find((w) => w.id === instanceId);
+    if (!current) return;
+    const currentOptions = (current.widget.options ?? {}) as Record<string, unknown>;
+    const currentFields = Array.isArray(currentOptions['fields']) ? currentOptions['fields'] : [];
+    const nextFields = currentFields.filter((f) => (f as Record<string, unknown>)['id'] !== fieldId);
+    this.applyDraft((dm) => dm.updateWidget(instanceId, { options: { ...currentOptions, fields: nextFields } }));
+  }
+
+  moveFormField(instanceId: string, fieldIdx: number, delta: number): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().widgets.find((w) => w.id === instanceId);
+    if (!current) return;
+    const currentOptions = (current.widget.options ?? {}) as Record<string, unknown>;
+    const fields = Array.isArray(currentOptions['fields']) ? [...currentOptions['fields']] : [];
+    const targetIdx = fieldIdx + delta;
+    if (targetIdx < 0 || targetIdx >= fields.length) return;
+    [fields[fieldIdx], fields[targetIdx]] = [fields[targetIdx], fields[fieldIdx]];
+    this.applyDraft((dm) => dm.updateWidget(instanceId, { options: { ...currentOptions, fields } }));
+  }
+
+  onFormFieldIdChange(instanceId: string, oldId: string, event: Event): void {
+    const newId = (event.target as HTMLInputElement).value.trim();
+    if (!newId || newId === oldId) return;
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().widgets.find((w) => w.id === instanceId);
+    if (!current) return;
+    const currentOptions = (current.widget.options ?? {}) as Record<string, unknown>;
+    const fields = Array.isArray(currentOptions['fields']) ? currentOptions['fields'] : [];
+    const nextFields = fields.map((f) => {
+      const field = f as Record<string, unknown>;
+      return field['id'] === oldId ? { ...field, id: newId } : field;
+    });
+    this.applyDraft((dm) => dm.updateWidget(instanceId, { options: { ...currentOptions, fields: nextFields } }));
+    if (this.expandedFormFieldId() === oldId) this.expandedFormFieldId.set(newId);
+  }
+
+  onFormFieldChange(instanceId: string, fieldId: string, key: string, event: Event): void {
+    const target = event.target as HTMLInputElement;
+    let value: unknown;
+    if (target.type === 'checkbox') value = target.checked;
+    else if (target.type === 'number') {
+      const v = target.value;
+      value = v === '' ? undefined : Number(v);
+    } else {
+      value = target.value || undefined;
+    }
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().widgets.find((w) => w.id === instanceId);
+    if (!current) return;
+    const currentOptions = (current.widget.options ?? {}) as Record<string, unknown>;
+    const fields = Array.isArray(currentOptions['fields']) ? currentOptions['fields'] : [];
+    const nextFields = fields.map((f) => {
+      const field = f as Record<string, unknown>;
+      if (field['id'] !== fieldId) return field;
+      const copy = { ...field };
+      if (value === undefined || value === '' || value === false) delete copy[key];
+      else copy[key] = value;
+      return copy;
+    });
+    this.applyDraft((dm) => dm.updateWidget(instanceId, { options: { ...currentOptions, fields: nextFields } }));
   }
 
   deleteInspectedWidget(): void {
