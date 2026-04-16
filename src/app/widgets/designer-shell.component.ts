@@ -398,6 +398,51 @@ interface PageEntry {
             </div>
           }
 
+          @if (manifestSlots().length > 0) {
+            <div class="inspector-block slot-block">
+              <div class="inspector-section">
+                ⚡ Manifest — wymagane / dostępne pola
+                <span class="count-pill">{{ manifestSlots().length }}</span>
+              </div>
+              <div class="slots">
+                @for (slot of manifestSlots(); track slot.name) {
+                  <div class="slot" [class.filled]="slot.filled" [class.required]="slot.required">
+                    <div class="slot-head">
+                      <span class="slot-name">{{ slot.name }}</span>
+                      <span class="slot-type">{{ slot.type }}</span>
+                      @if (slot.required) { <span class="slot-req">required</span> }
+                      @if (slot.filled) { <span class="slot-status">✓</span> }
+                    </div>
+                    @if (slot.description) {
+                      <div class="slot-desc">{{ slot.description }}</div>
+                    }
+                    @if (slot.filled) {
+                      <div class="slot-value">
+                        <code>{{ slot.currentValue }}</code>
+                        @if (editMode()) {
+                          <button type="button" class="btn-tiny" (click)="unbindSlot(iw.instanceId, slot.name, slot.filledAs)" title="Usuń powiązanie">✕</button>
+                        }
+                      </div>
+                    } @else if (editMode()) {
+                      <div class="slot-actions">
+                        <select class="inline-edit ds-picker"
+                                (change)="bindSlotFromDatasource(iw.instanceId, slot.name, $event)">
+                          <option value="">— podepnij datasource —</option>
+                          @for (t of bindTargets(); track t.name) {
+                            <option [value]="t.name">{{ t.kind }}: {{ t.name }}</option>
+                          }
+                        </select>
+                        <button type="button" class="btn-tiny" (click)="bindSlotAsValue(iw.instanceId, slot.name, slot.type)" title="Ustaw stałą wartość">literał</button>
+                      </div>
+                    } @else {
+                      <div class="slot-empty muted small">Niepodpięte</div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
           <div class="inspector-block">
             <div class="inspector-section">
               Bind / Options {{ editMode() ? '(edytuj)' : '' }}
@@ -1125,6 +1170,23 @@ interface PageEntry {
       border-radius: 0 0 4px 4px;
       pointer-events: none;
     }
+
+    .slot-block { background: #1e3a5f0a; border-color: #3b82f6; }
+    .slots { display: flex; flex-direction: column; gap: 6px; }
+    .slot { padding: 8px 10px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); border-left: 3px solid var(--border, #374151); border-radius: 3px; }
+    .slot.filled { border-left-color: #10b981; }
+    .slot.required:not(.filled) { border-left-color: #ef4444; }
+    .slot-head { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+    .slot-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #93c5fd; font-weight: 600; }
+    .slot-type { font-size: 9px; color: var(--muted, #9ca3af); background: #1f2937; padding: 1px 5px; border-radius: 2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .slot-req { font-size: 9px; background: #7f1d1d; color: #fee2e2; padding: 1px 5px; border-radius: 2px; font-weight: 600; }
+    .slot-status { margin-left: auto; color: #10b981; font-weight: 600; }
+    .slot-desc { font-size: 10px; color: var(--muted, #6b7280); font-style: italic; margin-top: 4px; line-height: 1.4; }
+    .slot-value { display: flex; align-items: center; gap: 4px; margin-top: 6px; background: #0b1120; padding: 4px 8px; border-radius: 2px; }
+    .slot-value code { flex: 1; font-size: 10px; color: #fcd34d; background: transparent; padding: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+    .slot-actions { display: flex; gap: 4px; margin-top: 6px; }
+    .ds-picker { flex: 1; font-size: 11px; }
+    .slot-empty { padding: 4px 0; }
   `],
 })
 export class DesignerShellComponent {
@@ -1308,6 +1370,46 @@ export class DesignerShellComponent {
   });
 
   /** Lista dostępnych bind targets dla bieżącej strony — datasources + computed + local. */
+  /**
+   * Manifest slots — lista wymaganych / dostępnych pól widget-a z manifestu,
+   * zmapowana ze stanem wypełnienia w bieżącej instancji.
+   * Pozwala user-owi zobaczyć co jeszcze musi podpiąć (required) oraz
+   * szybki "fill the blank" flow zamiast pamiętać nazwy bindingów.
+   */
+  readonly manifestSlots = computed<ReadonlyArray<{
+    name: string;
+    type: string;
+    required: boolean;
+    description?: string;
+    filled: boolean;
+    filledAs: 'bind' | 'option' | null;
+    currentValue: string;
+  }>>(() => {
+    const iw = this.inspectedWidget();
+    if (!iw || !iw.manifest) return [];
+    this.draftVersion();
+    const bind = iw.bind ?? {};
+    const options = iw.options ?? {};
+    const all: Array<{ name: string; type: string; required: boolean; description?: string }> = [
+      ...iw.manifest.inputs.map((i) => ({ name: i.name, type: i.type, required: i.required ?? false, description: (i as { description?: string }).description })),
+    ];
+    return all.map((i) => {
+      const inBind = Object.prototype.hasOwnProperty.call(bind, i.name);
+      const inOptions = Object.prototype.hasOwnProperty.call(options, i.name);
+      const filled = inBind || inOptions;
+      const rawValue: unknown = inBind ? bind[i.name] : (inOptions ? options[i.name] : undefined);
+      return {
+        name: i.name,
+        type: i.type,
+        required: i.required,
+        ...(i.description ? { description: i.description } : {}),
+        filled,
+        filledAs: inBind ? 'bind' as const : (inOptions ? 'option' as const : null),
+        currentValue: filled ? this.formatVal(rawValue) : '',
+      };
+    });
+  });
+
   readonly bindTargets = computed<ReadonlyArray<{ name: string; kind: 'ds' | 'computed' | 'local' }>>(() => {
     const p = this.selectedPage();
     if (!p) return [];
@@ -1987,6 +2089,45 @@ export class DesignerShellComponent {
 
   onPrimitiveDragEnd(): void {
     this.draggingPrimitiveId.set(null);
+  }
+
+  /**
+   * Podepnij datasource/computed/local pod slot widget-a (bind.<slotName> =
+   * '$ds.<dsName>' dla transport/local, '$computed.<name>' dla computed).
+   */
+  bindSlotFromDatasource(instanceId: string, slotName: string, event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const dsName = select.value;
+    if (!dsName) return;
+    const target = this.bindTargets().find((t) => t.name === dsName);
+    if (!target) return;
+    const prefix = target.kind === 'computed' ? '$computed' : '$ds';
+    const value = `${prefix}.${dsName}`;
+    this.editWidgetBind(instanceId, slotName, value);
+    // Reset dropdown-a
+    select.value = '';
+  }
+
+  /** Ustawia stałą wartość w options (np. title: 'Dashboard'). */
+  bindSlotAsValue(instanceId: string, slotName: string, type: string): void {
+    if (typeof window === 'undefined') return;
+    const label = `Wartość dla "${slotName}" (${type}):`;
+    const raw = window.prompt(label, '');
+    if (raw === null) return;
+    let value: unknown = raw;
+    if (type === 'number' || type === 'decimal') {
+      const n = Number(raw);
+      if (!Number.isNaN(n)) value = n;
+    } else if (type === 'boolean') {
+      value = raw === 'true' || raw === '1';
+    }
+    this.editWidgetOption(instanceId, slotName, value);
+  }
+
+  /** Usuwa binding / option dla slot-u (w zależności jak był wypełniony). */
+  unbindSlot(instanceId: string, slotName: string, filledAs: 'bind' | 'option' | null): void {
+    if (filledAs === 'bind') this.removeBindKey(instanceId, slotName);
+    else if (filledAs === 'option') this.removeOptionKey(instanceId, slotName);
   }
 
   /** Usuwa widget po ID — używane przez primitive card action button. */
