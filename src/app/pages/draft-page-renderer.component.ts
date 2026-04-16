@@ -2,26 +2,33 @@
  * DraftPageRenderer — component dla dynamicznego route `/draft/:id`.
  *
  * Odczytuje draft z DraftPageStoreService i renderuje przez framework-owy
- * PageRendererComponent. Dzięki temu drafty z designera są dostępne przez
- * zwykły URL bez potrzeby rebuilu aplikacji.
- *
- * Flow:
- *   URL /draft/test-page
- *   → ActivatedRoute.params.id = 'test-page'
- *   → DraftPageStoreService.get('test-page') → PersistedDraft
- *   → <ech-page-renderer [config]="draft.config">
+ * PageRendererComponent. Używa imperative mount (ViewContainerRef.createComponent)
+ * zamiast template `<ech-page-renderer>` żeby obejść Angular 21 strict check
+ * standalone flag na komponentach z pakietów tsc-built (@echelon-framework/runtime).
  */
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  signal,
+  ViewChild,
+  ViewContainerRef,
+  type ComponentRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { PageRendererComponent } from '@echelon-framework/runtime';
-import { DraftPageStoreService } from '../services/draft-page-store.service';
+import type { PageConfig } from '@echelon-framework/core';
+import { DraftPageStoreService, type PersistedDraft } from '../services/draft-page-store.service';
 
 @Component({
   selector: 'fx-draft-page-renderer',
   standalone: true,
-  imports: [CommonModule, RouterLink, PageRendererComponent],
+  imports: [CommonModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (draft(); as d) {
@@ -31,7 +38,7 @@ import { DraftPageStoreService } from '../services/draft-page-store.service';
         <span class="meta">id: <code>{{ d.id }}</code> · updated {{ formatDate(d.updatedAt) }}</span>
         <a routerLink="/designer" class="edit-link">✎ Edytuj w designer</a>
       </div>
-      <ech-page-renderer [config]="d.config"></ech-page-renderer>
+      <div class="renderer-host" #rendererHost></div>
     } @else {
       <div class="not-found">
         <div class="icon">❓</div>
@@ -54,6 +61,8 @@ import { DraftPageStoreService } from '../services/draft-page-store.service';
     .draft-banner .edit-link { margin-left: auto; color: #60a5fa; text-decoration: none; }
     .draft-banner .edit-link:hover { text-decoration: underline; }
 
+    .renderer-host { padding: 0 16px; }
+
     .not-found { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; gap: 12px; text-align: center; }
     .not-found .icon { font-size: 48px; opacity: 0.5; }
     .not-found .title { font-size: 18px; font-weight: 600; color: var(--fg, #e5e7eb); }
@@ -65,16 +74,60 @@ import { DraftPageStoreService } from '../services/draft-page-store.service';
 export class DraftPageRendererComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly store = inject(DraftPageStoreService);
+  private readonly vcr = inject(ViewContainerRef);
   private readonly paramsSignal = toSignal(this.route.params);
 
   readonly requestedId = computed<string>(() => String(this.paramsSignal()?.['id'] ?? ''));
-  readonly draft = computed(() => {
+  readonly draft = computed<PersistedDraft | null>(() => {
     const id = this.requestedId();
     if (!id) return null;
-    // Czytamy store().all() — reaktywne na .save/.remove
-    const all = this.store.all();
-    return all.find((d) => d.id === id) ?? null;
+    return this.store.all().find((d) => d.id === id) ?? null;
   });
+
+  @ViewChild('rendererHost', { read: ElementRef })
+  set rendererHostEl(el: ElementRef<HTMLElement> | undefined) {
+    this._hostEl = el ?? null;
+    this.remountRenderer();
+  }
+  private _hostEl: ElementRef<HTMLElement> | null = null;
+  private rendererRef: ComponentRef<PageRendererComponent> | null = null;
+
+  constructor() {
+    // Re-mount renderer gdy zmienia się draft config (edit w designer → auto-save
+    // → store update → draft() computed zmienia się → tu).
+    effect(() => {
+      const d = this.draft();
+      const cfg = d?.config ?? null;
+      this.updateRendererConfig(cfg);
+    });
+  }
+
+  private remountRenderer(): void {
+    const d = this.draft();
+    if (!d) return;
+    this.updateRendererConfig(d.config);
+  }
+
+  private updateRendererConfig(config: PageConfig | null): void {
+    if (!config) {
+      if (this.rendererRef) {
+        this.rendererRef.destroy();
+        this.rendererRef = null;
+      }
+      return;
+    }
+    if (!this.rendererRef) {
+      // Imperative create zamiast template → omija strict standalone check
+      this.rendererRef = this.vcr.createComponent(PageRendererComponent);
+      // Przenieś DOM do naszego host-a jeśli chcemy kontrolować jego lokację
+      if (this._hostEl) {
+        const root = this.rendererRef.location.nativeElement as HTMLElement;
+        this._hostEl.nativeElement.appendChild(root);
+      }
+    }
+    this.rendererRef.setInput('config', config);
+    this.rendererRef.changeDetectorRef.markForCheck();
+  }
 
   formatDate(ts: number): string {
     if (!ts) return '?';
