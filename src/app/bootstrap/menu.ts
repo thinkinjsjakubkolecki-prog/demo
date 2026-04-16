@@ -22,6 +22,7 @@ export const menu = defineMenu([
   { id: 'dev',                label: 'Dev',                 icon: '⚙', defaultOpen: true, children: [
       { id: 'designer',      label: 'Pages Designer',         icon: '🎨', route: '/designer' },
       { id: 'ds-designer',   label: 'Data Sources',           icon: '📦', route: '/designer/datasources' },
+      { id: 'forms-designer', label: 'Forms Designer',        icon: '📋', route: '/designer/forms' },
       { id: 'menu-editor',   label: 'Menu Editor',            icon: '🧭', route: '/menu-editor' },
       { id: 'business-flow', label: 'Business Flow (realne)', icon: '🎯', route: '/business-flow' },
       { id: 'process-flow',  label: 'Process Flow (technical)', icon: '🔀', route: '/process-flow' },

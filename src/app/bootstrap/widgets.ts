@@ -32,6 +32,7 @@ import { DesignerShellComponent } from '../widgets/designer-shell.component';
 import { MenuEditorComponent } from '../widgets/menu-editor.component';
 import { ContainerComponent } from '../widgets/container.component';
 import { DatasourceDesignerComponent } from '../widgets/datasource-designer.component';
+import { FormDesignerComponent } from '../widgets/form-designer.component';
 
 export const widgets = [
   // Generic — framework
@@ -56,4 +57,6 @@ export const widgets = [
   ContainerComponent,
   // Data Sources Designer — dedykowana sekcja z listą ds + test/snapshot (M30)
   DatasourceDesignerComponent,
+  // Forms Designer — dedykowana sekcja z listą form widgetów + placeholder editor (M34)
+  FormDesignerComponent,
 ];
