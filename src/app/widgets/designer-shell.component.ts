@@ -306,11 +306,35 @@ interface PageEntry {
           }
 
           <div class="inspector-block">
-            <div class="inspector-section">Layout</div>
-            <dl>
-              <dt>x/y</dt><dd>{{ iw.layout.x ?? 0 }} / {{ iw.layout.y ?? 0 }}</dd>
-              <dt>w/h</dt><dd>{{ iw.layout.w ?? '—' }} / {{ iw.layout.h ?? 'auto' }}</dd>
-            </dl>
+            <div class="inspector-section">Layout {{ editMode() ? '(edytuj)' : '' }}</div>
+            @if (editMode()) {
+              <div class="layout-grid">
+                <label><span>x</span><input type="number" min="0" max="11" class="inline-edit"
+                       [value]="iw.layout.x ?? 0"
+                       (change)="onLayoutChange(iw.instanceId, 'x', $event)"></label>
+                <label><span>y</span><input type="number" min="0" class="inline-edit"
+                       [value]="iw.layout.y ?? 0"
+                       (change)="onLayoutChange(iw.instanceId, 'y', $event)"></label>
+                <label><span>w</span><input type="number" min="1" max="12" class="inline-edit"
+                       [value]="iw.layout.w ?? 12"
+                       (change)="onLayoutChange(iw.instanceId, 'w', $event)"></label>
+                <label><span>h</span><input type="number" min="1" class="inline-edit"
+                       [value]="iw.layout.h ?? ''"
+                       placeholder="auto"
+                       (change)="onLayoutChange(iw.instanceId, 'h', $event)"></label>
+              </div>
+              <div class="layout-actions">
+                <button type="button" class="btn-mini" (click)="moveWidget(iw.instanceId, 'up')" title="Na górę o 1 row">↑</button>
+                <button type="button" class="btn-mini" (click)="moveWidget(iw.instanceId, 'down')" title="W dół o 1 row">↓</button>
+                <button type="button" class="btn-mini" (click)="resizeFull(iw.instanceId)" title="Full width 12-col">↔ full</button>
+                <button type="button" class="btn-mini" (click)="resizeHalf(iw.instanceId)" title="Połowa width">½</button>
+              </div>
+            } @else {
+              <dl>
+                <dt>x/y</dt><dd>{{ iw.layout.x ?? 0 }} / {{ iw.layout.y ?? 0 }}</dd>
+                <dt>w/h</dt><dd>{{ iw.layout.w ?? '—' }} / {{ iw.layout.h ?? 'auto' }}</dd>
+              </dl>
+            }
           </div>
 
           <div class="inspector-block">
@@ -524,6 +548,11 @@ interface PageEntry {
     .shortcuts-help dd { margin: 0; color: var(--fg, #e5e7eb); }
     kbd { display: inline-block; padding: 1px 5px; background: #1f2937; border: 1px solid var(--border, #374151); border-radius: 2px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #93c5fd; }
     kbd + kbd { margin-left: 1px; }
+
+    .layout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+    .layout-grid label { display: flex; flex-direction: column; gap: 2px; font-size: 10px; color: var(--muted, #9ca3af); }
+    .layout-grid input { width: 100%; }
+    .layout-actions { display: flex; gap: 3px; flex-wrap: wrap; }
   `],
 })
 export class DesignerShellComponent {
@@ -941,6 +970,36 @@ export class DesignerShellComponent {
   }
 
   /** Usuwa bieżąco zaznaczony widget ze strony. */
+  onLayoutChange(instanceId: string, field: 'x' | 'y' | 'w' | 'h', event: Event): void {
+    const raw = (event.target as HTMLInputElement).value;
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().widgets.find((w) => w.id === instanceId);
+    if (!current) return;
+    const parsed = raw === '' ? undefined : Number(raw);
+    if (parsed !== undefined && Number.isNaN(parsed)) return;
+    const layoutPatch: Record<string, number | undefined> = { [field]: parsed };
+    this.applyDraft((dm) => dm.moveWidget(instanceId, layoutPatch));
+  }
+
+  moveWidget(instanceId: string, dir: 'up' | 'down'): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const w = m.snapshot().widgets.find((wd) => wd.id === instanceId);
+    if (!w) return;
+    const currentY = w.layout.y ?? 0;
+    const nextY = dir === 'up' ? Math.max(0, currentY - 1) : currentY + 1;
+    this.applyDraft((dm) => dm.moveWidget(instanceId, { y: nextY }));
+  }
+
+  resizeFull(instanceId: string): void {
+    this.applyDraft((dm) => dm.moveWidget(instanceId, { w: 12, x: 0 }));
+  }
+
+  resizeHalf(instanceId: string): void {
+    this.applyDraft((dm) => dm.moveWidget(instanceId, { w: 6 }));
+  }
+
   deleteInspectedWidget(): void {
     const id = this.inspectedInstanceId();
     if (!id) return;
