@@ -190,63 +190,83 @@ interface PageEntry {
                    [class.drop-active]="draggingPaletteType() !== null"
                    (dragover)="onCanvasDragOver($event)"
                    (drop)="onCanvasDrop($event)">
-                <div class="layout-grid">
-                  @for (w of layoutCells(); track w.instanceId) {
-                    <div class="primitive-card"
-                         [style.grid-column]="'span ' + (w.w || 12)"
-                         [style.grid-row-start]="(w.y ?? 0) + 1"
-                         [style.grid-row-end]="'span ' + (w.h || 1)"
-                         [style.grid-column-start]="(w.x ?? 0) + 1"
-                         [class.active]="inspectedInstanceId() === w.instanceId"
-                         [attr.draggable]="editMode() ? 'true' : null"
-                         (click)="inspectedInstanceId.set(w.instanceId)"
-                         (dragstart)="onPrimitiveDragStart(w.instanceId, $event)"
-                         (dragover)="onPrimitiveDragOver($event)"
-                         (drop)="onPrimitiveDrop(w.instanceId, $event)"
-                         (dragend)="onPrimitiveDragEnd()">
-                      <div class="prim-header">
-                        <span class="prim-icon">{{ w.icon || '🔲' }}</span>
-                        <span class="prim-id">{{ w.instanceId }}</span>
-                        <span class="prim-type">{{ w.type }}</span>
-                      </div>
-                      <div class="prim-body">
-                        @if (w.bindings.length > 0) {
-                          <div class="prim-bindings">
-                            @for (b of w.bindings; track b.key) {
-                              <span class="prim-bind" [title]="b.key + ' = ' + b.value">{{ b.key }}</span>
-                            }
-                          </div>
-                        }
-                        <div class="prim-layout">
-                          <span>x:{{ w.x ?? 0 }}</span>
-                          <span>y:{{ w.y ?? 0 }}</span>
-                          <span>w:{{ w.w ?? 12 }}</span>
-                          @if (w.h) { <span>h:{{ w.h }}</span> }
-                        </div>
-                      </div>
-                      @if (editMode()) {
-                        <div class="prim-actions" (click)="$event.stopPropagation()">
-                          <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'up')" title="Przesuń w górę">↑</button>
-                          <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'down')" title="Przesuń w dół">↓</button>
-                          <button type="button" class="btn-tiny danger" (click)="removeWidgetById(w.instanceId)" title="Usuń">✕</button>
-                        </div>
-                      }
-                    </div>
-                  }
-                  @if (layoutCells().length === 0) {
-                    <div class="layout-empty">
-                      <div class="empty-icon">📐</div>
-                      <div class="empty-title">Pusta strona</div>
-                      <div class="empty-desc">
-                        @if (editMode()) {
-                          Klik widget w palette albo przeciągnij go tutaj żeby dodać.
-                        } @else {
-                          Włącz Edit ON (Ctrl+E) żeby dodawać widgety.
-                        }
-                      </div>
-                    </div>
+                <!-- Column ruler — 12 slotów zgodnie z Echelon 12-col grid -->
+                <div class="col-ruler">
+                  @for (c of COLS; track c) {
+                    <div class="col-tick">{{ c }}</div>
                   }
                 </div>
+
+                <!-- Row ruler + grid area: side-by-side -->
+                <div class="canvas-body">
+                  <div class="row-ruler">
+                    @for (r of rowIndices(); track r) {
+                      <div class="row-tick">{{ r }}</div>
+                    }
+                  </div>
+
+                  <div class="layout-grid"
+                       [style.grid-template-rows]="gridTemplateRows()">
+                    @for (w of layoutCells(); track w.instanceId) {
+                      <div class="primitive-card"
+                           [style.grid-column-start]="(w.x ?? 0) + 1"
+                           [style.grid-column-end]="'span ' + (w.w || 12)"
+                           [style.grid-row-start]="(w.y ?? 0) + 1"
+                           [style.grid-row-end]="'span ' + (w.h || 1)"
+                           [class.active]="inspectedInstanceId() === w.instanceId"
+                           [class.required-empty]="w.hasRequiredUnfilled"
+                           [attr.draggable]="editMode() ? 'true' : null"
+                           (click)="inspectedInstanceId.set(w.instanceId)"
+                           (dragstart)="onPrimitiveDragStart(w.instanceId, $event)"
+                           (dragover)="onPrimitiveDragOver($event)"
+                           (drop)="onPrimitiveDrop(w.instanceId, $event)"
+                           (dragend)="onPrimitiveDragEnd()">
+                        <div class="prim-top">
+                          <span class="prim-icon">{{ w.icon || '🔲' }}</span>
+                          <span class="prim-type">{{ w.type }}</span>
+                          <span class="prim-dim">{{ w.w ?? 12 }}×{{ w.h ?? 1 }}</span>
+                        </div>
+                        <div class="prim-center">
+                          <div class="prim-id">{{ w.instanceId }}</div>
+                          @if (w.bindings.length > 0) {
+                            <div class="prim-bindings">
+                              @for (b of w.bindings; track b.key) {
+                                <span class="prim-bind" [title]="b.key + ' = ' + b.value">
+                                  <span class="b-key">{{ b.key }}:</span>
+                                  <span class="b-val">{{ b.value }}</span>
+                                </span>
+                              }
+                            </div>
+                          }
+                          @if (w.hasRequiredUnfilled) {
+                            <div class="prim-warning">⚠ niepodpięte required</div>
+                          }
+                        </div>
+                        @if (editMode()) {
+                          <div class="prim-actions" (click)="$event.stopPropagation()">
+                            <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'up')" title="Przesuń w górę (y--)">↑</button>
+                            <button type="button" class="btn-tiny" (click)="moveWidget(w.instanceId, 'down')" title="Przesuń w dół (y++)">↓</button>
+                            <button type="button" class="btn-tiny danger" (click)="removeWidgetById(w.instanceId)" title="Usuń">✕</button>
+                          </div>
+                        }
+                      </div>
+                    }
+                    @if (layoutCells().length === 0) {
+                      <div class="layout-empty">
+                        <div class="empty-icon">📐</div>
+                        <div class="empty-title">Pusta strona</div>
+                        <div class="empty-desc">
+                          @if (editMode()) {
+                            Klik widget w palette albo przeciągnij go tutaj żeby dodać.
+                          } @else {
+                            Włącz Edit ON (Ctrl+E) żeby dodawać widgety.
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+
                 @if (editMode() && draggingPaletteType()) {
                   <div class="layout-drop-overlay">
                     <div class="drop-hint">
@@ -1252,53 +1272,106 @@ interface PageEntry {
     .drop-label { font-size: 14px; color: var(--fg, #e5e7eb); font-weight: 500; }
     .drop-type { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #93c5fd; background: #1f2937; padding: 3px 10px; border-radius: 3px; }
 
+    /* Canvas: 12-col + rows layout identyczny z real pages */
     .layout-canvas {
       position: relative; width: 100%; flex: 1; min-height: 500px;
       border: 1px solid var(--border, #374151); border-radius: 0 0 4px 4px;
-      background:
-        linear-gradient(to right, #1f2937 1px, transparent 1px) 0 0 / calc(100% / 12) 100%,
-        #0b1120;
-      padding: 12px;
+      background: #0b1120;
+      padding: 0;
       overflow: auto;
+      display: flex;
+      flex-direction: column;
     }
     .layout-canvas.drop-active { border-color: #58a6ff; background-color: #1e3a5f11; }
+
+    /* Ruler — 12 column markers u góry */
+    .col-ruler {
+      display: grid;
+      grid-template-columns: 32px repeat(12, 1fr);
+      height: 22px;
+      background: #111827;
+      border-bottom: 1px solid var(--border, #1f2937);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .col-ruler::before { content: ''; grid-column: 1 / 2; border-right: 1px solid var(--border, #1f2937); }
+    .col-tick {
+      font-size: 10px; color: var(--muted, #6b7280); text-align: center; padding-top: 4px;
+      border-right: 1px solid var(--border, #1f2937); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .col-tick:last-child { border-right: none; }
+
+    .canvas-body { display: flex; flex: 1; min-height: 0; }
+
+    /* Row numbers po lewej */
+    .row-ruler {
+      width: 32px; background: #111827; border-right: 1px solid var(--border, #1f2937);
+      display: flex; flex-direction: column;
+      flex-shrink: 0;
+    }
+    .row-tick {
+      height: 80px; display: flex; align-items: flex-start; justify-content: center; padding-top: 4px;
+      font-size: 10px; color: var(--muted, #6b7280); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      border-bottom: 1px solid var(--border, #1f2937);
+    }
+
     .layout-grid {
       display: grid;
       grid-template-columns: repeat(12, 1fr);
-      grid-auto-rows: minmax(60px, auto);
-      gap: 8px;
-      min-height: 400px;
+      gap: 6px;
+      padding: 6px;
+      flex: 1;
+      min-width: 0;
+      /* Grid lines overlay — wertykalne + horyzontalne, idealnie pasujące */
+      background-image:
+        linear-gradient(to right, #1f2937 1px, transparent 1px),
+        linear-gradient(to bottom, #1f2937 1px, transparent 1px);
+      background-size: calc((100% - 12px) / 12) 80px, 100% 80px;
+      background-position: 6px 0, 0 0;
+      background-repeat: repeat-x, repeat-y;
     }
+
     .primitive-card {
-      background: var(--panel-alt, #111827);
-      border: 1px solid var(--border, #374151);
+      background: #1a2332;
+      border: 1.5px solid #374151;
       border-radius: 4px;
-      padding: 8px 10px;
+      padding: 8px 12px;
       cursor: pointer;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
       position: relative;
-      transition: border-color 0.15s, box-shadow 0.15s;
-      min-height: 60px;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.08s;
+      overflow: hidden;
     }
-    .primitive-card:hover { border-color: #58a6ff66; }
-    .primitive-card.active { border-color: #58a6ff; box-shadow: 0 0 0 2px #58a6ff33; }
+    .primitive-card:hover { border-color: #58a6ff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(88,166,255,0.15); }
+    .primitive-card.active { border-color: #58a6ff; background: #1e3a5f33; box-shadow: 0 0 0 2px #58a6ff44; }
+    .primitive-card.required-empty { border-color: #ef4444; background: #7f1d1d11; }
+    .primitive-card.required-empty::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: repeating-linear-gradient(45deg, #ef4444, #ef4444 4px, #7f1d1d 4px, #7f1d1d 8px);
+    }
     .primitive-card[draggable="true"] { cursor: grab; }
     .primitive-card[draggable="true"]:active { cursor: grabbing; }
 
-    .prim-header { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-    .prim-icon { font-size: 14px; }
-    .prim-id { flex: 1; color: #93c5fd; font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
-    .prim-type { color: var(--muted, #9ca3af); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; background: #1f2937; padding: 1px 6px; border-radius: 2px; }
-    .prim-body { display: flex; flex-direction: column; gap: 4px; }
-    .prim-bindings { display: flex; flex-wrap: wrap; gap: 3px; }
-    .prim-bind { font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #10b981; background: #064e3b33; padding: 1px 5px; border-radius: 2px; }
-    .prim-layout { display: flex; gap: 6px; font-size: 9px; color: var(--muted, #6b7280); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    .prim-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
+    .prim-top { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+    .prim-icon { font-size: 16px; }
+    .prim-type { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: #93c5fd; font-weight: 600; }
+    .prim-dim { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: var(--muted, #6b7280); background: #0b1120; padding: 1px 6px; border-radius: 2px; font-weight: 600; }
+
+    .prim-center { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 3px; min-width: 0; }
+    .prim-id { font-size: 13px; font-weight: 700; color: var(--fg, #e5e7eb); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .prim-bindings { display: flex; flex-wrap: wrap; gap: 2px; max-height: 40px; overflow: hidden; }
+    .prim-bind { font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #064e3b33; padding: 1px 5px; border-radius: 2px; display: inline-flex; gap: 2px; max-width: 100%; }
+    .prim-bind .b-key { color: #6ee7b7; font-weight: 600; }
+    .prim-bind .b-val { color: #10b981; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+    .prim-warning { font-size: 9px; color: #ef4444; font-weight: 600; margin-top: 2px; }
+
+    .prim-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; background: rgba(26, 35, 50, 0.9); padding: 2px; border-radius: 3px; }
     .primitive-card:hover .prim-actions, .primitive-card.active .prim-actions { opacity: 1; }
 
-    .layout-empty { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; gap: 10px; color: var(--muted, #9ca3af); text-align: center; }
+    .layout-empty { grid-column: 1 / -1; grid-row: 1 / span 4; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 10px; color: var(--muted, #9ca3af); text-align: center; }
     .empty-icon { font-size: 48px; opacity: 0.4; }
     .empty-title { font-size: 16px; font-weight: 600; }
     .empty-desc { font-size: 13px; max-width: 400px; }
@@ -1683,6 +1756,8 @@ export class DesignerShellComponent {
     }));
   });
 
+  readonly COLS: ReadonlyArray<number> = Array.from({ length: 12 }, (_, i) => i);
+
   /**
    * Layout cells — reprezentacja widgetów jako prymitywy z grid pozycjami.
    * Używane przez Layout view (canvas bez renderu iframe).
@@ -1696,11 +1771,25 @@ export class DesignerShellComponent {
     w?: number;
     h?: number;
     bindings: ReadonlyArray<{ key: string; value: string }>;
+    hasRequiredUnfilled: boolean;
   }>>(() => {
     const p = this.selectedPage();
     if (!p) return [];
     this.draftVersion();
     const model = this.draftModel();
+
+    const checkRequired = (type: string, bind: Record<string, string> | undefined, options: Record<string, unknown> | undefined): boolean => {
+      const m = this.registry?.get(type)?.manifest;
+      if (!m) return false;
+      for (const input of m.inputs) {
+        if (!input.required) continue;
+        const hasBind = bind && Object.prototype.hasOwnProperty.call(bind, input.name);
+        const hasOpt = options && Object.prototype.hasOwnProperty.call(options, input.name);
+        if (!hasBind && !hasOpt) return true;
+      }
+      return false;
+    };
+
     if (model) {
       return model.snapshot().widgets.map((w) => ({
         instanceId: w.id,
@@ -1711,6 +1800,7 @@ export class DesignerShellComponent {
         w: w.layout.w,
         h: w.layout.h,
         bindings: Object.entries(w.widget.bind ?? {}).map(([key, value]) => ({ key, value: String(value) })),
+        hasRequiredUnfilled: checkRequired(w.type, w.widget.bind, w.widget.options),
       }));
     }
     const widgets = p.config.page.widgets ?? {};
@@ -1723,8 +1813,28 @@ export class DesignerShellComponent {
         icon: this.registry?.get(w.type)?.manifest.icon,
         x: item.x, y: item.y, w: item.w, h: item.h,
         bindings: Object.entries(w.bind ?? {}).map(([key, value]) => ({ key, value: String(value) })),
+        hasRequiredUnfilled: checkRequired(w.type, w.bind, w.options),
       };
     });
+  });
+
+  /** Ile row-ów używa strona — do ruler + grid-template-rows. */
+  readonly rowIndices = computed<ReadonlyArray<number>>(() => {
+    const cells = this.layoutCells();
+    let maxY = 0;
+    for (const c of cells) {
+      const bottom = (c.y ?? 0) + (c.h ?? 1);
+      if (bottom > maxY) maxY = bottom;
+    }
+    // Minimum 6 rowów zawsze widocznych — żeby user miał miejsce do upuszczenia nowych widget
+    const count = Math.max(6, maxY + 2);
+    return Array.from({ length: count }, (_, i) => i);
+  });
+
+  /** Grid template rows — każdy row ~80px (realistic page row height). */
+  readonly gridTemplateRows = computed<string>(() => {
+    const n = this.rowIndices().length;
+    return `repeat(${n}, 80px)`;
   });
 
   readonly pageWidgets = computed<ReadonlyArray<{ instanceId: string; type: string }>>(() => {
