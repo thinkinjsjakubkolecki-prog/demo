@@ -88,7 +88,11 @@ interface PageEntry {
                       [title]="item.description || item.type"
                       (click)="onPaletteClick(item.type)"
                       [class.active]="selectedWidgetType() === item.type"
-                      [disabled]="!editMode()">
+                      [class.dragging]="draggingPaletteType() === item.type"
+                      [disabled]="!editMode()"
+                      [attr.draggable]="editMode() ? 'true' : null"
+                      (dragstart)="onPaletteDragStart(item.type, $event)"
+                      (dragend)="onPaletteDragEnd()">
                 <span class="p-icon">{{ item.icon || '🔲' }}</span>
                 <span class="p-name">{{ item.type }}</span>
                 <span class="p-version">v{{ item.version }}</span>
@@ -176,6 +180,17 @@ interface PageEntry {
                         title="Page Preview"></iframe>
                 @if (previewLoading()) {
                   <div class="preview-spinner">⏳ Ładowanie…</div>
+                }
+                @if (editMode() && draggingPaletteType()) {
+                  <div class="canvas-drop-zone"
+                       (dragover)="onCanvasDragOver($event)"
+                       (drop)="onCanvasDrop($event)">
+                    <div class="drop-hint">
+                      <span class="drop-icon">📥</span>
+                      <span class="drop-label">Upuść widget żeby dodać do strony</span>
+                      <span class="drop-type">{{ draggingPaletteType() }}</span>
+                    </div>
+                  </div>
                 }
               </div>
             } @else {
@@ -448,12 +463,24 @@ interface PageEntry {
             <div class="inspector-section">
               Widgety strony
               <span class="count-pill">{{ pageWidgets().length }}</span>
+              @if (editMode()) {
+                <span class="hint-mini">↕ przeciągaj by zmienić kolejność</span>
+              }
             </div>
-            <div class="widget-list">
-              @for (w of pageWidgets(); track w.instanceId) {
+            <div class="widget-list" (dragover)="$event.preventDefault()">
+              @for (w of pageWidgets(); track w.instanceId; let wi = $index) {
                 <button type="button" class="widget-list-item"
                         [class.active]="inspectedInstanceId() === w.instanceId"
-                        (click)="inspectedInstanceId.set(w.instanceId)">
+                        [class.drag-over]="dragOverWidgetIdx() === wi"
+                        [class.dragging]="draggingWidgetIdx() === wi"
+                        [attr.draggable]="editMode() ? 'true' : null"
+                        (click)="inspectedInstanceId.set(w.instanceId)"
+                        (dragstart)="onWidgetDragStart(wi, $event)"
+                        (dragover)="onWidgetDragOver(wi, $event)"
+                        (dragleave)="onWidgetDragLeave(wi)"
+                        (drop)="onWidgetDrop(wi, $event)"
+                        (dragend)="onWidgetDragEnd()">
+                  @if (editMode()) { <span class="drag-handle">⋮⋮</span> }
                   <span class="wli-id">{{ w.instanceId }}</span>
                   <span class="wli-type">{{ w.type }}</span>
                 </button>
@@ -947,6 +974,33 @@ interface PageEntry {
     .draft-hint { max-width: 500px; font-size: 11px; color: var(--muted, #9ca3af); text-align: left; background: #0b1120; padding: 10px 14px; border-radius: 4px; border-left: 3px solid #f59e0b; }
     .draft-hint ol { margin: 6px 0 0; padding-left: 20px; line-height: 1.8; }
     .draft-hint code { background: #1f2937; padding: 1px 5px; border-radius: 2px; color: #93c5fd; font-size: 11px; }
+
+    .hint-mini { margin-left: auto; font-size: 9px; color: var(--muted, #6b7280); text-transform: none; letter-spacing: 0; font-weight: normal; font-style: italic; }
+    .drag-handle { color: var(--muted, #6b7280); cursor: grab; font-size: 10px; letter-spacing: -2px; padding: 0 4px; user-select: none; }
+    .widget-list-item.dragging { opacity: 0.4; }
+    .widget-list-item.drag-over { background: #1e3a5f66; border-top: 2px solid #58a6ff; }
+    .palette-item.dragging { opacity: 0.4; }
+    .palette-item[draggable="true"] { cursor: grab; }
+    .palette-item[draggable="true"]:active { cursor: grabbing; }
+
+    .canvas-drop-zone {
+      position: absolute; inset: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(30, 58, 95, 0.85);
+      border: 3px dashed #58a6ff;
+      backdrop-filter: blur(2px);
+      pointer-events: auto;
+      border-radius: 0 0 4px 4px;
+    }
+    .drop-hint {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 30px 40px; background: #0f172a;
+      border: 1px solid #58a6ff; border-radius: 6px;
+      box-shadow: 0 4px 20px rgba(88, 166, 255, 0.3);
+    }
+    .drop-icon { font-size: 32px; }
+    .drop-label { font-size: 14px; color: var(--fg, #e5e7eb); font-weight: 500; }
+    .drop-type { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #93c5fd; background: #1f2937; padding: 3px 10px; border-radius: 3px; }
   `],
 })
 export class DesignerShellComponent {
@@ -980,6 +1034,11 @@ export class DesignerShellComponent {
   readonly selectedWidgetType = signal<string | null>(null);
   readonly filter = signal<string>('');
   readonly inspectedInstanceId = signal<string | null>(null);
+
+  // DnD state
+  readonly draggingWidgetIdx = signal<number | null>(null);
+  readonly dragOverWidgetIdx = signal<number | null>(null);
+  readonly draggingPaletteType = signal<string | null>(null);
   readonly viewMode = signal<'preview' | 'source-ts' | 'source-json'>('source-ts');
   /**
    * Edit mode — przełącznik globalny. Default OFF (read-only zgodnie z Fazą 1).
@@ -1646,6 +1705,77 @@ export class DesignerShellComponent {
     const currentY = w.layout.y ?? 0;
     const nextY = dir === 'up' ? Math.max(0, currentY - 1) : currentY + 1;
     this.applyDraft((dm) => dm.moveWidget(instanceId, { y: nextY }));
+  }
+
+  // ───────────────────────────── Drag & Drop ─────────────────────────────
+
+  onWidgetDragStart(idx: number, event: DragEvent): void {
+    if (!this.editMode()) { event.preventDefault(); return; }
+    this.draggingWidgetIdx.set(idx);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('application/x-echelon-widget-idx', String(idx));
+    }
+  }
+
+  onWidgetDragOver(idx: number, event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    if (this.draggingWidgetIdx() !== null && this.draggingWidgetIdx() !== idx) {
+      this.dragOverWidgetIdx.set(idx);
+    }
+  }
+
+  onWidgetDragLeave(idx: number): void {
+    if (this.dragOverWidgetIdx() === idx) this.dragOverWidgetIdx.set(null);
+  }
+
+  onWidgetDrop(targetIdx: number, event: DragEvent): void {
+    event.preventDefault();
+    const sourceIdx = this.draggingWidgetIdx();
+    this.dragOverWidgetIdx.set(null);
+    this.draggingWidgetIdx.set(null);
+    if (sourceIdx === null || sourceIdx === targetIdx) return;
+    const m = this.draftModel();
+    if (!m) return;
+    const widgets = m.snapshot().widgets;
+    const ids = widgets.map((w) => w.id);
+    const [moved] = ids.splice(sourceIdx, 1);
+    if (!moved) return;
+    ids.splice(targetIdx, 0, moved);
+    this.applyDraft((dm) => dm.reorderWidgets(ids));
+  }
+
+  onWidgetDragEnd(): void {
+    this.draggingWidgetIdx.set(null);
+    this.dragOverWidgetIdx.set(null);
+  }
+
+  onPaletteDragStart(type: string, event: DragEvent): void {
+    if (!this.editMode()) { event.preventDefault(); return; }
+    this.draggingPaletteType.set(type);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'copy';
+      event.dataTransfer.setData('application/x-echelon-palette-type', type);
+    }
+  }
+
+  onPaletteDragEnd(): void {
+    this.draggingPaletteType.set(null);
+  }
+
+  onCanvasDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  }
+
+  onCanvasDrop(event: DragEvent): void {
+    event.preventDefault();
+    const type = this.draggingPaletteType() ?? event.dataTransfer?.getData('application/x-echelon-palette-type');
+    this.draggingPaletteType.set(null);
+    if (!type) return;
+    // Reuse istniejącej logiki dodawania z palette klik
+    this.onPaletteClick(type);
   }
 
   resizeFull(instanceId: string): void {
