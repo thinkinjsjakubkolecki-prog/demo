@@ -33,6 +33,7 @@ import { MenuEditorComponent } from '../widgets/menu-editor.component';
 import { ContainerComponent } from '../widgets/container.component';
 import { DatasourceDesignerComponent } from '../widgets/datasource-designer.component';
 import { FormDesignerComponent } from '../widgets/form-designer.component';
+import { AdvancedFormComponent } from '../widgets/advanced-form.component';
 
 export const widgets = [
   // Generic — framework
@@ -59,4 +60,6 @@ export const widgets = [
   DatasourceDesignerComponent,
   // Forms Designer — dedykowana sekcja z listą form widgetów + placeholder editor (M34)
   FormDesignerComponent,
+  // fx-advanced-form — form widget z per-field actions (onChange/onBlur/onFocus) + onSubmit (M37)
+  AdvancedFormComponent,
 ];

@@ -18,6 +18,18 @@ import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
 import { DraftPageStoreService } from '../services/draft-page-store.service';
 
+type EventAction =
+  | { readonly emit: string; readonly payload?: string | Record<string, unknown> }
+  | { readonly setDatasource: string; readonly from?: string }
+  | { readonly clearDatasource: string }
+  | { readonly call: string; readonly with?: string };
+
+interface FieldActions {
+  onChange?: ReadonlyArray<EventAction>;
+  onBlur?: ReadonlyArray<EventAction>;
+  onFocus?: ReadonlyArray<EventAction>;
+}
+
 interface FormFieldDef {
   id: string;
   label?: string;
@@ -28,6 +40,7 @@ interface FormFieldDef {
   pattern?: string;
   placeholder?: string;
   options?: ReadonlyArray<{ value: string; label: string }>;
+  actions?: FieldActions;
 }
 
 interface FormWidgetEntry {
@@ -256,10 +269,43 @@ function isFormWidget(type: string): boolean {
                         </label>
                       }
 
-                      <div class="actions-placeholder">
-                        <div class="ap-header">🚧 Akcje pola (M37-M38)</div>
-                        <p>Po bump-ie widgets-core rc.17 tutaj pojawi się editor <code>onChange</code> /
-                          <code>onBlur</code> / <code>onSubmit</code> chain — te same EventAction co w handlers strony.</p>
+                      <div class="actions-editor">
+                        @for (phase of actionPhases; track phase) {
+                          <div class="act-phase">
+                            <div class="act-phase-header">
+                              <span>{{ phase }}</span>
+                              <span class="act-count">{{ actionsFor(field, phase).length }}</span>
+                              <button type="button" class="btn-add-mini" (click)="addAction(phase)">+ akcja</button>
+                            </div>
+                            @for (act of actionsFor(field, phase); track $index; let ai = $index) {
+                              <div class="act-row">
+                                <select class="act-type" [ngModel]="actionType(act)"
+                                        (ngModelChange)="updateActionType(phase, ai, $event)">
+                                  <option value="emit">emit</option>
+                                  <option value="setDatasource">setDatasource</option>
+                                  <option value="clearDatasource">clearDatasource</option>
+                                  <option value="call">call</option>
+                                </select>
+                                <input type="text" class="act-val" [placeholder]="actionPlaceholder(act)"
+                                       [ngModel]="actionPrimary(act)"
+                                       (ngModelChange)="updateActionPrimary(phase, ai, $event)" />
+                                @if (actionType(act) === 'emit' || actionType(act) === 'setDatasource' || actionType(act) === 'call') {
+                                  <input type="text" class="act-from" placeholder="from/payload/with"
+                                         [ngModel]="actionSecondary(act)"
+                                         (ngModelChange)="updateActionSecondary(phase, ai, $event)" />
+                                }
+                                <button type="button" class="btn-rm-mini" (click)="removeAction(phase, ai)">✕</button>
+                              </div>
+                            }
+                            @if (actionsFor(field, phase).length === 0) {
+                              <div class="act-empty">Brak akcji</div>
+                            }
+                          </div>
+                        }
+                        <div class="actions-hint">
+                          Akcje wykonywane przez <code>fx-advanced-form</code>. Użyj <code>$event</code> w
+                          <code>from</code>/<code>payload</code> żeby odnosić się do wartości pola.
+                        </div>
                       </div>
                     </div>
                   } @else {
@@ -391,10 +437,20 @@ function isFormWidget(type: string): boolean {
     .check { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--fg, #e5e7eb); cursor: pointer; }
     .check input { width: 14px; height: 14px; }
 
-    .actions-placeholder { margin-top: 8px; padding: 10px; background: #78350f1a; border: 1px dashed #f59e0b66; border-radius: 3px; }
-    .ap-header { font-size: 10px; text-transform: uppercase; color: #fcd34d; font-weight: 600; margin-bottom: 4px; }
-    .actions-placeholder p { margin: 0; font-size: 11px; color: #fde68a; line-height: 1.4; }
-    .actions-placeholder code { background: #0b1120; padding: 1px 4px; border-radius: 2px; color: #93c5fd; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+    .actions-editor { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .act-phase { background: #0b1120; border: 1px solid var(--border, #1f2937); border-radius: 3px; padding: 8px; }
+    .act-phase-header { display: flex; align-items: center; gap: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--muted, #9ca3af); font-weight: 600; margin-bottom: 6px; }
+    .act-phase-header span:first-child { color: #fcd34d; }
+    .act-count { background: #1f2937; padding: 0 6px; border-radius: 8px; font-size: 9px; }
+    .btn-add-mini { margin-left: auto; background: #064e3b; border: 1px solid #10b981; color: #d1fae5; padding: 1px 8px; border-radius: 2px; cursor: pointer; font-size: 10px; font-family: inherit; letter-spacing: 0; text-transform: none; }
+    .btn-add-mini:hover { background: #065f46; }
+    .act-row { display: grid; grid-template-columns: 95px 1fr 1fr 24px; gap: 3px; margin-bottom: 3px; }
+    .act-row select, .act-row input { padding: 3px 5px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 2px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .btn-rm-mini { background: transparent; border: 1px solid #7f1d1d66; color: #fca5a5; border-radius: 2px; font-size: 10px; cursor: pointer; padding: 0; font-family: inherit; }
+    .btn-rm-mini:hover { background: #7f1d1d33; }
+    .act-empty { font-size: 10px; color: var(--muted, #6b7280); font-style: italic; padding: 2px 4px; }
+    .actions-hint { font-size: 10px; color: var(--muted, #9ca3af); font-style: italic; padding: 4px 2px; line-height: 1.4; }
+    .actions-hint code { background: #0b1120; padding: 1px 4px; border-radius: 2px; color: #93c5fd; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; font-style: normal; }
 
     .detail-block { background: var(--panel-alt, #111827); border: 1px solid var(--border, #1f2937); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
     .block-header { display: flex; align-items: center; gap: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted, #9ca3af); font-weight: 600; }
@@ -418,6 +474,7 @@ export class FormDesignerComponent {
   private readonly draftStore = inject(DraftPageStoreService);
 
   readonly fieldTypes = FIELD_TYPES;
+  readonly actionPhases = ['onChange', 'onBlur', 'onFocus'] as const;
 
   readonly filter = signal<string>('');
   readonly selected = signal<FormWidgetEntry | null>(null);
@@ -569,6 +626,138 @@ export class FormDesignerComponent {
       delete updated[key];
     }
     fields[idx] = updated;
+    this.saveFields(sel, fields);
+  }
+
+  // ─── Field actions chain editor (M38) ───
+
+  actionsFor(field: FormFieldDef, phase: typeof this.actionPhases[number]): ReadonlyArray<EventAction> {
+    return field.actions?.[phase] ?? [];
+  }
+
+  actionType(a: EventAction): string {
+    if ('emit' in a) return 'emit';
+    if ('setDatasource' in a) return 'setDatasource';
+    if ('clearDatasource' in a) return 'clearDatasource';
+    if ('call' in a) return 'call';
+    return 'emit';
+  }
+
+  actionPrimary(a: EventAction): string {
+    if ('emit' in a) return a.emit;
+    if ('setDatasource' in a) return a.setDatasource;
+    if ('clearDatasource' in a) return a.clearDatasource;
+    if ('call' in a) return a.call;
+    return '';
+  }
+
+  actionSecondary(a: EventAction): string {
+    if ('emit' in a) return typeof a.payload === 'string' ? a.payload : (a.payload ? JSON.stringify(a.payload) : '');
+    if ('setDatasource' in a) return a.from ?? '';
+    if ('call' in a) return a.with ?? '';
+    return '';
+  }
+
+  actionPlaceholder(a: EventAction): string {
+    const t = this.actionType(a);
+    if (t === 'emit') return 'event.type np. fx.amount.changed';
+    if (t === 'setDatasource') return 'target ds id';
+    if (t === 'clearDatasource') return 'ds id do wyczyszczenia';
+    if (t === 'call') return 'computed fn name';
+    return '';
+  }
+
+  addAction(phase: typeof this.actionPhases[number]): void {
+    const sel = this.selected();
+    const idx = this.selectedFieldIndex();
+    if (!sel || !sel.isDraft || idx === null) return;
+    const fields = this.currentFields().slice();
+    const current = fields[idx];
+    if (!current) return;
+    const actions = { ...(current.actions ?? {}) };
+    const list = [...(actions[phase] ?? []), { emit: '' } as EventAction];
+    actions[phase] = list;
+    fields[idx] = { ...current, actions };
+    this.saveFields(sel, fields);
+  }
+
+  removeAction(phase: typeof this.actionPhases[number], ai: number): void {
+    const sel = this.selected();
+    const idx = this.selectedFieldIndex();
+    if (!sel || !sel.isDraft || idx === null) return;
+    const fields = this.currentFields().slice();
+    const current = fields[idx];
+    if (!current?.actions?.[phase]) return;
+    const actions = { ...current.actions };
+    const list = actions[phase]!.slice();
+    list.splice(ai, 1);
+    if (list.length === 0) delete actions[phase];
+    else actions[phase] = list;
+    fields[idx] = { ...current, actions: Object.keys(actions).length > 0 ? actions : undefined };
+    this.saveFields(sel, fields);
+  }
+
+  updateActionType(phase: typeof this.actionPhases[number], ai: number, newType: string): void {
+    this.mutateAction(phase, ai, () => {
+      if (newType === 'emit') return { emit: '' };
+      if (newType === 'setDatasource') return { setDatasource: '', from: '$event' };
+      if (newType === 'clearDatasource') return { clearDatasource: '' };
+      if (newType === 'call') return { call: '' };
+      return { emit: '' };
+    });
+  }
+
+  updateActionPrimary(phase: typeof this.actionPhases[number], ai: number, value: string): void {
+    this.mutateAction(phase, ai, (a) => {
+      const t = this.actionType(a);
+      if (t === 'emit') return { ...a, emit: value } as EventAction;
+      if (t === 'setDatasource') return { ...a, setDatasource: value } as EventAction;
+      if (t === 'clearDatasource') return { clearDatasource: value } as EventAction;
+      if (t === 'call') return { ...a, call: value } as EventAction;
+      return a;
+    });
+  }
+
+  updateActionSecondary(phase: typeof this.actionPhases[number], ai: number, value: string): void {
+    this.mutateAction(phase, ai, (a) => {
+      const t = this.actionType(a);
+      if (t === 'emit') {
+        const payload: unknown = value ? value : undefined;
+        const next = { ...a } as Record<string, unknown>;
+        if (payload === undefined) delete next['payload'];
+        else next['payload'] = payload;
+        return next as EventAction;
+      }
+      if (t === 'setDatasource') {
+        const next = { ...a } as Record<string, unknown>;
+        if (!value) delete next['from'];
+        else next['from'] = value;
+        return next as EventAction;
+      }
+      if (t === 'call') {
+        const next = { ...a } as Record<string, unknown>;
+        if (!value) delete next['with'];
+        else next['with'] = value;
+        return next as EventAction;
+      }
+      return a;
+    });
+  }
+
+  private mutateAction(phase: typeof this.actionPhases[number], ai: number, mutator: (a: EventAction) => EventAction): void {
+    const sel = this.selected();
+    const idx = this.selectedFieldIndex();
+    if (!sel || !sel.isDraft || idx === null) return;
+    const fields = this.currentFields().slice();
+    const current = fields[idx];
+    if (!current?.actions?.[phase]) return;
+    const actions = { ...current.actions };
+    const list = actions[phase]!.slice();
+    const curAct = list[ai];
+    if (!curAct) return;
+    list[ai] = mutator(curAct);
+    actions[phase] = list;
+    fields[idx] = { ...current, actions };
     this.saveFields(sel, fields);
   }
 
