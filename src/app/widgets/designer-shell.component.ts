@@ -1346,15 +1346,19 @@ export class DesignerShellComponent {
     // Gdy zmienia się wybrana strona LUB włączamy edit mode — rebuild draftModel.
     // CELOWO NIE używamy selectedPage() (computed) tylko źródłowe signals, żeby
     // tracking dependency nie łapał draftVersion/draftModel które sami tu zapisujemy.
+    // Rebuild modelu TYLKO gdy selectedId lub editMode się zmienia.
+    // CELOWO nie czytamy draftStore.all() (signal) — byłby to infinite loop,
+    // bo persist po mutacji aktualizowałby drafts signal → effect re-runs →
+    // rebuild modelu → gubimy undo stack + kontekst user-a.
+    // Config bierzemy przez synchroniczne store.get() które jest poza tracking.
     effect(() => {
       const id = this.selectedId();
-      // draftPages czytamy żeby dostać config dla draftów w pamięci
-      const drafts = this.draftPages();
       const enabled = this.editMode();
-      const base = this.pages.find((p) => p.id === id) ?? drafts.find((p) => p.id === id);
+      const registered = this.pages.find((p) => p.id === id);
+      const draft = registered ? null : this.draftStore.get(id);
+      const base = registered ?? draft;
 
       if (!base || !enabled) {
-        // untracked: set draftModel/canUndo/canRedo bez triggerowania effect's deps
         queueMicrotask(() => {
           this.draftModel.set(null);
           this.canUndo.set(false);
@@ -1362,31 +1366,32 @@ export class DesignerShellComponent {
         });
         return;
       }
-      const model = PageDesignerModel.fromPageConfig(base.config);
+      const config = base.config;
+      const model = PageDesignerModel.fromPageConfig(config);
       queueMicrotask(() => {
         this.draftModel.set(model);
         this.refreshUndoRedo();
         this.draftVersion.update((v) => v + 1);
       });
     });
+  }
 
-    // Auto-save draftów: każda zmiana draftVersion gdy selectedId wskazuje na
-    // draft (z draftStore) → persist update w localStorage. Nie dotyka
-    // zarejestrowanych stron (te nie są w store).
-    effect(() => {
-      const version = this.draftVersion();
-      const id = this.selectedId();
-      if (version === 0 || !id) return;
-      const model = this.draftModel();
-      if (!model) return;
-      const draftInStore = this.draftStore.get(id);
-      if (!draftInStore) return; // to zarejestrowana strona, nie draft
-      const snapshot = model.snapshot();
-      const nextConfig = buildConfigFromDraft(snapshot, draftInStore.config.$schemaVersion);
-      queueMicrotask(() => {
-        this.draftStore.update(id, nextConfig, snapshot.title);
-      });
-    });
+  /**
+   * Persist aktualnego draftu do store — wywoływane bezpośrednio z applyDraft,
+   * NIE przez effect, żeby nie wywoływać loop-a reactivity.
+   * Idempotentne: jeśli selectedId nie jest draftem (tylko registered page),
+   * no-op.
+   */
+  private persistDraftIfNeeded(): void {
+    const id = this.selectedId();
+    if (!id) return;
+    const model = this.draftModel();
+    if (!model) return;
+    const draftInStore = this.draftStore.get(id);
+    if (!draftInStore) return;
+    const snapshot = model.snapshot();
+    const nextConfig = buildConfigFromDraft(snapshot, draftInStore.config.$schemaVersion);
+    this.draftStore.update(id, nextConfig, snapshot.title);
   }
 
   private refreshUndoRedo(): void {
@@ -1405,6 +1410,10 @@ export class DesignerShellComponent {
     mutate(m);
     this.refreshUndoRedo();
     this.draftVersion.update((v) => v + 1);
+    // Direct call do persist — nie przez effect, żeby uniknąć pętli
+    // reactivity (effect czytający drafts signal by rebuildował model po
+    // każdym save, co by resetowało undo stack).
+    this.persistDraftIfNeeded();
   }
 
   undo(): void {
@@ -1413,6 +1422,7 @@ export class DesignerShellComponent {
     m.undo();
     this.refreshUndoRedo();
     this.draftVersion.update((v) => v + 1);
+    this.persistDraftIfNeeded();
   }
 
   redo(): void {
@@ -1421,6 +1431,7 @@ export class DesignerShellComponent {
     m.redo();
     this.refreshUndoRedo();
     this.draftVersion.update((v) => v + 1);
+    this.persistDraftIfNeeded();
   }
 
   toggleEditMode(): void {
