@@ -199,23 +199,56 @@ interface PageEntry {
             </div>
           }
 
+          @if (editMode()) {
+            <div class="inspector-block">
+              <div class="inspector-section">Typ widgetu</div>
+              <select class="inline-edit full" [value]="iw.type" (change)="onWidgetTypeChange(iw.instanceId, $event)">
+                @for (g of paletteGroups(); track g.id) {
+                  <optgroup [label]="g.label">
+                    @for (item of g.items; track item.type) {
+                      <option [value]="item.type">{{ item.type }}</option>
+                    }
+                  </optgroup>
+                }
+              </select>
+              <div class="muted small" style="margin-top: 4px;">Zmiana typu zachowa bind/options (te które pasują do nowego manifestu).</div>
+            </div>
+          }
+
           <div class="inspector-block">
-            <div class="inspector-section">Bind / Options {{ editMode() ? '(edytuj)' : '' }}</div>
+            <div class="inspector-section">
+              Bind / Options {{ editMode() ? '(edytuj)' : '' }}
+              @if (editMode()) {
+                <button type="button" class="btn-mini" (click)="addBindKey(iw.instanceId)" title="Dodaj bind field">+ bind</button>
+                <button type="button" class="btn-mini" (click)="addOptionKey(iw.instanceId)" title="Dodaj options field">+ opt</button>
+              }
+            </div>
             @if (iw.bind && (keys(iw.bind)).length > 0) {
               <dl>
                 @for (k of keys(iw.bind); track k) {
                   <dt>bind.{{ k }}</dt>
                   <dd>
                     @if (editMode()) {
-                      <input type="text" class="inline-edit"
-                             [value]="asString(iw.bind![k])"
-                             (change)="onBindChange(iw.instanceId, k, $event)" />
+                      <div class="bind-row">
+                        <input type="text" class="inline-edit"
+                               [value]="asString(iw.bind![k])"
+                               [attr.list]="'bind-targets-' + iw.instanceId"
+                               (change)="onBindChange(iw.instanceId, k, $event)" />
+                        <button type="button" class="btn-rm" (click)="removeBindKey(iw.instanceId, k)" title="Usuń">✕</button>
+                      </div>
                     } @else {
                       <code>{{ formatVal(iw.bind![k]) }}</code>
                     }
                   </dd>
                 }
               </dl>
+              @if (editMode()) {
+                <datalist [id]="'bind-targets-' + iw.instanceId">
+                  @for (t of bindTargets(); track t.name) {
+                    <option [value]="t.name">{{ t.kind }}</option>
+                  }
+                </datalist>
+              }
             }
             @if (iw.options && (keys(iw.options)).length > 0) {
               <dl>
@@ -223,9 +256,12 @@ interface PageEntry {
                   <dt>opt.{{ k }}</dt>
                   <dd>
                     @if (editMode() && isScalarOption(iw.options![k])) {
-                      <input type="text" class="inline-edit"
-                             [value]="asString(iw.options![k])"
-                             (change)="onOptionChange(iw.instanceId, k, $event)" />
+                      <div class="bind-row">
+                        <input type="text" class="inline-edit"
+                               [value]="asString(iw.options![k])"
+                               (change)="onOptionChange(iw.instanceId, k, $event)" />
+                        <button type="button" class="btn-rm" (click)="removeOptionKey(iw.instanceId, k)" title="Usuń">✕</button>
+                      </div>
                     } @else {
                       <code>{{ formatVal(iw.options![k]) }}</code>
                     }
@@ -439,6 +475,13 @@ interface PageEntry {
 
     .inline-edit { width: 100%; padding: 3px 6px; background: #0b1120; border: 1px solid #58a6ff; color: var(--fg, #e5e7eb); border-radius: 2px; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; box-sizing: border-box; }
     .inline-edit:focus { outline: none; border-color: #93c5fd; box-shadow: 0 0 0 1px #93c5fd44; }
+    .inline-edit.full { width: 100%; }
+
+    .bind-row { display: flex; gap: 4px; align-items: center; }
+    .btn-mini { padding: 1px 6px; font-size: 9px; background: #1f2937; border: 1px solid var(--border, #374151); color: var(--muted, #9ca3af); border-radius: 2px; cursor: pointer; font-family: inherit; margin-left: 6px; }
+    .btn-mini:hover { border-color: #58a6ff; color: var(--fg, #e5e7eb); }
+    .btn-rm { padding: 0 4px; font-size: 10px; background: transparent; border: none; color: #ef4444; cursor: pointer; opacity: 0.6; }
+    .btn-rm:hover { opacity: 1; }
   `],
 })
 export class DesignerShellComponent {
@@ -499,6 +542,24 @@ export class DesignerShellComponent {
 
   readonly highlightedSource = computed<string>(() => {
     return highlightSource(this.generatedSource(), this.viewMode());
+  });
+
+  /** Lista dostępnych bind targets dla bieżącej strony — datasources + computed + local. */
+  readonly bindTargets = computed<ReadonlyArray<{ name: string; kind: 'ds' | 'computed' | 'local' }>>(() => {
+    const p = this.selectedPage();
+    if (!p) return [];
+    this.draftVersion();
+    const targets: Array<{ name: string; kind: 'ds' | 'computed' | 'local' }> = [];
+    const page = p.config.page;
+    for (const name of Object.keys(page.datasources ?? {})) {
+      const kind = (page.datasources?.[name]?.kind) ?? 'transport';
+      targets.push({ name, kind: kind === 'local' ? 'local' : 'ds' });
+    }
+    for (const name of Object.keys(page.computed ?? {})) {
+      targets.push({ name, kind: 'computed' });
+    }
+    targets.sort((a, b) => a.name.localeCompare(b.name));
+    return targets;
   });
 
   readonly pageWidgets = computed<ReadonlyArray<{ instanceId: string; type: string }>>(() => {
@@ -736,6 +797,54 @@ export class DesignerShellComponent {
     const n = Number(v);
     const parsed = v !== '' && !Number.isNaN(n) ? n : v === 'true' ? true : v === 'false' ? false : v;
     this.editWidgetOption(instanceId, key, parsed);
+  }
+
+  /** Zmiana typu widgetu — zachowujemy instanceId, bind, options. Runtime decyduje co pasuje. */
+  onWidgetTypeChange(instanceId: string, event: Event): void {
+    const newType = (event.target as HTMLSelectElement).value;
+    this.applyDraft((dm) => dm.updateWidget(instanceId, { type: newType }));
+  }
+
+  addBindKey(instanceId: string): void {
+    const key = this.promptKey('bind');
+    if (!key) return;
+    this.editWidgetBind(instanceId, key, '');
+  }
+
+  addOptionKey(instanceId: string): void {
+    const key = this.promptKey('option');
+    if (!key) return;
+    this.editWidgetOption(instanceId, key, '');
+  }
+
+  removeBindKey(instanceId: string, key: string): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().widgets.find((w) => w.id === instanceId)?.widget;
+    if (!current) return;
+    const next: Record<string, string> = { ...(current.bind ?? {}) };
+    delete next[key];
+    this.applyDraft((dm) => dm.updateWidget(instanceId, { bind: next }));
+  }
+
+  removeOptionKey(instanceId: string, key: string): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().widgets.find((w) => w.id === instanceId)?.widget;
+    if (!current) return;
+    const next: Record<string, unknown> = { ...(current.options ?? {}) };
+    delete next[key];
+    this.applyDraft((dm) => dm.updateWidget(instanceId, { options: next }));
+  }
+
+  private promptKey(label: string): string | null {
+    if (typeof window === 'undefined') return null;
+    const key = window.prompt(`Nazwa pola ${label}:`);
+    if (!key || !/^[a-zA-Z_][\w.]*$/.test(key)) {
+      if (key) window.alert('Nazwa musi być prawidłowym identyfikatorem (liter-cyfry-kropki).');
+      return null;
+    }
+    return key;
   }
 
   private collectPages(): ReadonlyArray<PageEntry> {
