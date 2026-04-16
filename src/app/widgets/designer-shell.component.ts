@@ -165,16 +165,41 @@ interface PageEntry {
             </div>
 
             @if (viewMode() === 'preview') {
-              <div class="preview-frame" [class.loading]="previewLoading()">
-                <iframe #previewFrame
-                        [src]="previewUrl()"
-                        sandbox="allow-same-origin allow-scripts allow-forms"
-                        (load)="onPreviewLoad()"
-                        title="Page Preview"></iframe>
-                @if (previewLoading()) {
-                  <div class="preview-spinner">⏳ Ładowanie…</div>
-                }
-              </div>
+              @if (isDraftPage()) {
+                <div class="draft-preview-notice">
+                  <div class="draft-icon">⚡</div>
+                  <div class="draft-title">Draft page — preview niedostępny</div>
+                  <div class="draft-desc">
+                    Ta strona istnieje tylko w pamięci designera.
+                    Preview iframe wymaga zarejestrowanej strony w Angular Routerze.
+                  </div>
+                  <div class="draft-actions">
+                    <button type="button" class="primary" (click)="viewMode.set('source-ts')">📄 Zobacz source</button>
+                    <button type="button" (click)="openSaveDialog()">💾 Exportuj do .page.ts</button>
+                  </div>
+                  <div class="draft-hint">
+                    Żeby zobaczyć live preview:
+                    <ol>
+                      <li>Edytuj draft w designer-ie (Edit ON)</li>
+                      <li>💾 Save → skopiuj source</li>
+                      <li>Wklej do <code>src/app/pages/{{ selectedPage()?.id }}.page.ts</code></li>
+                      <li>Dodaj import w <code>bootstrap/pages.ts</code></li>
+                      <li>ng serve hot-reload → strona pojawi się w routerze</li>
+                    </ol>
+                  </div>
+                </div>
+              } @else {
+                <div class="preview-frame" [class.loading]="previewLoading()">
+                  <iframe #previewFrame
+                          [src]="previewUrl()"
+                          sandbox="allow-same-origin allow-scripts allow-forms"
+                          (load)="onPreviewLoad()"
+                          title="Page Preview"></iframe>
+                  @if (previewLoading()) {
+                    <div class="preview-spinner">⏳ Ładowanie…</div>
+                  }
+                </div>
+              }
             } @else {
               <div class="source-view">
                 <pre><code [innerHTML]="highlightedSource()"></code></pre>
@@ -932,6 +957,18 @@ interface PageEntry {
     .fb-check input { margin: 0; }
     .fb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .fb-validators { padding-top: 6px; border-top: 1px dashed var(--border, #1f2937); }
+
+    .draft-preview-notice { width: 100%; flex: 1; min-height: 500px; background: var(--panel-alt, #111827); border: 1px solid var(--border, #374151); border-radius: 0 0 4px 4px; padding: 40px 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; }
+    .draft-icon { font-size: 48px; opacity: 0.6; }
+    .draft-title { font-size: 16px; font-weight: 600; color: #fcd34d; }
+    .draft-desc { font-size: 13px; color: var(--muted, #9ca3af); max-width: 500px; line-height: 1.5; }
+    .draft-actions { display: flex; gap: 10px; margin-top: 10px; }
+    .draft-actions button { padding: 8px 16px; font-size: 13px; cursor: pointer; border-radius: 4px; font-family: inherit; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); }
+    .draft-actions button.primary { background: #1e3a5f; border-color: #3b82f6; color: #e0f2fe; }
+    .draft-actions button:hover { border-color: #58a6ff; }
+    .draft-hint { max-width: 500px; font-size: 11px; color: var(--muted, #9ca3af); text-align: left; background: #0b1120; padding: 10px 14px; border-radius: 4px; border-left: 3px solid #f59e0b; }
+    .draft-hint ol { margin: 6px 0 0; padding-left: 20px; line-height: 1.8; }
+    .draft-hint code { background: #1f2937; padding: 1px 5px; border-radius: 2px; color: #93c5fd; font-size: 11px; }
   `],
 })
 export class DesignerShellComponent {
@@ -1276,9 +1313,19 @@ export class DesignerShellComponent {
   });
   private readonly sanitizer = inject(DomSanitizer);
   private readonly reloadTrigger = signal<number>(0);
+  /** True gdy wybrana strona jest tylko draftem w pamięci (nie w Angular routerze). */
+  readonly isDraftPage = computed<boolean>(() => {
+    const id = this.selectedId();
+    return this.draftPages().some((p) => p.id === id);
+  });
+
   readonly previewUrl = computed<SafeUrl | null>(() => {
     const p = this.selectedPage();
     if (!p) return null;
+    // Draft pages nie istnieją w routerze — iframe pada na app-shell fallback
+    // i rekurencyjnie renderuje designer → wiszenie. Zwracamy null, template
+    // pokaże placeholder.
+    if (this.isDraftPage()) return null;
     const bust = this.reloadTrigger();
     const url = bust > 0 ? `${p.route}?_reload=${bust}` : p.route;
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
@@ -1624,6 +1671,10 @@ export class DesignerShellComponent {
     this.draftPages.update((list) => [...list, entry]);
     this.selectedId.set(id);
     this.editMode.set(true);
+    // Draft nie ma route w Angular routerze — preview iframe by pętlił
+    // się w infinite recursion (app-shell renderuje designer w iframe).
+    // Auto-switch na source-ts żeby user od razu widział generated code.
+    this.viewMode.set('source-ts');
     this.closeNewPageDialog();
   }
 
