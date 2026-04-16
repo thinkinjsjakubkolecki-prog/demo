@@ -370,7 +370,10 @@ interface PageEntry {
             </dl>
           </div>
           <div class="inspector-block">
-            <div class="inspector-section">Widgety strony</div>
+            <div class="inspector-section">
+              Widgety strony
+              <span class="count-pill">{{ pageWidgets().length }}</span>
+            </div>
             <div class="widget-list">
               @for (w of pageWidgets(); track w.instanceId) {
                 <button type="button" class="widget-list-item"
@@ -382,6 +385,75 @@ interface PageEntry {
               }
               @if (pageWidgets().length === 0) {
                 <div class="muted small">Strona nie ma widgetów</div>
+              }
+            </div>
+          </div>
+
+          <div class="inspector-block">
+            <div class="inspector-section">
+              Datasources
+              <span class="count-pill">{{ pageDatasources().length }}</span>
+              @if (editMode()) {
+                <span class="ro-badge" title="Edycja wymaga rozszerzenia PageDesignerModel (planowane rc.16)">read-only</span>
+              }
+            </div>
+            <div class="widget-list">
+              @for (ds of pageDatasources(); track ds.id) {
+                <div class="ds-row">
+                  <div class="ds-main">
+                    <span class="wli-id">{{ ds.id }}</span>
+                    <span class="wli-type">{{ ds.kind }}{{ ds.transport ? ' : ' + ds.transport : '' }}{{ ds.endpoint ? ' → ' + ds.endpoint : '' }}</span>
+                  </div>
+                </div>
+              }
+              @if (pageDatasources().length === 0) {
+                <div class="muted small">Strona nie używa datasources</div>
+              }
+            </div>
+          </div>
+
+          <div class="inspector-block">
+            <div class="inspector-section">
+              Computed
+              <span class="count-pill">{{ pageComputed().length }}</span>
+              @if (editMode()) {
+                <span class="ro-badge" title="Edycja wymaga rozszerzenia PageDesignerModel (planowane rc.16)">read-only</span>
+              }
+            </div>
+            <div class="widget-list">
+              @for (c of pageComputed(); track c.id) {
+                <div class="ds-row">
+                  <div class="ds-main">
+                    <span class="wli-id">{{ c.id }}</span>
+                    <span class="wli-type">{{ c.fn || 'expr' }} ← [{{ c.deps.join(', ') || '—' }}]</span>
+                  </div>
+                </div>
+              }
+              @if (pageComputed().length === 0) {
+                <div class="muted small">Brak computed na stronie</div>
+              }
+            </div>
+          </div>
+
+          <div class="inspector-block">
+            <div class="inspector-section">
+              Event handlers
+              <span class="count-pill">{{ pageHandlers().length }}</span>
+              @if (editMode()) {
+                <span class="ro-badge" title="Edycja handlerów wymaga rozszerzenia PageDesignerModel (planowane rc.16)">read-only</span>
+              }
+            </div>
+            <div class="widget-list">
+              @for (h of pageHandlers(); track h.idx) {
+                <div class="ds-row">
+                  <div class="ds-main">
+                    <span class="wli-id">{{ h.on }}</span>
+                    <span class="wli-type">{{ h.actionSummary }}</span>
+                  </div>
+                </div>
+              }
+              @if (pageHandlers().length === 0) {
+                <div class="muted small">Brak handlerów na stronie</div>
               }
             </div>
           </div>
@@ -682,6 +754,12 @@ interface PageEntry {
     .form-label span { font-weight: 600; }
     .form-label small { font-size: 10px; font-style: italic; }
     .form-error { padding: 6px 10px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fee2e2; border-radius: 3px; font-size: 12px; }
+
+    .count-pill { background: #1f2937; color: var(--muted, #9ca3af); font-size: 9px; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: normal; }
+    .ro-badge { margin-left: auto; background: #713f1233; color: #fcd34d; font-size: 9px; padding: 1px 6px; border-radius: 8px; font-weight: 500; }
+    .ds-row { display: flex; align-items: center; gap: 4px; padding: 5px 8px; background: transparent; border: 1px solid transparent; border-radius: 3px; font-size: 11px; margin-bottom: 2px; }
+    .ds-row:hover { background: #1a2332; border-color: var(--border, #374151); }
+    .ds-main { flex: 1; display: flex; align-items: center; gap: 8px; }
   `],
 })
 export class DesignerShellComponent {
@@ -798,6 +876,60 @@ export class DesignerShellComponent {
     }
     targets.sort((a, b) => a.name.localeCompare(b.name));
     return targets;
+  });
+
+  readonly pageDatasources = computed<ReadonlyArray<{ id: string; kind: string; transport?: string; endpoint?: string }>>(() => {
+    const p = this.selectedPage();
+    if (!p) return [];
+    this.draftVersion();
+    const dss = p.config.page.datasources ?? {};
+    return Object.entries(dss).map(([id, d]) => {
+      const out: { id: string; kind: string; transport?: string; endpoint?: string } = {
+        id,
+        kind: d.kind ?? 'transport',
+      };
+      if (d.transport) out.transport = d.transport;
+      if (d.endpoint) out.endpoint = d.endpoint;
+      return out;
+    });
+  });
+
+  readonly pageComputed = computed<ReadonlyArray<{ id: string; fn?: string; deps: ReadonlyArray<string> }>>(() => {
+    const p = this.selectedPage();
+    if (!p) return [];
+    this.draftVersion();
+    const cs = p.config.page.computed ?? {};
+    return Object.entries(cs).map(([id, c]) => {
+      const def = c as { fn?: string; expr?: string; deps?: ReadonlyArray<string>; inputs?: ReadonlyArray<string> };
+      const out: { id: string; fn?: string; deps: ReadonlyArray<string> } = {
+        id,
+        deps: def.deps ?? def.inputs ?? [],
+      };
+      if (def.fn) out.fn = def.fn;
+      else if (def.expr) out.fn = def.expr;
+      return out;
+    });
+  });
+
+  readonly pageHandlers = computed<ReadonlyArray<{ idx: number; on: string; actionSummary: string }>>(() => {
+    const p = this.selectedPage();
+    if (!p) return [];
+    this.draftVersion();
+    const handlers = p.config.page.eventHandlers ?? [];
+    return handlers.map((h, idx) => ({
+      idx,
+      on: h.on,
+      actionSummary: h.do.map((a) => {
+        const obj = a as Record<string, unknown>;
+        if ('emit' in obj) return `emit(${String(obj['emit'])})`;
+        if ('setDatasource' in obj) return `set(${String(obj['setDatasource'])})`;
+        if ('clearDatasource' in obj) return `clear(${String(obj['clearDatasource'])})`;
+        if ('call' in obj) return `call(${String(obj['call'])})`;
+        if ('callComputed' in obj) return `compute(${String(obj['callComputed'])})`;
+        if ('fetch' in obj) return `fetch(${String(obj['fetch'])})`;
+        return '?';
+      }).join(' → '),
+    }));
   });
 
   readonly pageWidgets = computed<ReadonlyArray<{ instanceId: string; type: string }>>(() => {
