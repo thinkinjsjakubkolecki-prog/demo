@@ -17,9 +17,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, type SafeUrl } from '@angular/platform-browser';
 import { inject } from '@angular/core';
-import { EchelonWidget } from '@echelon-framework/runtime';
+import { EchelonWidget, WIDGET_REGISTRY } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
-import { WIDGET_REGISTRY } from '@echelon-framework/core';
 import type { PageConfig, WidgetManifest, WidgetRegistry } from '@echelon-framework/core';
 import { PageDesignerModel, serialize } from '@echelon-framework/designer-page';
 import { DraftPageStoreService } from '../services/draft-page-store.service';
@@ -1288,7 +1287,7 @@ export class DesignerShellComponent {
       manifest: this.registry?.get(widgetCfg.type)?.manifest,
     };
   });
-  private readonly registry = inject(WIDGET_REGISTRY as never, { optional: true }) as WidgetRegistry | null;
+  private readonly registry = inject(WIDGET_REGISTRY, { optional: true }) as WidgetRegistry | null;
   private readonly allManifests = computed<ReadonlyArray<WidgetManifest>>(() => {
     return this.registry ? [...this.registry.all()] : [];
   });
@@ -1331,8 +1330,10 @@ export class DesignerShellComponent {
     // Drafty mają teraz dynamic route /draft/:id — iframe renderuje je
     // przez DraftPageRendererComponent (czyta z localStorage). Nie ma
     // więcej infinite recursion problemu.
+    // ?embed=1 — AppComponent chowa shell (menu+sidebar), pokazuje sam content.
     const bust = this.reloadTrigger();
-    const url = bust > 0 ? `${p.route}?_reload=${bust}` : p.route;
+    const separator = p.route.includes('?') ? '&' : '?';
+    const url = `${p.route}${separator}embed=1${bust > 0 ? `&_reload=${bust}` : ''}`;
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   });
 

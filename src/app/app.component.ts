@@ -19,21 +19,26 @@ import { exportPositionsToCsv } from './bootstrap/framework-integrations';
   imports: [CommonModule, RouterModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="shell">
-      <aside>
-        <div class="brand">DEALER FX <span class="env" [attr.data-env]="envLabel">{{ envLabel }}</span></div>
-        <nav>
-          <ng-container *ngTemplateOutlet="treeTpl; context: { items: menu, depth: 0 }"></ng-container>
-        </nav>
-        <div class="user">
-          <span class="user-icon">●</span>
-          <span class="user-name">jkolecki</span>
+    @if (embedMode) {
+      <!-- Embed mode — iframe preview, bez chrome-u. Trigger: ?embed=1 w URL -->
+      <main class="embed"><router-outlet /></main>
+    } @else {
+      <div class="shell">
+        <aside>
+          <div class="brand">DEALER FX <span class="env" [attr.data-env]="envLabel">{{ envLabel }}</span></div>
+          <nav>
+            <ng-container *ngTemplateOutlet="treeTpl; context: { items: menu, depth: 0 }"></ng-container>
+          </nav>
+          <div class="user">
+            <span class="user-icon">●</span>
+            <span class="user-name">jkolecki</span>
+          </div>
+        </aside>
+        <div class="content">
+          <main><router-outlet /></main>
         </div>
-      </aside>
-      <div class="content">
-        <main><router-outlet /></main>
       </div>
-    </div>
+    }
 
     <ng-template #treeTpl let-items="items" let-depth="depth">
       @for (n of items; track n.id) {
@@ -89,11 +94,22 @@ import { exportPositionsToCsv } from './bootstrap/framework-integrations';
     .user-icon { color: var(--buy); }
     .user-name { color: var(--fg); font-weight: 500; }
     main { padding: 20px 24px; overflow-y: auto; flex: 1; }
+    main.embed { min-height: 100vh; padding: 0; overflow: auto; }
   `],
 })
 export class AppComponent {
   readonly envLabel: string = (document.documentElement.dataset['env'] ?? 'dev').toUpperCase();
   readonly menu: ReadonlyArray<MenuItem> = menu;
+  /**
+   * Embed mode — gdy URL ma query param `?embed=1`, chrome (sidebar + menu)
+   * jest ukryty. Używane przez designer-shell preview iframe — pokazuje
+   * stronę bez menu żeby user widział tylko content strony.
+   */
+  readonly embedMode: boolean = (() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('embed') === '1';
+  })();
 
   private readonly expanded = new Set<string>(menu.filter((i) => i.defaultOpen).map((i) => i.id));
   private readonly destroyRef = inject(DestroyRef);
