@@ -451,15 +451,61 @@ interface PageEntry {
                 <button type="button" class="btn-mini" (click)="addHandler()" title="Dodaj handler">+ handler</button>
               }
             </div>
-            <div class="widget-list">
-              @for (h of pageHandlers(); track h.idx) {
-                <div class="ds-row">
-                  <div class="ds-main">
+            <div class="handler-list">
+              @for (h of pageHandlers(); track h.handlerId) {
+                <div class="handler-card" [class.expanded]="expandedHandlerId() === h.handlerId">
+                  <div class="handler-header" (click)="toggleHandler(h.handlerId)">
+                    <span class="handler-caret">{{ expandedHandlerId() === h.handlerId ? '▾' : '▸' }}</span>
                     <span class="wli-id">{{ h.on }}</span>
-                    <span class="wli-type">{{ h.actionSummary }}</span>
+                    <span class="count-pill">{{ h.actions.length }} akcji</span>
+                    @if (editMode()) {
+                      <button type="button" class="btn-rm" (click)="removeHandler(h.handlerId); $event.stopPropagation()" title="Usuń">✕</button>
+                    }
                   </div>
-                  @if (editMode()) {
-                    <button type="button" class="btn-rm" (click)="removeHandler(h.handlerId)" title="Usuń">✕</button>
+                  @if (expandedHandlerId() === h.handlerId) {
+                    <div class="handler-body">
+                      @if (editMode()) {
+                        <div class="event-on-row">
+                          <label class="form-label-inline">event name</label>
+                          <input type="text" class="inline-edit" [value]="h.on"
+                                 (change)="onHandlerEventChange(h.handlerId, $event)" />
+                        </div>
+                      }
+                      <div class="action-chain">
+                        @for (a of h.actions; track a.idx) {
+                          <div class="action-card">
+                            <div class="action-header">
+                              <span class="action-type">{{ a.type }}</span>
+                              <span class="action-value">{{ a.value }}</span>
+                              @if (editMode()) {
+                                <span class="action-controls">
+                                  <button type="button" class="btn-tiny" (click)="moveAction(h.handlerId, a.idx, -1)" title="Do góry">↑</button>
+                                  <button type="button" class="btn-tiny" (click)="moveAction(h.handlerId, a.idx, 1)" title="W dół">↓</button>
+                                  <button type="button" class="btn-tiny" (click)="editAction(h.handlerId, a.idx)" title="Edytuj">✎</button>
+                                  <button type="button" class="btn-tiny danger" (click)="removeAction(h.handlerId, a.idx)" title="Usuń">✕</button>
+                                </span>
+                              }
+                            </div>
+                          </div>
+                        }
+                        @if (h.actions.length === 0) {
+                          <div class="muted small">Handler bez akcji — dodaj jedną poniżej</div>
+                        }
+                      </div>
+                      @if (editMode()) {
+                        <div class="action-add-row">
+                          <select #actionTypeSelect class="inline-edit">
+                            <option value="emit">emit (eventBus)</option>
+                            <option value="setDatasource">setDatasource</option>
+                            <option value="clearDatasource">clearDatasource</option>
+                            <option value="callComputed">callComputed</option>
+                            <option value="fetch">fetch</option>
+                            <option value="call">call (function)</option>
+                          </select>
+                          <button type="button" class="btn-primary small" (click)="addAction(h.handlerId, actionTypeSelect.value)">+ action</button>
+                        </div>
+                      }
+                    </div>
                   }
                 </div>
               }
@@ -771,6 +817,31 @@ interface PageEntry {
     .ds-row { display: flex; align-items: center; gap: 4px; padding: 5px 8px; background: transparent; border: 1px solid transparent; border-radius: 3px; font-size: 11px; margin-bottom: 2px; }
     .ds-row:hover { background: #1a2332; border-color: var(--border, #374151); }
     .ds-main { flex: 1; display: flex; align-items: center; gap: 8px; }
+
+    .handler-list { display: flex; flex-direction: column; gap: 6px; }
+    .handler-card { background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); border-radius: 3px; transition: border-color 0.15s; }
+    .handler-card.expanded { border-color: #58a6ff; }
+    .handler-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; user-select: none; }
+    .handler-header:hover { background: #1a2332; }
+    .handler-caret { font-size: 9px; color: var(--muted, #6b7280); width: 10px; }
+    .handler-body { padding: 0 12px 10px; border-top: 1px solid var(--border, #1f2937); }
+
+    .event-on-row { display: flex; align-items: center; gap: 6px; margin: 10px 0 12px; }
+    .form-label-inline { font-size: 10px; color: var(--muted, #9ca3af); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; min-width: 70px; }
+
+    .action-chain { display: flex; flex-direction: column; gap: 4px; }
+    .action-card { background: #1a2332; border-left: 2px solid #a78bfa; border-radius: 3px; padding: 5px 8px; font-size: 11px; }
+    .action-header { display: flex; align-items: center; gap: 6px; }
+    .action-type { font-weight: 600; color: #a78bfa; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; background: #5b21b633; padding: 1px 6px; border-radius: 2px; }
+    .action-value { flex: 1; color: #d1d5db; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+    .action-controls { display: flex; gap: 2px; }
+    .btn-tiny { padding: 0 5px; font-size: 10px; background: transparent; border: 1px solid transparent; color: var(--muted, #9ca3af); border-radius: 2px; cursor: pointer; font-family: inherit; min-width: 18px; }
+    .btn-tiny:hover { background: #1f2937; border-color: var(--border, #374151); color: var(--fg, #e5e7eb); }
+    .btn-tiny.danger:hover { color: #ef4444; border-color: #ef4444; }
+
+    .action-add-row { display: flex; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border, #1f2937); }
+    .action-add-row select { flex: 1; font-size: 11px; }
+    .btn-primary.small { padding: 4px 10px; font-size: 11px; }
   `],
 })
 export class DesignerShellComponent {
@@ -826,6 +897,9 @@ export class DesignerShellComponent {
 
   /** In-memory draft pages (utworzone przez designera, nie jeszcze w kodzie). */
   readonly draftPages = signal<ReadonlyArray<PageEntry>>([]);
+
+  /** Który handler jest rozwinięty w inspectorze (ID z draftu). */
+  readonly expandedHandlerId = signal<string | null>(null);
   /** Flaga: czy draft różni się od oryginalnego configu (proste sprawdzenie po serialize). */
   readonly hasChanges = computed<boolean>(() => {
     const p = this.selectedPage();
@@ -949,28 +1023,34 @@ export class DesignerShellComponent {
     });
   });
 
-  readonly pageHandlers = computed<ReadonlyArray<{ idx: number; handlerId: string; on: string; actionSummary: string }>>(() => {
+  readonly pageHandlers = computed<ReadonlyArray<{
+    idx: number;
+    handlerId: string;
+    on: string;
+    actions: ReadonlyArray<{ idx: number; type: string; value: string }>;
+  }>>(() => {
     const p = this.selectedPage();
     if (!p) return [];
     this.draftVersion();
     const model = this.draftModel();
-    const summarize = (actions: ReadonlyArray<unknown>): string => actions.map((a) => {
+
+    const describeAction = (a: unknown, idx: number): { idx: number; type: string; value: string } => {
       const obj = a as Record<string, unknown>;
-      if ('emit' in obj) return `emit(${String(obj['emit'])})`;
-      if ('setDatasource' in obj) return `set(${String(obj['setDatasource'])})`;
-      if ('clearDatasource' in obj) return `clear(${String(obj['clearDatasource'])})`;
-      if ('call' in obj) return `call(${String(obj['call'])})`;
-      if ('callComputed' in obj) return `compute(${String(obj['callComputed'])})`;
-      if ('fetch' in obj) return `fetch(${String(obj['fetch'])})`;
-      return '?';
-    }).join(' → ');
+      if ('emit' in obj) return { idx, type: 'emit', value: String(obj['emit']) };
+      if ('setDatasource' in obj) return { idx, type: 'setDatasource', value: String(obj['setDatasource']) + (obj['from'] ? ' ← ' + obj['from'] : '') };
+      if ('clearDatasource' in obj) return { idx, type: 'clearDatasource', value: String(obj['clearDatasource']) };
+      if ('call' in obj) return { idx, type: 'call', value: String(obj['call']) };
+      if ('callComputed' in obj) return { idx, type: 'callComputed', value: String(obj['callComputed']) + (obj['into'] ? ' → ' + obj['into'] : '') };
+      if ('fetch' in obj) return { idx, type: 'fetch', value: String(obj['fetch']) };
+      return { idx, type: '?', value: JSON.stringify(obj) };
+    };
 
     if (model) {
       return model.snapshot().handlers.map((h, idx) => ({
         idx,
         handlerId: h.id,
         on: h.config.on,
-        actionSummary: summarize(h.config.do),
+        actions: h.config.do.map(describeAction),
       }));
     }
     const handlers = p.config.page.eventHandlers ?? [];
@@ -978,7 +1058,7 @@ export class DesignerShellComponent {
       idx,
       handlerId: `read-${idx}`,
       on: h.on,
-      actionSummary: summarize(h.do),
+      actions: h.do.map(describeAction),
     }));
   });
 
@@ -1496,6 +1576,153 @@ export class DesignerShellComponent {
   removeHandler(handlerId: string): void {
     if (typeof window !== 'undefined' && !window.confirm(`Usunąć handler "${handlerId}"?`)) return;
     this.applyDraft((dm) => dm.removeHandler(handlerId));
+  }
+
+  toggleHandler(handlerId: string): void {
+    this.expandedHandlerId.update((cur) => cur === handlerId ? null : handlerId);
+  }
+
+  onHandlerEventChange(handlerId: string, event: Event): void {
+    const newOn = (event.target as HTMLInputElement).value.trim();
+    if (!newOn) return;
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().handlers.find((h) => h.id === handlerId);
+    if (!current) return;
+    this.applyDraft((dm) => dm.updateHandler(handlerId, { on: newOn, do: current.config.do }));
+  }
+
+  /**
+   * Dodaj nową akcję do handler chainu. Każdy typ ma template z prefilled
+   * placeholderami — user może potem zmienić przez edit.
+   */
+  addAction(handlerId: string, actionType: string): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().handlers.find((h) => h.id === handlerId);
+    if (!current) return;
+
+    const newAction = this.promptAction(actionType);
+    if (!newAction) return;
+
+    const newActions = [...current.config.do, newAction] as unknown as ReadonlyArray<never>;
+    this.applyDraft((dm) => dm.updateHandler(handlerId, { on: current.config.on, do: newActions }));
+  }
+
+  /** Wywołaj dialog edycji istniejącej akcji (idx w chainie). */
+  editAction(handlerId: string, actionIdx: number): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().handlers.find((h) => h.id === handlerId);
+    if (!current) return;
+    const action = current.config.do[actionIdx] as Record<string, unknown> | undefined;
+    if (!action) return;
+
+    // Wykryj typ akcji z istniejących pól
+    const type =
+      'emit' in action ? 'emit' :
+      'setDatasource' in action ? 'setDatasource' :
+      'clearDatasource' in action ? 'clearDatasource' :
+      'callComputed' in action ? 'callComputed' :
+      'fetch' in action ? 'fetch' :
+      'call' in action ? 'call' : '';
+    if (!type) {
+      if (typeof window !== 'undefined') window.alert('Nieznany typ akcji — edycja niemożliwa');
+      return;
+    }
+
+    const updated = this.promptAction(type, action);
+    if (!updated) return;
+
+    const newActions = current.config.do.map((a, i) => (i === actionIdx ? updated : a)) as unknown as ReadonlyArray<never>;
+    this.applyDraft((dm) => dm.updateHandler(handlerId, { on: current.config.on, do: newActions }));
+  }
+
+  removeAction(handlerId: string, actionIdx: number): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().handlers.find((h) => h.id === handlerId);
+    if (!current) return;
+    if (typeof window !== 'undefined' && !window.confirm(`Usunąć akcję #${actionIdx + 1}?`)) return;
+    const newActions = current.config.do.filter((_, i) => i !== actionIdx) as unknown as ReadonlyArray<never>;
+    this.applyDraft((dm) => dm.updateHandler(handlerId, { on: current.config.on, do: newActions }));
+  }
+
+  moveAction(handlerId: string, actionIdx: number, delta: number): void {
+    const m = this.draftModel();
+    if (!m) return;
+    const current = m.snapshot().handlers.find((h) => h.id === handlerId);
+    if (!current) return;
+    const targetIdx = actionIdx + delta;
+    if (targetIdx < 0 || targetIdx >= current.config.do.length) return;
+    const swapped = [...current.config.do];
+    [swapped[actionIdx], swapped[targetIdx]] = [swapped[targetIdx]!, swapped[actionIdx]!];
+    this.applyDraft((dm) => dm.updateHandler(handlerId, { on: current.config.on, do: swapped as unknown as ReadonlyArray<never> }));
+  }
+
+  /**
+   * Kreator dla pojedynczej akcji — prompts user-a za wszystkie pola typu.
+   * Jeśli `seed` podane, pola są pre-filled dla edycji istniejącej akcji.
+   */
+  private promptAction(type: string, seed: Record<string, unknown> = {}): Record<string, unknown> | null {
+    if (typeof window === 'undefined') return null;
+
+    const ask = (label: string, defaultValue?: string): string | null => {
+      const r = window.prompt(label, defaultValue ?? '');
+      if (r === null) return null;
+      return r.trim();
+    };
+
+    switch (type) {
+      case 'emit': {
+        const eventName = ask('Event name (np. fx.quote.accepted):', seed['emit'] as string);
+        if (!eventName) return null;
+        const payload = ask('Payload (expression, np. $event albo $ds.foo — opcjonalny):', seed['payload'] as string | undefined);
+        const action: Record<string, unknown> = { emit: eventName };
+        if (payload) action['payload'] = payload;
+        return action;
+      }
+      case 'setDatasource': {
+        const targetId = ask('Target datasource ID:', seed['setDatasource'] as string);
+        if (!targetId) return null;
+        const from = ask('From (expression, np. $event):', (seed['from'] as string) ?? '$event');
+        if (from === null) return null;
+        const action: Record<string, unknown> = { setDatasource: targetId };
+        if (from) action['from'] = from;
+        return action;
+      }
+      case 'clearDatasource': {
+        const targetId = ask('Datasource ID do wyczyszczenia:', seed['clearDatasource'] as string);
+        if (!targetId) return null;
+        return { clearDatasource: targetId };
+      }
+      case 'callComputed': {
+        const fnId = ask('Computed function ID (z bootstrap/aggregate-functions):', seed['callComputed'] as string);
+        if (!fnId) return null;
+        const withArgs = ask('Arguments (comma-separated expressions, np. $event.spot,$event.side):', ((seed['with'] as string[] | undefined) ?? []).join(','));
+        const into = ask('Into (target datasource ID — opcjonalne):', seed['into'] as string | undefined);
+        const action: Record<string, unknown> = { callComputed: fnId };
+        if (withArgs) action['with'] = withArgs.split(',').map((s) => s.trim()).filter(Boolean);
+        if (into) action['into'] = into;
+        return action;
+      }
+      case 'fetch': {
+        const dsId = ask('Datasource ID do refetch:', seed['fetch'] as string);
+        if (!dsId) return null;
+        return { fetch: dsId };
+      }
+      case 'call': {
+        const fnId = ask('Function ID:', seed['call'] as string);
+        if (!fnId) return null;
+        const withArg = ask('With (expression — opcjonalne):', seed['with'] as string | undefined);
+        const action: Record<string, unknown> = { call: fnId };
+        if (withArg) action['with'] = withArg;
+        return action;
+      }
+      default:
+        window.alert('Nieznany typ akcji: ' + type);
+        return null;
+    }
   }
 
   deleteInspectedWidget(): void {
