@@ -28,6 +28,17 @@ interface PaletteGroup {
   readonly items: ReadonlyArray<WidgetManifest>;
 }
 
+interface InspectedWidget {
+  readonly instanceId: string;
+  readonly type: string;
+  readonly pageRoute: string;
+  readonly bind: Readonly<Record<string, string>> | undefined;
+  readonly options: Readonly<Record<string, unknown>> | undefined;
+  readonly when: unknown;
+  readonly layout: { readonly x?: number; readonly y?: number; readonly w?: number; readonly h?: number };
+  readonly manifest: WidgetManifest | undefined;
+}
+
 interface PageEntry {
   readonly id: string;
   readonly title: string;
@@ -133,7 +144,92 @@ interface PageEntry {
 
       <aside class="inspector">
         <h3>Inspector</h3>
-        <div class="placeholder">⏳ M5 — klik widget w canvas → manifest, config, plik</div>
+        @if (inspectedWidget(); as iw) {
+          <div class="inspector-block">
+            <div class="inspector-title">{{ iw.instanceId }}</div>
+            <div class="inspector-subtitle">{{ iw.type }} <span class="muted">v{{ iw.manifest?.version ?? '?' }}</span></div>
+            @if (iw.manifest?.description) {
+              <div class="inspector-desc">{{ iw.manifest?.description }}</div>
+            }
+          </div>
+
+          @if (iw.manifest; as m) {
+            <div class="inspector-block">
+              <div class="inspector-section">Manifest</div>
+              <dl>
+                <dt>category</dt><dd>{{ m.category || '—' }}</dd>
+                <dt>inputs</dt><dd>{{ m.inputs.length }} <span class="muted">({{ m.inputs.length ? namesOf(m.inputs) : 'brak' }})</span></dd>
+                <dt>outputs</dt><dd>{{ m.outputs.length }}</dd>
+                <dt>actions</dt><dd>{{ m.actions.length }}</dd>
+                <dt>data-bus</dt><dd>{{ m.capabilities.dataBus || '—' }}</dd>
+              </dl>
+            </div>
+          }
+
+          <div class="inspector-block">
+            <div class="inspector-section">Bind / Options</div>
+            @if (iw.bind && (keys(iw.bind)).length > 0) {
+              <dl>
+                @for (k of keys(iw.bind); track k) {
+                  <dt>bind.{{ k }}</dt><dd><code>{{ formatVal(iw.bind![k]) }}</code></dd>
+                }
+              </dl>
+            }
+            @if (iw.options && (keys(iw.options)).length > 0) {
+              <dl>
+                @for (k of keys(iw.options); track k) {
+                  <dt>opt.{{ k }}</dt><dd><code>{{ formatVal(iw.options![k]) }}</code></dd>
+                }
+              </dl>
+            }
+            @if (!iw.bind && !iw.options) {
+              <div class="muted small">Brak bindings i options</div>
+            }
+          </div>
+
+          @if (iw.when) {
+            <div class="inspector-block">
+              <div class="inspector-section">Conditional (when)</div>
+              <code class="when">{{ formatVal(iw.when) }}</code>
+            </div>
+          }
+
+          <div class="inspector-block">
+            <div class="inspector-section">Layout</div>
+            <dl>
+              <dt>x/y</dt><dd>{{ iw.layout.x ?? 0 }} / {{ iw.layout.y ?? 0 }}</dd>
+              <dt>w/h</dt><dd>{{ iw.layout.w ?? '—' }} / {{ iw.layout.h ?? 'auto' }}</dd>
+            </dl>
+          </div>
+
+          <div class="inspector-block">
+            <div class="inspector-section">Źródło</div>
+            <div class="source-link">
+              <span class="muted small">Strona:</span>
+              <code>{{ iw.pageRoute }}</code>
+            </div>
+          </div>
+        } @else if (selectedPage(); as sp) {
+          <div class="inspector-block">
+            <div class="inspector-section">Strona wybrana</div>
+            <div class="muted small">Wybierz widget z listy poniżej żeby zobaczyć szczegóły:</div>
+            <div class="widget-list">
+              @for (w of pageWidgets(); track w.instanceId) {
+                <button type="button" class="widget-list-item"
+                        [class.active]="inspectedInstanceId() === w.instanceId"
+                        (click)="inspectedInstanceId.set(w.instanceId)">
+                  <span class="wli-id">{{ w.instanceId }}</span>
+                  <span class="wli-type">{{ w.type }}</span>
+                </button>
+              }
+              @if (pageWidgets().length === 0) {
+                <div class="muted small">Strona nie ma widgetów</div>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="placeholder">Wybierz stronę</div>
+        }
       </aside>
     </div>
   `,
@@ -229,6 +325,26 @@ interface PageEntry {
     .p-icon { width: 16px; text-align: center; font-size: 13px; }
     .p-name { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: #93c5fd; }
     .p-version { font-size: 9px; color: var(--muted, #6b7280); }
+
+    .inspector-block { padding: 10px 12px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); border-radius: 4px; margin-bottom: 8px; }
+    .inspector-title { font-size: 13px; font-weight: 600; color: #60a5fa; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .inspector-subtitle { font-size: 11px; color: #93c5fd; margin-top: 2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .inspector-desc { font-size: 11px; color: var(--muted, #9ca3af); margin-top: 6px; line-height: 1.4; font-style: italic; }
+    .inspector-section { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted, #6b7280); margin-bottom: 6px; font-weight: 600; }
+    .inspector-block dl { display: grid; grid-template-columns: 90px 1fr; gap: 3px 8px; margin: 0; font-size: 11px; }
+    .inspector-block dt { color: var(--muted, #9ca3af); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .inspector-block dd { margin: 0; color: var(--fg, #e5e7eb); word-break: break-word; }
+    .inspector-block code, .when { background: #1f2937; padding: 1px 4px; border-radius: 2px; font-size: 10px; color: #fcd34d; }
+    .when { display: block; padding: 6px; word-break: break-all; }
+    .muted { color: var(--muted, #9ca3af); }
+    .small { font-size: 11px; }
+    .widget-list { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+    .widget-list-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: transparent; border: 1px solid transparent; color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 11px; cursor: pointer; text-align: left; font-family: inherit; }
+    .widget-list-item:hover { background: #1a2332; border-color: var(--border, #374151); }
+    .widget-list-item.active { background: #1e3a5f33; border-color: #58a6ff; }
+    .wli-id { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #60a5fa; }
+    .wli-type { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #93c5fd; font-size: 10px; }
+    .source-link { display: flex; gap: 6px; align-items: center; font-size: 11px; }
   `],
 })
 export class DesignerShellComponent {
@@ -240,6 +356,34 @@ export class DesignerShellComponent {
   readonly previewLoading = signal<boolean>(false);
   readonly selectedWidgetType = signal<string | null>(null);
   readonly filter = signal<string>('');
+  readonly inspectedInstanceId = signal<string | null>(null);
+
+  readonly pageWidgets = computed<ReadonlyArray<{ instanceId: string; type: string }>>(() => {
+    const p = this.selectedPage();
+    if (!p) return [];
+    const widgets = p.config.page.widgets ?? {};
+    return Object.entries(widgets).map(([instanceId, w]) => ({ instanceId, type: w.type }));
+  });
+
+  readonly inspectedWidget = computed<InspectedWidget | null>(() => {
+    const p = this.selectedPage();
+    const id = this.inspectedInstanceId();
+    if (!p || !id) return null;
+    const widgetCfg = (p.config.page.widgets ?? {})[id];
+    if (!widgetCfg) return null;
+    const layoutItem = p.config.page.layout.items.find((it) => it.widget === id) as { x?: number; y?: number; w?: number; h?: number } | undefined ?? {};
+    const manifest = this.registry?.get(widgetCfg.type)?.manifest;
+    return {
+      instanceId: id,
+      type: widgetCfg.type,
+      pageRoute: p.route,
+      bind: widgetCfg.bind,
+      options: widgetCfg.options,
+      when: widgetCfg.when,
+      layout: { x: layoutItem.x, y: layoutItem.y, w: layoutItem.w, h: layoutItem.h },
+      manifest,
+    };
+  });
   private readonly registry = inject(WIDGET_REGISTRY as never, { optional: true }) as WidgetRegistry | null;
   private readonly allManifests = computed<ReadonlyArray<WidgetManifest>>(() => {
     return this.registry ? [...this.registry.all()] : [];
@@ -294,6 +438,23 @@ export class DesignerShellComponent {
   reloadPreview(): void {
     this.previewLoading.set(true);
     this.reloadTrigger.update((v) => v + 1);
+  }
+
+  namesOf(arr: ReadonlyArray<{ name: string }>): string {
+    return arr.map((x) => x.name).join(', ');
+  }
+
+  keys(obj: Readonly<Record<string, unknown>> | undefined): ReadonlyArray<string> {
+    return obj ? Object.keys(obj) : [];
+  }
+
+  formatVal(v: unknown): string {
+    if (v === null || v === undefined) return '—';
+    if (typeof v === 'string') return v;
+    if (typeof v === 'object') {
+      try { return JSON.stringify(v); } catch { return String(v); }
+    }
+    return String(v);
   }
 
   private collectPages(): ReadonlyArray<PageEntry> {
