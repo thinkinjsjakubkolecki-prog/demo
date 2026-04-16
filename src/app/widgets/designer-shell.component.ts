@@ -12,10 +12,24 @@
  * Cel v1.0: edytor z którym BA tworzy strony bez dotykania kodu.
  * Ten widget to trzon Fazy 1 (read-only).
  */
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EchelonWidget } from '@echelon-framework/runtime';
+import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
+import type { PageConfig } from '@echelon-framework/core';
+
+interface PageEntry {
+  readonly id: string;
+  readonly title: string;
+  readonly route: string;
+  readonly config: PageConfig;
+  readonly widgetCount: number;
+  readonly dsCount: number;
+  readonly computedCount: number;
+  readonly handlerCount: number;
+  readonly sourceClassName: string;
+}
 
 @EchelonWidget({
   manifest: {
@@ -40,7 +54,29 @@ import { EchelonWidget } from '@echelon-framework/runtime';
 
       <main class="canvas">
         <header class="canvas-bar">
-          <div class="placeholder-inline">⏳ M2 — page picker</div>
+          <label class="picker">
+            <span>Strona:</span>
+            <select [ngModel]="selectedId()" (ngModelChange)="selectedId.set($event)">
+              @for (p of pages; track p.id) {
+                <option [value]="p.id">{{ p.title }} — {{ p.route }}</option>
+              }
+            </select>
+          </label>
+          @if (selectedPage(); as p) {
+            <div class="breadcrumb">
+              <span class="crumb class">{{ p.sourceClassName }}</span>
+              <span class="sep">›</span>
+              <span class="crumb id">{{ p.id }}</span>
+              <span class="sep">›</span>
+              <span class="crumb route">{{ p.route }}</span>
+            </div>
+            <div class="meta">
+              <span title="Widgety"><span class="ic">🧩</span>{{ p.widgetCount }}</span>
+              <span title="Datasources"><span class="ic">📦</span>{{ p.dsCount }}</span>
+              <span title="Computed"><span class="ic">ƒ</span>{{ p.computedCount }}</span>
+              <span title="Handlery"><span class="ic">⚡</span>{{ p.handlerCount }}</span>
+            </div>
+          }
         </header>
         <section class="canvas-area">
           <div class="placeholder">⏳ M3 — preview wybranej strony (read-only)</div>
@@ -107,9 +143,57 @@ import { EchelonWidget } from '@echelon-framework/runtime';
       line-height: 1.4;
     }
     .canvas-area .placeholder { min-height: 200px; }
+
+    .picker { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+    .picker span { color: var(--muted, #9ca3af); }
+    .picker select { padding: 6px 10px; background: var(--panel-alt, #1f2937); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 4px; font-size: 13px; min-width: 240px; cursor: pointer; }
+
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted, #9ca3af); flex-wrap: wrap; }
+    .crumb { padding: 2px 8px; background: #1f2937; border-radius: 3px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .crumb.class { color: #a78bfa; }
+    .crumb.id { color: #60a5fa; }
+    .crumb.route { color: #10b981; }
+    .sep { color: var(--muted, #6b7280); }
+
+    .meta { margin-left: auto; display: flex; gap: 10px; font-size: 12px; color: var(--muted, #9ca3af); }
+    .meta span { display: flex; align-items: center; gap: 4px; }
+    .meta .ic { font-size: 13px; }
   `],
 })
 export class DesignerShellComponent {
-  /** Stan milestone — placeholder, zostanie zastąpiony przez dane w kolejnych krokach. */
-  readonly milestoneLabel = signal<string>('M1 — szkielet');
+  readonly pages: ReadonlyArray<PageEntry> = this.collectPages();
+  readonly selectedId = signal<string>(this.pages[0]?.id ?? '');
+  readonly selectedPage = computed<PageEntry | null>(() =>
+    this.pages.find((p) => p.id === this.selectedId()) ?? null,
+  );
+
+  private collectPages(): ReadonlyArray<PageEntry> {
+    const classes = getRegisteredPageClasses() as Array<{ name?: string; config?: PageConfig }>;
+    const out: PageEntry[] = [];
+    for (const cls of classes) {
+      const cfg = cls?.config;
+      if (!cfg?.page?.id) continue;
+      const page = cfg.page;
+      const widgetCount = Object.keys(page.widgets ?? {}).length;
+      const dsCount = Object.keys(page.datasources ?? {}).length;
+      const computedCount = Object.keys(page.computed ?? {}).length;
+      const handlerCount = (page.eventHandlers ?? []).length;
+      out.push({
+        id: page.id,
+        title: page.title ?? page.id,
+        route: this.routeFromClass(cls) ?? `/${page.id}`,
+        config: cfg,
+        widgetCount, dsCount, computedCount, handlerCount,
+        sourceClassName: cls.name ?? 'UnknownPage',
+      });
+    }
+    out.sort((a, b) => a.id.localeCompare(b.id));
+    return out;
+  }
+
+  private routeFromClass(cls: unknown): string | undefined {
+    // @Page decorator zapisuje meta w __echelonPage__ (jeśli dostępne). Pomijamy bez typesafe.
+    const meta = (cls as { __echelonPage__?: { route?: string } }).__echelonPage__;
+    return meta?.route;
+  }
 }
