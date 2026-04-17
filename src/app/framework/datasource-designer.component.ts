@@ -190,6 +190,28 @@ interface DsEntry {
                   <div class="empty-inline">Wybierz model żeby DS deklarował kształt danych na wyjściu.</div>
                 }
               </div>
+
+              @if (sel.source === 'standalone') {
+                <div class="detail-block">
+                  <div class="block-header">⚡ Input Parameters (skąd DS bierze dane)</div>
+                  <div class="params-list">
+                    @for (pb of currentParamBindings(); track pb.param; let pi = $index) {
+                      <div class="param-row">
+                        <input type="text" class="param-name" [ngModel]="pb.param" (ngModelChange)="updateParamName(pi, $event)" placeholder="param name" />
+                        <select class="param-kind" [ngModel]="pb.source.kind" (ngModelChange)="updateParamKind(pi, $event)">
+                          <option value="route">route param</option>
+                          <option value="context">data context</option>
+                          <option value="datasource">inny DS</option>
+                          <option value="static">static value</option>
+                        </select>
+                        <input type="text" class="param-value" [ngModel]="paramSourceValue(pb)" (ngModelChange)="updateParamSourceValue(pi, pb.source.kind, $event)" [placeholder]="paramSourcePlaceholder(pb)" />
+                        <button type="button" class="btn-rm-mini" (click)="removeParamBinding(pi)">✕</button>
+                      </div>
+                    }
+                    <button type="button" class="btn-add-param" (click)="addParamBinding()">+ param</button>
+                  </div>
+                </div>
+              }
             </div>
           } @else {
             <div class="detail-empty">
@@ -381,6 +403,12 @@ interface DsEntry {
     .schema-code { color: #c4b5fd; }
     .schema-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .schema-badge { margin: 6px 0; }
+    .params-list { display: flex; flex-direction: column; gap: 4px; }
+    .param-row { display: grid; grid-template-columns: 1fr 1fr 2fr 24px; gap: 4px; align-items: center; }
+    .param-name, .param-kind, .param-value { padding: 4px 6px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 2px; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .btn-add-param { padding: 4px 10px; background: transparent; border: 1px dashed var(--ech-border, #374151); color: var(--ech-muted, #9ca3af); border-radius: 2px; font-size: 11px; cursor: pointer; font-family: inherit; }
+    .btn-add-param:hover { border-color: var(--ech-accent, #58a6ff); color: var(--ech-accent, #58a6ff); }
+
     .schema-badge code { background: #5b21b622; border: 1px solid #8b5cf633; color: #c4b5fd; padding: 3px 10px; border-radius: 3px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   `],
 })
@@ -552,6 +580,89 @@ export class DatasourceDesignerComponent {
       outputModel: modelId || undefined,
       outputCardinality: cardinality,
     } as never);
+  }
+
+  readonly currentParamBindings = computed(() => {
+    const sel = this.selected();
+    if (!sel || sel.source !== 'standalone') return [];
+    const ds = this.dsStore.get(sel.id);
+    return ds?.contract?.paramBindings ?? [];
+  });
+
+  addParamBinding(): void {
+    const sel = this.selected();
+    if (!sel || sel.source !== 'standalone') return;
+    const ds = this.dsStore.get(sel.id);
+    if (!ds) return;
+    const bindings = [...(ds.contract?.paramBindings ?? []), { param: '', source: { kind: 'route' as const, paramName: '' } }];
+    this.dsStore.updateContract(sel.id, { ...ds.contract, paramBindings: bindings });
+  }
+
+  removeParamBinding(i: number): void {
+    const sel = this.selected();
+    if (!sel || sel.source !== 'standalone') return;
+    const ds = this.dsStore.get(sel.id);
+    if (!ds) return;
+    const bindings = [...(ds.contract?.paramBindings ?? [])];
+    bindings.splice(i, 1);
+    this.dsStore.updateContract(sel.id, { ...ds.contract, paramBindings: bindings });
+  }
+
+  updateParamName(i: number, name: string): void {
+    this.mutateParamBinding(i, (pb) => ({ ...pb, param: name }));
+  }
+
+  updateParamKind(i: number, kind: string): void {
+    const sourceMap: Record<string, unknown> = {
+      route: { kind: 'route', paramName: '' },
+      context: { kind: 'context', contextName: '', path: '' },
+      datasource: { kind: 'datasource', dsId: '', path: '' },
+      static: { kind: 'static', value: '' },
+    };
+    this.mutateParamBinding(i, (pb) => ({ ...pb, source: sourceMap[kind] as never }));
+  }
+
+  updateParamSourceValue(i: number, kind: string, value: string): void {
+    this.mutateParamBinding(i, (pb) => {
+      switch (kind) {
+        case 'route': return { ...pb, source: { kind: 'route' as const, paramName: value } };
+        case 'context': return { ...pb, source: { kind: 'context' as const, contextName: value.split('.')[0] ?? '', path: value.split('.').slice(1).join('.') || value } };
+        case 'datasource': return { ...pb, source: { kind: 'datasource' as const, dsId: value.split('.')[0] ?? '', path: value.split('.').slice(1).join('.') || '' } };
+        case 'static': return { ...pb, source: { kind: 'static' as const, value } };
+        default: return pb;
+      }
+    });
+  }
+
+  paramSourceValue(pb: { source: { kind: string; [k: string]: unknown } }): string {
+    switch (pb.source.kind) {
+      case 'route': return String(pb.source['paramName'] ?? '');
+      case 'context': return `${pb.source['contextName'] ?? ''}.${pb.source['path'] ?? ''}`;
+      case 'datasource': return `${pb.source['dsId'] ?? ''}.${pb.source['path'] ?? ''}`;
+      case 'static': return String(pb.source['value'] ?? '');
+      default: return '';
+    }
+  }
+
+  paramSourcePlaceholder(pb: { source: { kind: string } }): string {
+    switch (pb.source.kind) {
+      case 'route': return 'np. clientId';
+      case 'context': return 'np. selectedClient.id';
+      case 'datasource': return 'np. clientsList.selectedId';
+      case 'static': return 'wartość statyczna';
+      default: return '';
+    }
+  }
+
+  private mutateParamBinding(i: number, fn: (pb: any) => any): void {
+    const sel = this.selected();
+    if (!sel || sel.source !== 'standalone') return;
+    const ds = this.dsStore.get(sel.id);
+    if (!ds) return;
+    const bindings = [...(ds.contract?.paramBindings ?? [])];
+    if (!bindings[i]) return;
+    bindings[i] = fn(bindings[i]);
+    this.dsStore.updateContract(sel.id, { ...ds.contract, paramBindings: bindings });
   }
 
   byKind(kind: string): number {

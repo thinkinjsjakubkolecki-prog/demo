@@ -23,7 +23,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EchelonWidget, DATA_BUS } from '@echelon-framework/runtime';
 import type { DataBus } from '@echelon-framework/core';
-import { DraftFormStoreService, type DraftForm, type DraftFormField, DraftModelStoreService } from './designer-core';
+import { DraftFormStoreService, type DraftForm, type DraftFormField, DraftModelStoreService, DraftDatasourceStoreService } from './designer-core';
+import { DataContextService } from './data-context.service';
+import { resolveFieldBehavior, type FormIntent } from './draft-form-store';
 
 @EchelonWidget({
   manifest: {
@@ -201,6 +203,8 @@ export class FormRefComponent {
 
   private readonly formStore = inject(DraftFormStoreService);
   private readonly modelStore = inject(DraftModelStoreService);
+  private readonly dsStoreRef = inject(DraftDatasourceStoreService);
+  private readonly dataContext = inject(DataContextService);
   private readonly dataBus = inject(DATA_BUS, { optional: true }) as DataBus | null;
   readonly values = signal<Record<string, unknown>>({});
   readonly lookupQueries = signal<Record<string, string>>({});
@@ -273,7 +277,32 @@ export class FormRefComponent {
 
   onSubmit(e: Event): void {
     e.preventDefault();
-    this.submit.emit(this.values());
+    const form = this.form();
+    if (!form) return;
+    const payload = this.buildOutputPayload(form);
+    this.submit.emit(payload);
+  }
+
+  private buildOutputPayload(form: DraftForm): Record<string, unknown> {
+    const raw = this.values();
+    if (!form.outputModel) return raw;
+    const model = this.modelStore.get(form.outputModel);
+    if (!model) return raw;
+
+    const intent = form.intent ?? 'create';
+    const policies = form.fieldPolicies ?? [];
+    const out: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(raw)) {
+      const mf = model.fields.find((f) => f.id === key);
+      if (mf) {
+        const behavior = resolveFieldBehavior(mf, intent, policies.find((p) => p.fieldId === key));
+        if (!behavior.include) continue;
+        if (behavior.readOnly && intent === 'create') continue;
+      }
+      out[key] = value;
+    }
+    return out;
   }
 
   // ─── Lookup ───
@@ -282,21 +311,51 @@ export class FormRefComponent {
     this.lookupQueries.update((q) => ({ ...q, [field.id]: query }));
     if (!field.lookupConfig) return;
     const cfg = field.lookupConfig;
-    const model = this.modelStore.get(cfg.sourceModel);
-    if (!model) { this.lookupResults.update((r) => ({ ...r, [field.id]: [] })); return; }
 
-    const mockData = this.generateMockLookupData(model.fields, cfg, 20);
+    const items = this.resolveLookupItems(cfg);
     const searchField = cfg.searchField ?? cfg.displayFields[0] ?? 'id';
     const q = query.toLowerCase();
     const filtered = q.length > 0
-      ? mockData.filter((item) => String(item[searchField] ?? '').toLowerCase().includes(q))
-      : mockData;
+      ? items.filter((item) => String(item[searchField] ?? '').toLowerCase().includes(q))
+      : items;
 
     const results = filtered.slice(0, cfg.maxResults ?? 20).map((item) => ({
       value: item[cfg.valueField],
       display: cfg.displayFields.map((f) => String(item[f] ?? '')).filter(Boolean).join(' · '),
     }));
     this.lookupResults.update((r) => ({ ...r, [field.id]: results }));
+  }
+
+  private resolveLookupItems(cfg: NonNullable<DraftFormField['lookupConfig']>): ReadonlyArray<Record<string, unknown>> {
+    // 1. Try sourceDatasource (explicit)
+    if (cfg.sourceDatasource && this.dataBus) {
+      try {
+        const ds = this.dataBus.source(cfg.sourceDatasource as never);
+        const snap = ds.snapshot();
+        if (Array.isArray(snap.value)) return snap.value as Record<string, unknown>[];
+        if (snap.value && typeof snap.value === 'object' && 'items' in (snap.value as object)) {
+          return (snap.value as { items: unknown[] }).items as Record<string, unknown>[];
+        }
+      } catch { /* ds not available */ }
+    }
+
+    // 2. Try find DS by outputModel match
+    for (const dsDraft of this.dsStoreRef.all()) {
+      if (dsDraft.contract?.outputModel === cfg.sourceModel) {
+        if (this.dataBus) {
+          try {
+            const ds = this.dataBus.source(dsDraft.id as never);
+            const snap = ds.snapshot();
+            if (Array.isArray(snap.value)) return snap.value as Record<string, unknown>[];
+          } catch { /* skip */ }
+        }
+      }
+    }
+
+    // 3. Fallback: mock data from model
+    const model = this.modelStore.get(cfg.sourceModel);
+    if (model) return this.generateMockLookupData(model.fields, cfg, 20);
+    return [];
   }
 
   openLookup(fieldId: string): void {

@@ -36,6 +36,37 @@ export type Schema = Readonly<Record<string, SchemaProperty>>;
 
 export type OutputCardinality = 'single' | 'array' | 'paginated';
 
+// ─── Data Context ───────────────────────────────────────────────────────────
+
+export interface DataContextBinding {
+  readonly datasourceId: string;
+  readonly cardinality: OutputCardinality;
+  readonly selector?:
+    | { readonly kind: 'selection' }
+    | { readonly kind: 'param'; readonly paramName: string }
+    | { readonly kind: 'index'; readonly index: number };
+}
+
+// ─── DS Parameter Binding ───────────────────────────────────────────────────
+
+export interface DatasourceParamBinding {
+  readonly param: string;
+  readonly source:
+    | { readonly kind: 'route'; readonly paramName: string }
+    | { readonly kind: 'context'; readonly contextName: string; readonly path: string }
+    | { readonly kind: 'datasource'; readonly dsId: string; readonly path: string }
+    | { readonly kind: 'static'; readonly value: unknown };
+}
+
+// ─── Paginated Envelope ─────────────────────────────────────────────────────
+
+export interface PaginatedEnvelope<T = unknown> {
+  readonly items: ReadonlyArray<T>;
+  readonly total: number;
+  readonly page: number;
+  readonly pageSize: number;
+}
+
 export interface DatasourceContract {
   /** Co DS wymaga na wejściu (params do fetch/refresh). */
   readonly inputSchema?: Schema;
@@ -45,6 +76,8 @@ export interface DatasourceContract {
   readonly outputModel?: string;
   /** Kardynalność output: single (Client), array (Client[]), paginated ({items: Client[], total}). */
   readonly outputCardinality?: OutputCardinality;
+  /** Deklaratywne wiązania parametrów — skąd DS bierze input params. */
+  readonly paramBindings?: ReadonlyArray<DatasourceParamBinding>;
   /** Kiedy DS się odświeża (eventy, interwał). */
   readonly refreshOn?: ReadonlyArray<string>;
 }

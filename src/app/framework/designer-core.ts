@@ -10,3 +10,4 @@ export * from './draft-page-store';
 export * from './graph';
 export * from './mermaid';
 export * from './draft-translation-store';
+export * from './data-context.service';
