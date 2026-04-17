@@ -22,29 +22,18 @@ import { EchelonWidget, DATA_BUS } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { DataBus, PageConfig, DatasourceConfig } from '@echelon-framework/core';
 import { DraftPageStoreService } from '../services/draft-page-store.service';
+import { DraftDatasourceStoreService, type DraftDatasource } from '../services/draft-datasource-store.service';
 import { DraftModelStoreService } from '../services/draft-model-store.service';
 import type { Schema } from '../services/schema-types';
 
-interface DraftDsForm {
-  targetPageId: string;
-  dsId: string;
-  kind: 'transport' | 'local' | 'computed';
-  transport: 'http' | 'websocket' | 'mock';
-  endpoint: string;
-  valueJson: string;
-  computedExpr: string;
-  computedDeps: string;
-}
-
 interface DsEntry {
   readonly id: string;
-  readonly pageId: string;
-  readonly pageTitle: string;
-  readonly config: DatasourceConfig;
+  readonly source: 'standalone' | 'page' | 'draft-page';
+  readonly sourceLabel: string;
   readonly kind: string;
   readonly transport?: string;
   readonly endpoint?: string;
-  readonly isDraft: boolean;
+  readonly outputModelId?: string;
 }
 
 @EchelonWidget({
@@ -76,30 +65,25 @@ interface DsEntry {
         </div>
         <input type="search" class="search" placeholder="Szukaj po id / page..."
                [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
-        <button type="button" class="btn-new" (click)="openCreateDialog()"
-                [disabled]="draftStore.all().length === 0"
-                [title]="draftStore.all().length === 0 ? 'Musisz mieć co najmniej 1 draft page — stwórz w Pages Designer' : 'Dodaj nowy datasource do wybranego drafta'">
-          + Nowy
-        </button>
+        <button type="button" class="btn-new" (click)="openCreateDialog()">+ Nowy datasource</button>
       </div>
 
       <div class="layout">
         <aside class="list">
           <div class="list-header">Źródła danych</div>
-          @for (ds of filteredDatasources(); track ds.id + ds.pageId) {
+          @for (ds of filteredDatasources(); track ds.id + ds.source + ds.sourceLabel) {
             <button type="button" class="ds-item"
-                    [class.active]="selected()?.id === ds.id && selected()?.pageId === ds.pageId"
-                    [class.draft]="ds.isDraft"
+                    [class.active]="selected()?.id === ds.id"
+                    [class.standalone]="ds.source === 'standalone'"
                     (click)="select(ds)">
               <div class="ds-line-1">
                 <span class="ds-id">{{ ds.id }}</span>
                 <span class="ds-kind">{{ ds.kind }}</span>
               </div>
               <div class="ds-line-2">
-                <span class="ds-page" title="Strona która definiuje ten datasource">
-                  @if (ds.isDraft) { ⚡ } @else { 📄 }
-                  {{ ds.pageTitle }}
-                </span>
+                @if (ds.source === 'standalone') { <span class="badge-sa">standalone</span> }
+                @else { {{ ds.sourceLabel }} }
+                @if (ds.outputModelId) { <span class="badge-model">🧩 {{ ds.outputModelId }}</span> }
               </div>
               @if (ds.endpoint) {
                 <div class="ds-line-3"><code>{{ ds.endpoint }}</code></div>
@@ -122,12 +106,12 @@ interface DsEntry {
             <div class="detail-header">
               <div>
                 <div class="detail-title">{{ sel.id }}</div>
-                <div class="detail-sub">{{ sel.kind }}{{ sel.transport ? ' · ' + sel.transport : '' }} · z {{ sel.pageTitle }}</div>
+                <div class="detail-sub">{{ sel.kind }}{{ sel.transport ? ' · ' + sel.transport : '' }} · {{ sel.sourceLabel }}</div>
               </div>
               <div class="detail-actions">
                 <button type="button" (click)="testDatasource(sel)" class="btn-primary">▶ Test / Snapshot</button>
-                @if (sel.isDraft) {
-                  <button type="button" (click)="deleteDatasource(sel)" class="btn-danger" title="Usuń z drafta">🗑 Usuń</button>
+                @if (sel.source === 'standalone') {
+                  <button type="button" (click)="deleteDatasource(sel)" class="btn-danger" title="Usuń">🗑 Usuń</button>
                 }
               </div>
             </div>
@@ -135,7 +119,7 @@ interface DsEntry {
             <div class="detail-grid">
               <div class="detail-block">
                 <div class="block-header">Konfiguracja</div>
-                <pre class="block-code">{{ formatConfig(sel.config) }}</pre>
+                <pre class="block-code">{{ formatDsEntry(sel) }}</pre>
               </div>
 
               <div class="detail-block">
@@ -152,9 +136,10 @@ interface DsEntry {
               <div class="detail-block">
                 <div class="block-header">Użycie</div>
                 <div class="usage-list">
-                  @for (u of usages(); track u.pageId + u.widgetId + u.bindKey) {
+                  @for (u of usages(); track u.pageTitle + u.widgetId + u.bindKey) {
                     <div class="usage-row">
                       <span class="usage-page">{{ u.pageTitle }}</span>
+
                       <span class="usage-arrow">→</span>
                       <span class="usage-widget">{{ u.widgetId }}</span>
                       <span class="usage-arrow">.</span>
@@ -208,32 +193,29 @@ interface DsEntry {
           </div>
           <div class="modal-body">
             <label class="field">
-              <span class="field-label">Draft page (target)</span>
-              <select [ngModel]="form().targetPageId" (ngModelChange)="updateForm('targetPageId', $event)">
-                @for (d of draftStore.all(); track d.id) {
-                  <option [value]="d.id">{{ d.title }} ({{ d.id }})</option>
-                }
-              </select>
+              <span class="field-label">ID</span>
+              <input type="text" [ngModel]="newDsId()" (ngModelChange)="newDsId.set($event)" placeholder="np. clientsList" />
             </label>
 
             <label class="field">
-              <span class="field-label">ID (identyfikator)</span>
-              <input type="text" [ngModel]="form().dsId" (ngModelChange)="updateForm('dsId', $event)" placeholder="np. clientsList" />
+              <span class="field-label">Nazwa</span>
+              <input type="text" [ngModel]="newDsTitle()" (ngModelChange)="newDsTitle.set($event)" placeholder="np. Lista klientów" />
             </label>
 
             <label class="field">
               <span class="field-label">Rodzaj</span>
-              <select [ngModel]="form().kind" (ngModelChange)="updateForm('kind', $event)">
+              <select [ngModel]="newDsKind()" (ngModelChange)="newDsKind.set($event)">
                 <option value="transport">transport — http/websocket</option>
-                <option value="local">local — statyczna wartość (JSON)</option>
+                <option value="stream">stream — websocket live</option>
+                <option value="local">local — wartość statyczna</option>
                 <option value="computed">computed — wyliczana z innych ds</option>
               </select>
             </label>
 
-            @if (form().kind === 'transport') {
+            @if (newDsKind() === 'transport' || newDsKind() === 'stream') {
               <label class="field">
                 <span class="field-label">Transport</span>
-                <select [ngModel]="form().transport" (ngModelChange)="updateForm('transport', $event)">
+                <select [ngModel]="newDsTransport()" (ngModelChange)="newDsTransport.set($event)">
                   <option value="http">http</option>
                   <option value="websocket">websocket</option>
                   <option value="mock">mock</option>
@@ -241,25 +223,35 @@ interface DsEntry {
               </label>
               <label class="field">
                 <span class="field-label">Endpoint</span>
-                <input type="text" [ngModel]="form().endpoint" (ngModelChange)="updateForm('endpoint', $event)" placeholder="/api/clients" />
+                <input type="text" [ngModel]="newDsEndpoint()" (ngModelChange)="newDsEndpoint.set($event)" placeholder="/api/clients" />
               </label>
             }
 
-            @if (form().kind === 'local') {
+            <label class="field">
+              <span class="field-label">Output Model (typ danych na wyjściu)</span>
+              <select [ngModel]="newDsOutputModel()" (ngModelChange)="newDsOutputModel.set($event)">
+                <option value="">— brak —</option>
+                @for (m of modelStore.all(); track m.id) {
+                  <option [value]="m.id">🧩 {{ m.id }} — {{ m.title }}</option>
+                }
+              </select>
+            </label>
+
+            @if (newDsKind() === 'local') {
               <label class="field">
                 <span class="field-label">Initial value (JSON)</span>
-                <textarea rows="4" [ngModel]="form().valueJson" (ngModelChange)="updateForm('valueJson', $event)" placeholder='np. "hello" albo { "a": 1 }'></textarea>
+                <textarea rows="3" [ngModel]="newDsInitial()" (ngModelChange)="newDsInitial.set($event)" placeholder='np. "hello" albo { "a": 1 }'></textarea>
               </label>
             }
 
-            @if (form().kind === 'computed') {
+            @if (newDsKind() === 'computed') {
               <label class="field">
-                <span class="field-label">Wyrażenie (funkcja)</span>
-                <input type="text" [ngModel]="form().computedExpr" (ngModelChange)="updateForm('computedExpr', $event)" placeholder="np. sumPnl" />
+                <span class="field-label">Funkcja</span>
+                <input type="text" [ngModel]="newDsFn()" (ngModelChange)="newDsFn.set($event)" placeholder="np. sumPnl" />
               </label>
               <label class="field">
                 <span class="field-label">Dependencies (CSV ds ids)</span>
-                <input type="text" [ngModel]="form().computedDeps" (ngModelChange)="updateForm('computedDeps', $event)" placeholder="positionsList,spotRate" />
+                <input type="text" [ngModel]="newDsDeps()" (ngModelChange)="newDsDeps.set($event)" placeholder="positionsList,spotRate" />
               </label>
             }
 
@@ -292,7 +284,9 @@ interface DsEntry {
     .ds-item { background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); border-left: 3px solid var(--border, #374151); border-radius: 3px; padding: 8px 10px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 3px; color: var(--fg, #e5e7eb); font-family: inherit; }
     .ds-item:hover { border-color: #58a6ff66; }
     .ds-item.active { background: #1e3a5f33; border-color: #58a6ff; border-left-color: #58a6ff; }
-    .ds-item.draft { border-left-color: #f59e0b; }
+    .ds-item.standalone { border-left-color: #10b981; }
+    .badge-sa { font-size: 8px; color: #6ee7b7; background: #064e3b; padding: 1px 5px; border-radius: 2px; text-transform: uppercase; font-weight: 600; }
+    .badge-model { font-size: 8px; color: #c4b5fd; background: #5b21b622; padding: 1px 5px; border-radius: 2px; margin-left: 4px; }
     .ds-line-1 { display: flex; align-items: center; gap: 6px; }
     .ds-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 600; color: #93c5fd; flex: 1; }
     .ds-kind { font-size: 9px; color: var(--muted, #9ca3af); background: #1f2937; padding: 1px 6px; border-radius: 2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -362,6 +356,7 @@ interface DsEntry {
 })
 export class DatasourceDesignerComponent {
   readonly draftStore = inject(DraftPageStoreService);
+  readonly dsStore = inject(DraftDatasourceStoreService);
   readonly modelStore = inject(DraftModelStoreService);
   private readonly dataBus = inject(DATA_BUS, { optional: true }) as DataBus | null;
   private readonly destroyRef = inject(DestroyRef);
@@ -374,45 +369,59 @@ export class DatasourceDesignerComponent {
 
   readonly createDialogOpen = signal<boolean>(false);
   readonly createError = signal<string | null>(null);
-  readonly form = signal<DraftDsForm>(this.emptyForm());
+  readonly newDsId = signal('');
+  readonly newDsTitle = signal('');
+  readonly newDsKind = signal<'transport' | 'stream' | 'local' | 'computed'>('transport');
+  readonly newDsTransport = signal<'http' | 'websocket' | 'mock'>('http');
+  readonly newDsEndpoint = signal('');
+  readonly newDsOutputModel = signal('');
+  readonly newDsInitial = signal('');
+  readonly newDsFn = signal('');
+  readonly newDsDeps = signal('');
 
   readonly allDatasources = computed<ReadonlyArray<DsEntry>>(() => {
     const out: DsEntry[] = [];
 
-    // Zarejestrowane strony
+    for (const ds of this.dsStore.all()) {
+      out.push({
+        id: ds.id,
+        source: 'standalone',
+        sourceLabel: ds.title,
+        kind: ds.kind,
+        ...(ds.transport ? { transport: ds.transport } : {}),
+        ...(ds.endpoint ? { endpoint: ds.endpoint } : {}),
+        outputModelId: ds.contract.outputSchema ? Object.keys(ds.contract.outputSchema).length > 0 ? '(inline)' : undefined : undefined,
+      });
+    }
+
     const classes = getRegisteredPageClasses() as Array<{ name?: string; config?: PageConfig }>;
     for (const cls of classes) {
       const page = cls.config?.page;
       if (!page) continue;
       for (const [id, cfg] of Object.entries(page.datasources ?? {})) {
-        const entry: DsEntry = {
+        out.push({
           id,
-          pageId: page.id,
-          pageTitle: page.title ?? page.id,
-          config: cfg,
+          source: 'page',
+          sourceLabel: `📄 ${page.title ?? page.id}`,
           kind: cfg.kind ?? 'transport',
-          isDraft: false,
           ...(cfg.transport ? { transport: cfg.transport } : {}),
           ...(cfg.endpoint ? { endpoint: cfg.endpoint } : {}),
-        };
-        out.push(entry);
+          outputModelId: (cfg as Record<string, unknown>)['outputModel'] as string | undefined,
+        });
       }
     }
 
-    // Draft pages
     for (const d of this.draftStore.all()) {
       for (const [id, cfg] of Object.entries(d.config.page.datasources ?? {})) {
-        const entry: DsEntry = {
+        out.push({
           id,
-          pageId: d.id,
-          pageTitle: d.title,
-          config: cfg,
+          source: 'draft-page',
+          sourceLabel: `⚡ ${d.title}`,
           kind: cfg.kind ?? 'transport',
-          isDraft: true,
           ...(cfg.transport ? { transport: cfg.transport } : {}),
           ...(cfg.endpoint ? { endpoint: cfg.endpoint } : {}),
-        };
-        out.push(entry);
+          outputModelId: (cfg as Record<string, unknown>)['outputModel'] as string | undefined,
+        });
       }
     }
 
@@ -425,20 +434,20 @@ export class DatasourceDesignerComponent {
     if (!q) return this.allDatasources();
     return this.allDatasources().filter((d) =>
       d.id.toLowerCase().includes(q) ||
-      d.pageTitle.toLowerCase().includes(q) ||
+      d.sourceLabel.toLowerCase().includes(q) ||
       (d.endpoint ?? '').toLowerCase().includes(q),
     );
   });
 
-  readonly usages = computed<ReadonlyArray<{ pageId: string; pageTitle: string; widgetId: string; bindKey: string }>>(() => {
+  readonly usages = computed<ReadonlyArray<{ pageTitle: string; widgetId: string; bindKey: string }>>(() => {
     const sel = this.selected();
     if (!sel) return [];
-    const out: Array<{ pageId: string; pageTitle: string; widgetId: string; bindKey: string }> = [];
-    const scan = (pageId: string, pageTitle: string, widgets: Record<string, { bind?: Record<string, string> }>): void => {
+    const out: Array<{ pageTitle: string; widgetId: string; bindKey: string }> = [];
+    const scan = (pageTitle: string, widgets: Record<string, { bind?: Record<string, string> }>): void => {
       for (const [wId, w] of Object.entries(widgets)) {
         for (const [k, v] of Object.entries(w.bind ?? {})) {
           if (typeof v === 'string' && (v.includes(`$ds.${sel.id}`) || v.includes(`$computed.${sel.id}`) || v.includes(`$local.${sel.id}`) || v === sel.id)) {
-            out.push({ pageId, pageTitle, widgetId: wId, bindKey: k });
+            out.push({ pageTitle, widgetId: wId, bindKey: k });
           }
         }
       }
@@ -447,10 +456,10 @@ export class DatasourceDesignerComponent {
     for (const cls of classes) {
       const p = cls.config?.page;
       if (!p) continue;
-      scan(p.id, p.title ?? p.id, p.widgets ?? {});
+      scan(p.title ?? p.id, p.widgets ?? {});
     }
     for (const d of this.draftStore.all()) {
-      scan(d.id, d.title, d.config.page.widgets ?? {});
+      scan(d.title, d.config.page.widgets ?? {});
     }
     return out;
   });
@@ -480,15 +489,10 @@ export class DatasourceDesignerComponent {
 
   setOutputModel(sel: DsEntry, modelId: string): void {
     this.selectedOutputModelId.set(modelId);
-    if (!sel.isDraft) return;
-    const draft = this.draftStore.get(sel.pageId);
-    if (!draft) return;
-    const ds = draft.config.page.datasources ?? {};
-    const current = ds[sel.id] ?? {};
-    const updated = { ...current, outputModel: modelId || undefined };
-    const nextDs = { ...ds, [sel.id]: updated };
-    const nextConfig = { ...draft.config, page: { ...draft.config.page, datasources: nextDs } };
-    this.draftStore.update(draft.id, nextConfig as typeof draft.config);
+    if (sel.source === 'standalone') {
+      const outputSchema = modelId ? (this.modelStore.toSchema(modelId) ?? {}) : {};
+      this.dsStore.updateContract(sel.id, { outputSchema });
+    }
   }
 
   byKind(kind: string): number {
@@ -502,8 +506,16 @@ export class DatasourceDesignerComponent {
     this.snapshotError.set(null);
   }
 
-  formatConfig(cfg: DatasourceConfig): string {
+  formatConfig(cfg: unknown): string {
     try { return JSON.stringify(cfg, null, 2); } catch { return String(cfg); }
+  }
+
+  formatDsEntry(ds: DsEntry): string {
+    if (ds.source === 'standalone') {
+      const full = this.dsStore.get(ds.id);
+      return full ? this.formatConfig(full) : `{ id: '${ds.id}', kind: '${ds.kind}' }`;
+    }
+    return this.formatConfig({ id: ds.id, kind: ds.kind, transport: ds.transport, endpoint: ds.endpoint });
   }
 
   /**
@@ -550,22 +562,16 @@ export class DatasourceDesignerComponent {
     }
   }
 
-  private emptyForm(): DraftDsForm {
-    const firstDraft = this.draftStore.all()[0];
-    return {
-      targetPageId: firstDraft?.id ?? '',
-      dsId: '',
-      kind: 'transport',
-      transport: 'http',
-      endpoint: '',
-      valueJson: '',
-      computedExpr: '',
-      computedDeps: '',
-    };
-  }
-
   openCreateDialog(): void {
-    this.form.set(this.emptyForm());
+    this.newDsId.set('');
+    this.newDsTitle.set('');
+    this.newDsKind.set('transport');
+    this.newDsTransport.set('http');
+    this.newDsEndpoint.set('');
+    this.newDsOutputModel.set('');
+    this.newDsInitial.set('');
+    this.newDsFn.set('');
+    this.newDsDeps.set('');
     this.createError.set(null);
     this.createDialogOpen.set(true);
   }
@@ -574,65 +580,37 @@ export class DatasourceDesignerComponent {
     this.createDialogOpen.set(false);
   }
 
-  updateForm<K extends keyof DraftDsForm>(key: K, value: DraftDsForm[K]): void {
-    this.form.update((f) => ({ ...f, [key]: value }));
-  }
-
   createDatasource(): void {
     this.createError.set(null);
-    const f = this.form();
-    const draft = this.draftStore.get(f.targetPageId);
-    if (!draft) { this.createError.set('Nieznany target draft'); return; }
-    if (!f.dsId.trim()) { this.createError.set('Podaj ID datasource'); return; }
-    if (draft.config.page.datasources?.[f.dsId]) { this.createError.set(`ds "${f.dsId}" już istnieje w tym draft-cie`); return; }
+    const id = this.newDsId().trim();
+    const title = this.newDsTitle().trim();
+    if (!id) { this.createError.set('Podaj ID'); return; }
+    if (!title) { this.createError.set('Podaj nazwę'); return; }
+    if (this.dsStore.get(id)) { this.createError.set(`DS "${id}" już istnieje`); return; }
 
-    let cfg: DatasourceConfig;
-    try {
-      if (f.kind === 'transport') {
-        if (!f.endpoint.trim()) { this.createError.set('Podaj endpoint'); return; }
-        cfg = { kind: 'transport', transport: f.transport, endpoint: f.endpoint } as DatasourceConfig;
-      } else if (f.kind === 'local') {
-        let initial: unknown = undefined;
-        if (f.valueJson.trim()) {
-          try { initial = JSON.parse(f.valueJson); }
-          catch { initial = f.valueJson; }
-        }
-        cfg = { kind: 'local', initial } as DatasourceConfig;
-      } else {
-        if (!f.computedExpr.trim()) { this.createError.set('Podaj nazwę funkcji computed'); return; }
-        const deps = f.computedDeps.split(',').map((s) => s.trim()).filter(Boolean);
-        cfg = { kind: 'computed', fn: f.computedExpr, deps } as DatasourceConfig;
-      }
-    } catch (e) {
-      this.createError.set(e instanceof Error ? e.message : String(e));
-      return;
-    }
+    const outputModel = this.newDsOutputModel();
+    const outputSchema = outputModel ? (this.modelStore.toSchema(outputModel) ?? {}) : {};
 
-    const nextConfig: PageConfig = {
-      ...draft.config,
-      page: {
-        ...draft.config.page,
-        datasources: {
-          ...(draft.config.page.datasources ?? {}),
-          [f.dsId]: cfg,
-        },
+    this.dsStore.upsert({
+      id,
+      title,
+      kind: this.newDsKind() as DraftDatasource['kind'],
+      ...(this.newDsTransport() ? { transport: this.newDsTransport() } : {}),
+      ...(this.newDsEndpoint() ? { endpoint: this.newDsEndpoint() } : {}),
+      ...(this.newDsInitial() ? { initial: (() => { try { return JSON.parse(this.newDsInitial()); } catch { return this.newDsInitial(); } })() } : {}),
+      ...(this.newDsFn() ? { fn: this.newDsFn() } : {}),
+      ...(this.newDsDeps() ? { deps: this.newDsDeps().split(',').map((s) => s.trim()).filter(Boolean) } : {}),
+      contract: {
+        ...(Object.keys(outputSchema).length > 0 ? { outputSchema } : {}),
       },
-    };
-    this.draftStore.update(draft.id, nextConfig);
+    });
     this.closeCreateDialog();
   }
 
   deleteDatasource(ds: DsEntry): void {
-    if (!ds.isDraft) return;
-    const draft = this.draftStore.get(ds.pageId);
-    if (!draft) return;
-    const current = draft.config.page.datasources ?? {};
-    const { [ds.id]: _removed, ...rest } = current;
-    const nextConfig: PageConfig = {
-      ...draft.config,
-      page: { ...draft.config.page, datasources: rest },
-    };
-    this.draftStore.update(draft.id, nextConfig);
-    this.selected.set(null);
+    if (ds.source === 'standalone') {
+      this.dsStore.remove(ds.id);
+      this.selected.set(null);
+    }
   }
 }
