@@ -137,7 +137,7 @@ const CONTEXTS = ['all', 'model', 'form', 'ds', 'page', 'menu', 'validation', 'a
     .lang-label { font-size: 10px; color: var(--ech-muted, #9ca3af); text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; }
     .lang-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--ech-panel-alt); border-radius: 3px; font-size: 11px; font-weight: 600; color: var(--ech-fg, #e5e7eb); }
     .lang-tag.default { border: 1px solid var(--ech-accent); color: var(--ech-accent); }
-    .default-badge { font-size: 8px; color: #3b82f6; text-transform: uppercase; }
+    .default-badge { font-size: 8px; color: var(--ech-accent); text-transform: uppercase; }
     .lang-set-default { background: transparent; border: none; color: var(--ech-muted, #6b7280); cursor: pointer; font-size: 10px; padding: 0 2px; }
     .lang-set-default:hover { color: var(--ech-warning); }
     .lang-rm { background: transparent; border: none; color: var(--ech-danger); cursor: pointer; font-size: 10px; padding: 0 2px; }
@@ -151,8 +151,8 @@ const CONTEXTS = ['all', 'model', 'form', 'ds', 'page', 'menu', 'validation', 'a
 
     .table-row { display: flex; gap: 4px; padding: 4px 12px; border-bottom: 1px solid var(--ech-border, #0f172a); align-items: center; }
     .table-row:hover { background: var(--ech-panel-alt)22; }
-    .table-row.has-missing { background: #7f1d1d0d; }
-    .table-row.auto { border-left: 2px solid #6b728033; }
+    .table-row.has-missing { background: color-mix(in srgb, var(--ech-danger) 5%, transparent); }
+    .table-row.auto { border-left: 2px solid color-mix(in srgb, var(--ech-muted) 20%, transparent); }
     .cell-key { flex: 2.5; padding: 3px 6px; background: transparent; border: 1px solid transparent; color: var(--ech-accent); font-size: 10px; font-family: var(--ech-font-mono); }
     .cell-ctx { flex: 0.8; font-size: 9px; color: var(--ech-muted, #6b7280); text-transform: uppercase; }
     .cell-lang { flex: 1.5; padding: 3px 6px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 2px; font-size: 11px; font-family: inherit; }

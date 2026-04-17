@@ -545,7 +545,7 @@ function isFormWidget(type: string): boolean {
     .sep { color: var(--ech-muted, #6b7280); }
     .search { flex: 1; max-width: 260px; padding: 6px 10px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 4px; font-size: 12px; }
     .btn-new { margin-left: auto; padding: 6px 14px; background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); border: 1px solid var(--ech-success); color: var(--ech-success); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
-    .btn-new:hover { background: #065f46; }
+    .btn-new:hover { background: color-mix(in srgb, var(--ech-success) 30%, var(--ech-panel)); }
 
     .layout { display: grid; grid-template-columns: 260px 1fr; flex: 1; min-height: 0; }
     .list { background: var(--ech-panel-alt, #111827); border-right: 1px solid var(--ech-border, #1f2937); overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 3px; }
@@ -554,8 +554,8 @@ function isFormWidget(type: string): boolean {
     .empty-inline { padding: 8px; text-align: left; }
 
     .form-item { background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); border-left: 3px solid var(--ech-border, #374151); border-radius: 3px; padding: 8px 10px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 2px; color: var(--ech-fg, #e5e7eb); font-family: inherit; }
-    .form-item:hover { border-color: #58a6ff66; }
-    .form-item.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: #58a6ff; border-left-color: #58a6ff; }
+    .form-item:hover { border-color: var(--ech-accent)66; }
+    .form-item.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: var(--ech-accent); border-left-color: var(--ech-accent); }
     .form-item.standalone { border-left-color: var(--ech-success); }
     .form-line-1 { display: flex; align-items: center; gap: 6px; }
     .form-id { font-family: var(--ech-font-mono); font-size: 12px; font-weight: 600; color: var(--ech-accent); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -571,7 +571,7 @@ function isFormWidget(type: string): boolean {
     .detail-sub code { background: var(--ech-panel-alt); padding: 1px 5px; border-radius: 2px; color: var(--ech-accent); font-family: var(--ech-font-mono); font-size: 11px; }
     .detail-actions { display: flex; gap: 6px; }
     .btn-primary { padding: 6px 14px; background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); border: 1px solid var(--ech-success); color: var(--ech-success); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
-    .btn-primary:hover { background: #065f46; }
+    .btn-primary:hover { background: color-mix(in srgb, var(--ech-success) 30%, var(--ech-panel)); }
     .btn-danger { padding: 6px 12px; background: color-mix(in srgb, var(--ech-danger) 10%, transparent); border: 1px solid var(--ech-danger); color: var(--ech-danger); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
     .btn-danger:hover { background: color-mix(in srgb, var(--ech-danger) 20%, transparent); }
     .btn-ghost { padding: 6px 14px; background: transparent; border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
@@ -609,7 +609,7 @@ function isFormWidget(type: string): boolean {
     .schema-row input[type=checkbox] { width: 14px; height: 14px; justify-self: center; }
     .model-picker { padding: 2px 6px; background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel)); border: 1px solid var(--ech-accent); color: var(--ech-accent); border-radius: 2px; font-size: 9px; cursor: pointer; font-family: inherit; letter-spacing: 0; text-transform: none; }
     .btn-add-mini { margin-left: auto; background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); border: 1px solid var(--ech-success); color: var(--ech-success); padding: 1px 8px; border-radius: 2px; cursor: pointer; font-size: 10px; font-family: inherit; letter-spacing: 0; text-transform: none; }
-    .btn-add-mini:hover { background: #065f46; }
+    .btn-add-mini:hover { background: color-mix(in srgb, var(--ech-success) 30%, var(--ech-panel)); }
     .btn-rm-mini { background: transparent; border: 1px solid #7f1d1d66; color: var(--ech-danger); border-radius: 2px; font-size: 10px; cursor: pointer; padding: 2px 6px; font-family: inherit; width: 24px; flex-shrink: 0; }
     .btn-rm-mini:hover { background: color-mix(in srgb, var(--ech-danger) 10%, transparent); }
 
@@ -620,8 +620,8 @@ function isFormWidget(type: string): boolean {
     .btn-add { margin-left: auto; background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); border: 1px solid var(--ech-success); color: var(--ech-success); padding: 2px 10px; border-radius: 2px; cursor: pointer; font-size: 10px; font-family: inherit; letter-spacing: 0; text-transform: none; }
 
     .field-item { display: flex; align-items: center; gap: 5px; padding: 6px 8px; margin: 2px 6px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); border-left: 3px solid transparent; border-radius: 3px; cursor: pointer; }
-    .field-item:hover { border-color: #58a6ff66; }
-    .field-item.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: #58a6ff; border-left-color: #58a6ff; }
+    .field-item:hover { border-color: var(--ech-accent)66; }
+    .field-item.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: var(--ech-accent); border-left-color: var(--ech-accent); }
     .field-item-handle { color: var(--ech-muted, #6b7280); font-size: 12px; cursor: grab; }
     .field-item-main { flex: 1; min-width: 0; }
     .field-item-id { font-family: var(--ech-font-mono); font-size: 11px; color: var(--ech-accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -638,7 +638,7 @@ function isFormWidget(type: string): boolean {
     .preview-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; }
     .preview-cell { display: flex; flex-direction: column; gap: 3px; }
     .preview-label { font-size: 10px; color: var(--ech-muted, #9ca3af); font-weight: 600; }
-    .preview-label .req { color: #ef4444; margin-left: 2px; }
+    .preview-label .req { color: var(--ech-danger); margin-left: 2px; }
     .preview-form input, .preview-form select, .preview-form textarea { padding: 5px 8px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 2px; font-size: 11px; font-family: inherit; }
     .preview-form textarea { min-height: 50px; resize: vertical; }
     .preview-submit { padding: 6px 16px; background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel)); border: 1px solid var(--ech-accent); color: var(--ech-info); border-radius: 3px; cursor: not-allowed; margin-top: 6px; font-family: inherit; opacity: 0.6; align-self: flex-start; font-size: 12px; }
@@ -673,7 +673,7 @@ function isFormWidget(type: string): boolean {
     .om-row { display: flex; gap: 8px; align-items: center; }
     .om-select { flex: 1; padding: 6px 10px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 12px; font-family: inherit; }
     .btn-generate { padding: 6px 14px; background: #5b21b6; border: 1px solid var(--ech-accent); color: var(--ech-accent); border-radius: 3px; font-size: 11px; cursor: pointer; font-family: inherit; white-space: nowrap; }
-    .btn-generate:hover { background: #6d28d9; }
+    .btn-generate:hover { background: color-mix(in srgb, var(--ech-accent) 35%, var(--ech-panel)); }
     .om-info { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
     .om-badge { font-size: 10px; padding: 3px 8px; border-radius: 3px; }
     .om-badge.ds { background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel))33; color: var(--ech-success); border: 1px solid var(--ech-success)33; }
@@ -707,13 +707,13 @@ function isFormWidget(type: string): boolean {
     .lc-checks { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
 
     .usages-section { background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; padding: 10px; }
-    .usages-section.empty-usage { border-style: dashed; border-color: #374151; }
+    .usages-section.empty-usage { border-style: dashed; border-color: var(--ech-border); }
     .usages-header { font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--ech-muted, #9ca3af); font-weight: 600; margin-bottom: 6px; }
     .usage-row { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--ech-bg); border-radius: 3px; font-size: 11px; font-family: var(--ech-font-mono); margin-bottom: 2px; }
     .usage-page { color: var(--ech-muted, #9ca3af); }
     .usage-arrow { color: var(--ech-muted, #6b7280); }
     .usage-widget { color: var(--ech-accent); }
-    .usage-link { color: #60a5fa; text-decoration: none; margin-left: auto; font-size: 13px; }
+    .usage-link { color: var(--ech-accent); text-decoration: none; margin-left: auto; font-size: 13px; }
     .usage-link:hover { text-decoration: underline; }
     .usage-empty { font-size: 11px; color: var(--ech-muted, #6b7280); font-style: italic; line-height: 1.5; }
     .usage-empty code { background: var(--ech-bg); padding: 1px 4px; border-radius: 2px; color: var(--ech-accent); font-family: var(--ech-font-mono); font-size: 10px; font-style: normal; }

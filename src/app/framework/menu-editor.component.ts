@@ -140,7 +140,7 @@ interface DraftMenuItem {
     .bar h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--ech-accent, #58a6ff); }
     .bar-actions { display: flex; gap: 6px; }
     button { padding: 6px 12px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
-    button:hover:not(:disabled) { border-color: #58a6ff; }
+    button:hover:not(:disabled) { border-color: var(--ech-accent); }
     button:disabled { opacity: 0.3; cursor: not-allowed; }
     button.primary { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel)); border-color: var(--ech-accent); color: var(--ech-info); }
     button.danger { background: color-mix(in srgb, var(--ech-danger) 10%, transparent); border-color: var(--ech-danger); color: #fee2e2; }
@@ -152,12 +152,12 @@ interface DraftMenuItem {
     .node { margin-bottom: 2px; }
     .row { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid transparent; border-radius: 3px; font-size: 12px; cursor: pointer; }
     .row:hover { background: #1a2332; border-color: var(--ech-border, #374151); }
-    .row.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: #58a6ff; }
+    .row.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: var(--ech-accent); }
     .row.group { font-weight: 600; }
     .caret { width: 10px; font-size: 10px; color: var(--ech-muted, #6b7280); text-align: center; }
     .ic { width: 18px; text-align: center; font-size: 13px; }
     .lbl { flex: 1; }
-    .route { font-family: var(--ech-font-mono); font-size: 10px; color: #10b981; background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel))33; padding: 1px 6px; border-radius: 2px; }
+    .route { font-family: var(--ech-font-mono); font-size: 10px; color: var(--ech-success); background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel))33; padding: 1px 6px; border-radius: 2px; }
     .ctrls { display: flex; gap: 2px; }
     .btn-tiny { padding: 0 5px; font-size: 9px; background: transparent; border: 1px solid transparent; color: var(--ech-muted, #9ca3af); border-radius: 2px; min-width: 16px; }
     .btn-tiny:hover:not(:disabled) { background: var(--ech-panel-alt); border-color: var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); }
@@ -177,7 +177,7 @@ interface DraftMenuItem {
     .modal-body { padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
     .modal-pre { margin: 0; padding: 12px; background: var(--ech-bg); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; font-size: 11px; line-height: 1.5; color: #d1d5db; max-height: 400px; overflow: auto; font-family: var(--ech-font-mono); }
     .save-actions { display: flex; gap: 8px; align-items: center; }
-    .copied { color: #10b981; font-size: 12px; font-weight: 600; }
+    .copied { color: var(--ech-success); font-size: 12px; font-weight: 600; }
   `],
 })
 export class MenuEditorComponent {

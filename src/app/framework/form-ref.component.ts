@@ -166,7 +166,7 @@ import { resolveFieldBehavior, type FormIntent } from './draft-form-store';
     .ref-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px; }
     .ref-cell { display: flex; flex-direction: column; gap: 4px; }
     .ref-label { font-size: 11px; color: var(--ech-muted, #9ca3af); font-weight: 600; }
-    .ref-label .req { color: #ef4444; margin-left: 2px; }
+    .ref-label .req { color: var(--ech-danger); margin-left: 2px; }
     .ref-form input, .ref-form select, .ref-form textarea { padding: 7px 10px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 13px; font-family: inherit; }
     .ref-form input:focus, .ref-form select:focus, .ref-form textarea:focus { border-color: var(--ech-accent); outline: none; }
     .ref-form textarea { min-height: 60px; resize: vertical; }
@@ -174,7 +174,7 @@ import { resolveFieldBehavior, type FormIntent } from './draft-form-store';
 
     .ref-actions { display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--ech-border, #1f2937); }
     .ref-submit { padding: 8px 20px; background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel)); border: 1px solid var(--ech-accent); color: var(--ech-info); border-radius: 3px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; }
-    .ref-submit:hover { background: #1e40af; }
+    .ref-submit:hover { background: color-mix(in srgb, var(--ech-accent) 40%, var(--ech-panel)); }
 
     .ref-lookup { position: relative; }
     .ref-lookup-search { width: 100%; }

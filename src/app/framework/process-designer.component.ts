@@ -263,8 +263,8 @@ function extractProcesses(draftStore: DraftPageStoreService): ReadonlyArray<Proc
     .empty { padding: 20px 10px; text-align: center; font-size: 12px; color: var(--ech-muted, #9ca3af); font-style: italic; }
 
     .proc-item { background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); border-left: 3px solid #10b981; border-radius: 3px; padding: 8px 10px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 3px; color: var(--ech-fg, #e5e7eb); font-family: inherit; }
-    .proc-item:hover { border-color: #58a6ff66; }
-    .proc-item.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: #58a6ff; border-left-color: var(--ech-success); }
+    .proc-item:hover { border-color: var(--ech-accent)66; }
+    .proc-item.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: var(--ech-accent); border-left-color: var(--ech-success); }
     .proc-line-1 { display: flex; align-items: center; gap: 6px; }
     .proc-id { font-family: var(--ech-font-mono); font-size: 13px; font-weight: 600; color: var(--ech-success); flex: 1; }
     .proc-steps { font-size: 10px; color: var(--ech-muted, #9ca3af); background: var(--ech-panel-alt); padding: 1px 6px; border-radius: 2px; }
@@ -276,7 +276,7 @@ function extractProcesses(draftStore: DraftPageStoreService): ReadonlyArray<Proc
     .detail-sub { font-size: 12px; color: var(--ech-muted, #9ca3af); margin-top: 2px; }
     .detail-sub code { background: var(--ech-panel-alt); padding: 1px 6px; border-radius: 2px; color: var(--ech-accent); }
     .btn-primary { padding: 8px 16px; background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); border: 1px solid var(--ech-success); color: var(--ech-success); border-radius: 3px; font-size: 13px; cursor: pointer; font-family: inherit; text-decoration: none; display: inline-flex; align-items: center; }
-    .btn-primary:hover { background: #065f46; }
+    .btn-primary:hover { background: color-mix(in srgb, var(--ech-success) 30%, var(--ech-panel)); }
 
     .dag { background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; padding: 16px; }
     .dag-header { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ech-muted, #9ca3af); font-weight: 600; margin-bottom: 12px; }
@@ -310,7 +310,7 @@ function extractProcesses(draftStore: DraftPageStoreService): ReadonlyArray<Proc
     .empty-desc { font-size: 13px; }
 
     .btn-new { margin-left: auto; padding: 6px 14px; background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); border: 1px solid var(--ech-success); color: var(--ech-success); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
-    .btn-new:hover { background: #065f46; }
+    .btn-new:hover { background: color-mix(in srgb, var(--ech-success) 30%, var(--ech-panel)); }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; }
     .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 101; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); border-radius: 6px; width: 480px; max-width: calc(100vw - 40px); display: flex; flex-direction: column; }
     .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--ech-border, #1f2937); }
@@ -323,7 +323,7 @@ function extractProcesses(draftStore: DraftPageStoreService): ReadonlyArray<Proc
     .help-text { font-size: 11px; color: var(--ech-muted, #9ca3af); line-height: 1.5; }
     .help-text code { background: var(--ech-bg); padding: 1px 5px; border-radius: 2px; color: var(--ech-accent); font-family: var(--ech-font-mono); font-size: 10px; }
     .btn-primary { padding: 6px 14px; background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); border: 1px solid var(--ech-success); color: var(--ech-success); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
-    .btn-primary:hover { background: #065f46; }
+    .btn-primary:hover { background: color-mix(in srgb, var(--ech-success) 30%, var(--ech-panel)); }
     .btn-ghost { padding: 6px 14px; background: transparent; border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
     .btn-ghost:hover { background: var(--ech-panel-alt); }
     .btn-close { background: transparent; border: none; color: var(--ech-muted, #9ca3af); font-size: 18px; cursor: pointer; padding: 4px 8px; }

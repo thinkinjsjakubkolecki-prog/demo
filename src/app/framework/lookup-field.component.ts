@@ -120,7 +120,7 @@ export interface LookupOption {
     .lookup { position: relative; }
     .lookup.disabled { opacity: 0.5; pointer-events: none; }
     .lf-label { display: block; font-size: 11px; color: var(--ech-muted, #9ca3af); font-weight: 600; margin-bottom: 4px; }
-    .lf-label .req { color: #ef4444; margin-left: 2px; }
+    .lf-label .req { color: var(--ech-danger); margin-left: 2px; }
 
     .lf-input-wrap { position: relative; }
     .lf-search { width: 100%; padding: 8px 10px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: var(--ech-radius-sm, 3px); font-size: 13px; font-family: inherit; }
@@ -130,7 +130,7 @@ export interface LookupOption {
     .lf-selected { display: flex; align-items: center; padding: 8px 10px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-accent, #58a6ff); border-radius: var(--ech-radius-sm, 3px); cursor: pointer; }
     .lf-selected-text { flex: 1; font-size: 13px; color: var(--ech-fg, #e5e7eb); }
     .lf-clear { color: var(--ech-muted, #9ca3af); font-size: 12px; }
-    .lf-clear:hover { color: #ef4444; }
+    .lf-clear:hover { color: var(--ech-danger); }
 
     .lf-multi-wrap { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 6px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); border-radius: var(--ech-radius-sm, 3px); min-height: 36px; align-items: center; }
     .lf-multi-wrap:focus-within { border-color: var(--ech-accent, #58a6ff); }

@@ -104,9 +104,9 @@ import { exportBundle, exportBundleAsJson, exportBundleAsTypeScript, type Export
     .actions { display: flex; gap: 10px; margin-bottom: 16px; }
     .btn-export { padding: 10px 20px; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; border: 1px solid; }
     .btn-export.json { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel)); border-color: var(--ech-accent); color: var(--ech-info); }
-    .btn-export.json:hover { background: #1e40af; }
+    .btn-export.json:hover { background: color-mix(in srgb, var(--ech-accent) 40%, var(--ech-panel)); }
     .btn-export.ts { background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); border-color: var(--ech-success); color: var(--ech-success); }
-    .btn-export.ts:hover { background: #065f46; }
+    .btn-export.ts:hover { background: color-mix(in srgb, var(--ech-success) 30%, var(--ech-panel)); }
     .btn-export.file { background: color-mix(in srgb, var(--ech-warning) 20%, var(--ech-panel)); border-color: var(--ech-warning); color: var(--ech-warning); }
     .btn-export.file:hover { background: #92400e; }
 

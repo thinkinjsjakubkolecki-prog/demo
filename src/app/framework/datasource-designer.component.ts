@@ -393,8 +393,8 @@ interface DsEntry {
     .empty-inline { padding: 8px; text-align: left; }
 
     .ds-item { background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); border-left: 3px solid var(--ech-border, #374151); border-radius: 3px; padding: 8px 10px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 3px; color: var(--ech-fg, #e5e7eb); font-family: inherit; }
-    .ds-item:hover { border-color: #58a6ff66; }
-    .ds-item.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: #58a6ff; border-left-color: #58a6ff; }
+    .ds-item:hover { border-color: var(--ech-accent)66; }
+    .ds-item.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: var(--ech-accent); border-left-color: var(--ech-accent); }
     .ds-item.standalone { border-left-color: var(--ech-success); }
     .badge-sa { font-size: 8px; color: var(--ech-success); background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); padding: 1px 5px; border-radius: 2px; text-transform: uppercase; font-weight: 600; }
     .badge-model { font-size: 8px; color: var(--ech-accent); background: color-mix(in srgb, var(--ech-accent) 10%, transparent); padding: 1px 5px; border-radius: 2px; margin-left: 4px; }
@@ -411,7 +411,7 @@ interface DsEntry {
     .detail-sub { font-size: 12px; color: var(--ech-muted, #9ca3af); margin-top: 2px; }
     .detail-actions { display: flex; gap: 6px; }
     .btn-primary { padding: 6px 14px; background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel)); border: 1px solid var(--ech-accent); color: var(--ech-info); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
-    .btn-primary:hover { background: #1e40af; }
+    .btn-primary:hover { background: color-mix(in srgb, var(--ech-accent) 40%, var(--ech-panel)); }
 
     .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .detail-block { grid-column: 1 / -1; background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -421,7 +421,7 @@ interface DsEntry {
 
     .status { margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 2px; }
     .status.loading { background: #713f1233; color: var(--ech-warning); }
-    .status.ready { background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel))33; color: #10b981; }
+    .status.ready { background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel))33; color: var(--ech-success); }
     .status.error { background: color-mix(in srgb, var(--ech-danger) 10%, transparent); color: #fee2e2; }
     .status.idle { background: var(--ech-panel-alt); color: var(--ech-muted, #6b7280); }
 
@@ -438,7 +438,7 @@ interface DsEntry {
     .empty-desc { font-size: 13px; }
 
     .btn-new { padding: 6px 14px; background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); border: 1px solid var(--ech-success); color: var(--ech-success); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
-    .btn-new:hover:not(:disabled) { background: #065f46; }
+    .btn-new:hover:not(:disabled) { background: color-mix(in srgb, var(--ech-success) 30%, var(--ech-panel)); }
     .btn-new:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-danger { padding: 6px 12px; background: color-mix(in srgb, var(--ech-danger) 10%, transparent); border: 1px solid var(--ech-danger); color: var(--ech-danger); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
     .btn-danger:hover { background: color-mix(in srgb, var(--ech-danger) 20%, transparent); }
@@ -459,7 +459,7 @@ interface DsEntry {
     .field textarea { font-family: var(--ech-font-mono); resize: vertical; }
     .error-box { padding: 8px 10px; background: color-mix(in srgb, var(--ech-danger) 10%, transparent); border: 1px solid var(--ech-danger); color: var(--ech-danger); border-radius: 3px; font-size: 11px; }
 
-    .schema-block { border-color: #8b5cf633; }
+    .schema-block { border-color: color-mix(in srgb, var(--ech-accent) 20%, transparent); }
     .schema-source { margin-bottom: 8px; }
     .schema-source select { width: 100%; padding: 6px 10px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 12px; font-family: inherit; }
     .schema-code { color: var(--ech-accent); }
@@ -474,7 +474,7 @@ interface DsEntry {
     .mock-section { display: flex; flex-direction: column; gap: 6px; }
     .mock-header { display: flex; align-items: center; gap: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--ech-muted, #9ca3af); font-weight: 600; }
     .btn-gen-mock { margin-left: auto; padding: 3px 10px; background: #5b21b6; border: 1px solid var(--ech-accent); color: var(--ech-accent); border-radius: 2px; font-size: 10px; cursor: pointer; font-family: inherit; }
-    .btn-gen-mock:hover { background: #6d28d9; }
+    .btn-gen-mock:hover { background: color-mix(in srgb, var(--ech-accent) 35%, var(--ech-panel)); }
     .mock-editor { width: 100%; font-family: var(--ech-font-mono); font-size: 11px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-success); border-radius: var(--ech-radius-sm, 3px); padding: 10px; resize: vertical; line-height: 1.4; tab-size: 2; }
     .mock-editor.invalid { border-color: var(--ech-danger); color: var(--ech-danger); }
     .mock-error { font-size: 10px; color: var(--ech-danger); }

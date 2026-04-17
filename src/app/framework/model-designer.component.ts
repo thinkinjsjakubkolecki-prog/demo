@@ -233,7 +233,7 @@ import type { PropertyType } from './designer-core';
     .sep { color: var(--ech-muted, #6b7280); }
     .search { flex: 1; max-width: 240px; padding: 6px 10px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 4px; font-size: 12px; }
     .btn-new { margin-left: auto; padding: 6px 14px; background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); border: 1px solid var(--ech-success); color: var(--ech-success); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
-    .btn-new:hover { background: #065f46; }
+    .btn-new:hover { background: color-mix(in srgb, var(--ech-success) 30%, var(--ech-panel)); }
 
     .layout { display: grid; grid-template-columns: 260px 1fr; flex: 1; min-height: 0; }
     .list { background: var(--ech-panel-alt, #111827); border-right: 1px solid var(--ech-border, #1f2937); overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 3px; }
@@ -241,8 +241,8 @@ import type { PropertyType } from './designer-core';
     .empty { padding: 20px 10px; text-align: center; font-size: 12px; color: var(--ech-muted, #9ca3af); font-style: italic; }
 
     .model-item { background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); border-left: 3px solid #8b5cf6; border-radius: 3px; padding: 8px 10px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 2px; color: var(--ech-fg, #e5e7eb); font-family: inherit; }
-    .model-item:hover { border-color: #58a6ff66; }
-    .model-item.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: #58a6ff; border-left-color: var(--ech-accent); }
+    .model-item:hover { border-color: var(--ech-accent)66; }
+    .model-item.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: var(--ech-accent); border-left-color: var(--ech-accent); }
     .model-line-1 { display: flex; align-items: center; gap: 6px; }
     .model-id { font-family: var(--ech-font-mono); font-size: 12px; font-weight: 600; color: var(--ech-accent); flex: 1; }
     .model-count { font-size: 9px; color: var(--ech-muted, #9ca3af); background: var(--ech-panel-alt); padding: 1px 6px; border-radius: 2px; }
@@ -283,7 +283,7 @@ import type { PropertyType } from './designer-core';
     .i18n-miss { color: var(--ech-danger); font-size: 10px; font-weight: 700; margin-left: 2px; }
     .ft-row.header { font-size: 9px; text-transform: uppercase; letter-spacing: 0.2px; color: var(--ech-muted, #6b7280); font-weight: 600; background: var(--ech-panel-alt); border-radius: 2px; padding: 6px 4px; }
     .ft-row.pk { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))1a; border-left: 2px solid #8b5cf6; }
-    .ft-row.has-ref { background: #5b21b60a; }
+    .ft-row.has-ref { background: color-mix(in srgb, var(--ech-accent) 3%, transparent); }
     .ref-cell { display: flex; gap: 3px; align-items: center; }
     .ref-select { flex: 1; padding: 3px 4px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-accent)44; color: var(--ech-accent); border-radius: 2px; font-size: 10px; font-family: inherit; }
     .kind-select { width: 50px; padding: 3px 2px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 2px; font-size: 9px; font-family: var(--ech-font-mono); }

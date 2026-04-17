@@ -142,14 +142,14 @@ export interface AdvFormFieldDef {
     .adv-title { font-size: 16px; font-weight: 600; color: var(--ech-fg, #e5e7eb); margin-bottom: 4px; }
     .adv-field { display: flex; flex-direction: column; gap: 4px; }
     .adv-label { font-size: 12px; color: var(--ech-muted, #9ca3af); font-weight: 600; }
-    .adv-label .req { color: #ef4444; margin-left: 2px; }
+    .adv-label .req { color: var(--ech-danger); margin-left: 2px; }
     .adv-form input, .adv-form select, .adv-form textarea { padding: 7px 10px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 13px; font-family: inherit; }
     .adv-form textarea { min-height: 70px; resize: vertical; }
     .adv-form input:focus, .adv-form select:focus, .adv-form textarea:focus { border-color: var(--ech-accent); outline: none; }
     .adv-form input[type=checkbox] { width: 16px; height: 16px; }
     .adv-actions { display: flex; justify-content: flex-end; margin-top: 4px; }
     .btn-submit { padding: 8px 20px; background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel)); border: 1px solid var(--ech-accent); color: var(--ech-info); border-radius: 3px; cursor: pointer; font-family: inherit; font-size: 13px; }
-    .btn-submit:hover:not(:disabled) { background: #1e40af; }
+    .btn-submit:hover:not(:disabled) { background: color-mix(in srgb, var(--ech-accent) 40%, var(--ech-panel)); }
     .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
   `],
 })

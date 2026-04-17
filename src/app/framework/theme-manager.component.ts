@@ -95,12 +95,12 @@ const STORAGE_KEY = 'dealer-fx:theme';
 
     .variables-section { background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #1f2937); border-radius: 6px; overflow: hidden; }
     .var-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--ech-border, #1f2937); font-size: 11px; color: var(--ech-muted, #9ca3af); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
-    .btn-copy { padding: 3px 10px; background: #1e3a5f; border: 1px solid #3b82f6; color: #e0f2fe; border-radius: 2px; font-size: 10px; cursor: pointer; font-family: inherit; }
+    .btn-copy { padding: 3px 10px; background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel)); border: 1px solid var(--ech-accent); color: var(--ech-info); border-radius: 2px; font-size: 10px; cursor: pointer; font-family: inherit; }
     .var-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; max-height: 400px; overflow-y: auto; }
     .var-row { display: flex; align-items: center; gap: 8px; padding: 5px 14px; border-bottom: 1px solid var(--ech-border, #0f172a); }
     .var-key { font-size: 10px; color: var(--ech-accent, #58a6ff); flex: 1; }
     .color-swatch { width: 14px; height: 14px; border-radius: 2px; border: 1px solid var(--ech-border, #374151); flex-shrink: 0; }
-    .var-value { font-size: 10px; color: var(--ech-fg, #e5e7eb); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .var-value { font-size: 10px; color: var(--ech-fg, #e5e7eb); font-family: var(--ech-font-mono); }
   `],
 })
 export class ThemeManagerComponent {

@@ -280,7 +280,7 @@ import { EchelonWidget } from '@echelon-framework/runtime';
 
     .cf-rating { display: flex; gap: 4px; }
     .cf-star { background: transparent; border: none; font-size: 20px; color: var(--ech-border, #374151); cursor: pointer; padding: 2px; transition: color 0.1s; }
-    .cf-star.active { color: #fbbf24; }
+    .cf-star.active { color: var(--ech-warning); }
     .cf-star:hover { color: var(--ech-warning); }
 
     .cf-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
