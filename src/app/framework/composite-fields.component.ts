@@ -249,7 +249,7 @@ import { EchelonWidget } from '@echelon-framework/runtime';
     .cf input:focus, .cf select:focus, .cf textarea:focus { border-color: var(--ech-accent, #58a6ff); outline: none; }
 
     .cf-money { display: flex; gap: 6px; }
-    .cf-amount { flex: 1; text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .cf-amount { flex: 1; text-align: right; font-family: var(--ech-font-mono); }
     .cf-currency { width: 70px; }
 
     .cf-daterange { display: flex; gap: 8px; align-items: flex-end; }
@@ -272,16 +272,16 @@ import { EchelonWidget } from '@echelon-framework/runtime';
     .cf-file-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
     .cf-file-name { color: var(--ech-fg, #e5e7eb); flex: 1; }
     .cf-file-size { color: var(--ech-muted, #9ca3af); font-size: 10px; }
-    .cf-file-rm { background: transparent; border: none; color: #fca5a5; cursor: pointer; font-size: 12px; padding: 2px; }
+    .cf-file-rm { background: transparent; border: none; color: var(--ech-danger); cursor: pointer; font-size: 12px; padding: 2px; }
 
     .cf-range { display: flex; align-items: center; gap: 10px; }
     .cf-range input[type=range] { flex: 1; accent-color: var(--ech-accent, #58a6ff); }
-    .cf-range-val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: var(--ech-accent, #58a6ff); min-width: 50px; }
+    .cf-range-val { font-family: var(--ech-font-mono); font-size: 13px; color: var(--ech-accent, #58a6ff); min-width: 50px; }
 
     .cf-rating { display: flex; gap: 4px; }
     .cf-star { background: transparent; border: none; font-size: 20px; color: var(--ech-border, #374151); cursor: pointer; padding: 2px; transition: color 0.1s; }
     .cf-star.active { color: #fbbf24; }
-    .cf-star:hover { color: #fcd34d; }
+    .cf-star:hover { color: var(--ech-warning); }
 
     .cf-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .cf-toggle.disabled { opacity: 0.5; cursor: not-allowed; }
@@ -302,8 +302,8 @@ import { EchelonWidget } from '@echelon-framework/runtime';
     .cf-rt-editor { min-height: 100px; padding: 10px; background: var(--ech-panel-alt, #1f2937); color: var(--ech-fg, #e5e7eb); font-size: 13px; line-height: 1.5; outline: none; }
     .cf-rt-editor:empty::before { content: attr(data-placeholder); color: var(--ech-muted, #6b7280); }
 
-    .cf-code { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; resize: vertical; line-height: 1.5; tab-size: 2; }
-    .cf-json.invalid { border-color: #ef4444; }
+    .cf-code { width: 100%; font-family: var(--ech-font-mono); font-size: 12px; resize: vertical; line-height: 1.5; tab-size: 2; }
+    .cf-json.invalid { border-color: var(--ech-danger); }
 
     .cf-signature { }
     .cf-sig-canvas { border: 1px solid var(--ech-border, #374151); border-radius: var(--ech-radius-sm, 3px); background: var(--ech-panel-alt, #1f2937); cursor: crosshair; display: block; }
@@ -316,7 +316,7 @@ import { EchelonWidget } from '@echelon-framework/runtime';
     .cf-rep-fields { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; }
     .cf-rep-field { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 120px; }
     .cf-rep-label { font-size: 10px; color: var(--ech-muted, #9ca3af); }
-    .cf-rep-rm { background: transparent; border: 1px solid #7f1d1d44; color: #fca5a5; width: 22px; height: 22px; border-radius: 2px; cursor: pointer; font-size: 10px; margin-top: 6px; }
+    .cf-rep-rm { background: transparent; border: 1px solid #7f1d1d44; color: var(--ech-danger); width: 22px; height: 22px; border-radius: 2px; cursor: pointer; font-size: 10px; margin-top: 6px; }
     .cf-rep-add, .cf-it-add { padding: 6px 14px; background: var(--ech-panel-alt, #1f2937); border: 1px dashed var(--ech-border, #374151); color: var(--ech-muted, #9ca3af); border-radius: var(--ech-radius-sm, 3px); cursor: pointer; font-size: 12px; font-family: inherit; }
     .cf-rep-add:hover, .cf-it-add:hover { border-color: var(--ech-accent, #58a6ff); color: var(--ech-accent, #58a6ff); }
 
@@ -325,7 +325,7 @@ import { EchelonWidget } from '@echelon-framework/runtime';
     .cf-it-act { width: 24px; }
     .cf-it-row { display: flex; gap: 4px; padding: 3px; }
     .cf-it-row input { flex: 1; padding: 5px 8px; font-size: 12px; }
-    .cf-it-rm { background: transparent; border: 1px solid #7f1d1d44; color: #fca5a5; width: 22px; height: 22px; border-radius: 2px; cursor: pointer; font-size: 10px; flex-shrink: 0; }
+    .cf-it-rm { background: transparent; border: 1px solid #7f1d1d44; color: var(--ech-danger); width: 22px; height: 22px; border-radius: 2px; cursor: pointer; font-size: 10px; flex-shrink: 0; }
   `],
 })
 export class CompositeFieldComponent {

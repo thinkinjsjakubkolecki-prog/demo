@@ -142,8 +142,8 @@ interface DraftMenuItem {
     button { padding: 6px 12px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
     button:hover:not(:disabled) { border-color: #58a6ff; }
     button:disabled { opacity: 0.3; cursor: not-allowed; }
-    button.primary { background: #1e3a5f; border-color: #3b82f6; color: #e0f2fe; }
-    button.danger { background: #7f1d1d33; border-color: #ef4444; color: #fee2e2; }
+    button.primary { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel)); border-color: var(--ech-accent); color: var(--ech-info); }
+    button.danger { background: color-mix(in srgb, var(--ech-danger) 10%, transparent); border-color: var(--ech-danger); color: #fee2e2; }
 
     .content { display: grid; grid-template-columns: 1fr 340px; gap: 12px; padding: 12px; min-height: 500px; }
     .tree, .side { background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; padding: 8px; overflow-y: auto; }
@@ -152,21 +152,21 @@ interface DraftMenuItem {
     .node { margin-bottom: 2px; }
     .row { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid transparent; border-radius: 3px; font-size: 12px; cursor: pointer; }
     .row:hover { background: #1a2332; border-color: var(--ech-border, #374151); }
-    .row.active { background: #1e3a5f33; border-color: #58a6ff; }
+    .row.active { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel))33; border-color: #58a6ff; }
     .row.group { font-weight: 600; }
     .caret { width: 10px; font-size: 10px; color: var(--ech-muted, #6b7280); text-align: center; }
     .ic { width: 18px; text-align: center; font-size: 13px; }
     .lbl { flex: 1; }
-    .route { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: #10b981; background: #064e3b33; padding: 1px 6px; border-radius: 2px; }
+    .route { font-family: var(--ech-font-mono); font-size: 10px; color: #10b981; background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel))33; padding: 1px 6px; border-radius: 2px; }
     .ctrls { display: flex; gap: 2px; }
     .btn-tiny { padding: 0 5px; font-size: 9px; background: transparent; border: 1px solid transparent; color: var(--ech-muted, #9ca3af); border-radius: 2px; min-width: 16px; }
-    .btn-tiny:hover:not(:disabled) { background: #1f2937; border-color: var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); }
+    .btn-tiny:hover:not(:disabled) { background: var(--ech-panel-alt); border-color: var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); }
 
     .side { display: flex; flex-direction: column; gap: 8px; }
     .empty { padding: 40px 12px; color: var(--ech-muted, #6b7280); text-align: center; font-style: italic; font-size: 12px; }
     .form-label { display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: var(--ech-muted, #9ca3af); }
     .form-label span { text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
-    .form-label input, .form-label select { padding: 5px 8px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 2px; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .form-label input, .form-label select { padding: 5px 8px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 2px; font-size: 11px; font-family: var(--ech-font-mono); }
     .fb-check { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ech-fg, #e5e7eb); cursor: pointer; }
     .side-actions { display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--ech-border, #1f2937); }
 
@@ -175,7 +175,7 @@ interface DraftMenuItem {
     .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--ech-border, #1f2937); font-weight: 600; color: var(--ech-accent, #58a6ff); }
     .btn-close { background: transparent; border: none; color: var(--ech-muted, #9ca3af); font-size: 16px; cursor: pointer; }
     .modal-body { padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-    .modal-pre { margin: 0; padding: 12px; background: #0b1120; border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; font-size: 11px; line-height: 1.5; color: #d1d5db; max-height: 400px; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .modal-pre { margin: 0; padding: 12px; background: var(--ech-bg); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; font-size: 11px; line-height: 1.5; color: #d1d5db; max-height: 400px; overflow: auto; font-family: var(--ech-font-mono); }
     .save-actions { display: flex; gap: 8px; align-items: center; }
     .copied { color: #10b981; font-size: 12px; font-weight: 600; }
   `],

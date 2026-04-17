@@ -98,22 +98,22 @@ import { exportBundle, exportBundleAsJson, exportBundleAsTypeScript, type Export
 
     .stats { display: flex; gap: 16px; margin-bottom: 20px; }
     .stat { background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; padding: 12px 20px; text-align: center; flex: 1; }
-    .stat-num { display: block; font-size: 24px; font-weight: 700; color: var(--ech-fg, #e5e7eb); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .stat-num { display: block; font-size: 24px; font-weight: 700; color: var(--ech-fg, #e5e7eb); font-family: var(--ech-font-mono); }
     .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ech-muted, #9ca3af); }
 
     .actions { display: flex; gap: 10px; margin-bottom: 16px; }
     .btn-export { padding: 10px 20px; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; border: 1px solid; }
-    .btn-export.json { background: #1e3a5f; border-color: #3b82f6; color: #e0f2fe; }
+    .btn-export.json { background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel)); border-color: var(--ech-accent); color: var(--ech-info); }
     .btn-export.json:hover { background: #1e40af; }
-    .btn-export.ts { background: #064e3b; border-color: #10b981; color: #d1fae5; }
+    .btn-export.ts { background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel)); border-color: var(--ech-success); color: var(--ech-success); }
     .btn-export.ts:hover { background: #065f46; }
-    .btn-export.file { background: #78350f; border-color: #f59e0b; color: #fef3c7; }
+    .btn-export.file { background: color-mix(in srgb, var(--ech-warning) 20%, var(--ech-panel)); border-color: var(--ech-warning); color: var(--ech-warning); }
     .btn-export.file:hover { background: #92400e; }
 
     .output { margin-top: 16px; }
-    .output-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #1f2937; border-radius: 4px 4px 0 0; font-size: 11px; color: var(--ech-muted, #9ca3af); font-weight: 600; text-transform: uppercase; }
-    .btn-copy { padding: 4px 12px; background: #1e3a5f; border: 1px solid #3b82f6; color: #e0f2fe; border-radius: 2px; font-size: 11px; cursor: pointer; font-family: inherit; }
-    .output-code { margin: 0; padding: 16px; background: #0b1120; border: 1px solid var(--ech-border, #1f2937); border-top: none; border-radius: 0 0 4px 4px; font-size: 11px; color: #d1d5db; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre; overflow: auto; max-height: 500px; }
+    .output-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--ech-panel-alt); border-radius: 4px 4px 0 0; font-size: 11px; color: var(--ech-muted, #9ca3af); font-weight: 600; text-transform: uppercase; }
+    .btn-copy { padding: 4px 12px; background: color-mix(in srgb, var(--ech-accent) 25%, var(--ech-panel)); border: 1px solid var(--ech-accent); color: var(--ech-info); border-radius: 2px; font-size: 11px; cursor: pointer; font-family: inherit; }
+    .output-code { margin: 0; padding: 16px; background: var(--ech-bg); border: 1px solid var(--ech-border, #1f2937); border-top: none; border-radius: 0 0 4px 4px; font-size: 11px; color: #d1d5db; font-family: var(--ech-font-mono); white-space: pre; overflow: auto; max-height: 500px; }
 
     .empty { padding: 30px; text-align: center; color: var(--ech-muted, #6b7280); font-size: 13px; font-style: italic; border: 1px dashed var(--ech-border, #374151); border-radius: 4px; }
 
@@ -123,8 +123,8 @@ import { exportBundle, exportBundleAsJson, exportBundleAsTypeScript, type Export
     .import-actions { display: flex; align-items: center; gap: 10px; }
     .import-input { font-size: 12px; }
     .import-result { padding: 6px 12px; border-radius: 3px; font-size: 12px; }
-    .import-result.success { background: #064e3b33; color: #6ee7b7; border: 1px solid #10b981; }
-    .import-result.error { background: #7f1d1d33; color: #fca5a5; border: 1px solid #ef4444; }
+    .import-result.success { background: color-mix(in srgb, var(--ech-success) 20%, var(--ech-panel))33; color: var(--ech-success); border: 1px solid var(--ech-success); }
+    .import-result.error { background: color-mix(in srgb, var(--ech-danger) 10%, transparent); color: var(--ech-danger); border: 1px solid var(--ech-danger); }
   `],
 })
 export class ExportPanelComponent {
