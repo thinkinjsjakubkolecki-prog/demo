@@ -13,24 +13,9 @@
  *  - runtime: form-ref subskrybuje DataBus per contract, aplikuje bindingi na pola
  */
 import { Injectable, signal, computed } from '@angular/core';
+import type { PropertyType, SchemaProperty, Schema } from './schema-types';
 
-// ─── Schema types ───────────────────────────────────────────────────────────
-
-export type PropertyType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 'date' | 'any';
-
-export interface InputProperty {
-  readonly type: PropertyType;
-  readonly description?: string;
-  readonly required?: boolean;
-  /** Dla type:'object' — nested shape (max 1 level deep). */
-  readonly properties?: Readonly<Record<string, InputPropertyLeaf>>;
-  /** Dla type:'array' — typ elementu. */
-  readonly itemType?: PropertyType;
-  /** Dla type:'array' + itemType:'object' — shape elementu. */
-  readonly itemProperties?: Readonly<Record<string, InputPropertyLeaf>>;
-}
-
-export type InputPropertyLeaf = Omit<InputProperty, 'properties' | 'itemProperties'>;
+export type { PropertyType, SchemaProperty as InputProperty, Schema };
 
 // ─── Input contract ─────────────────────────────────────────────────────────
 
@@ -42,7 +27,7 @@ export interface FormInputContract {
   /** Opis po co formularz potrzebuje tego datasource. */
   readonly description?: string;
   /** Oczekiwany kształt danych — property name → type + meta. */
-  readonly schema: Readonly<Record<string, InputProperty>>;
+  readonly schema: Schema;
 }
 
 // ─── Field input binding ────────────────────────────────────────────────────
@@ -115,64 +100,7 @@ export function syncRequiresFromContracts(form: DraftForm): DraftForm {
   return { ...form, requires: form.inputContracts.map((c) => c.datasourceId) };
 }
 
-export interface ContractValidationError {
-  readonly contractAlias: string;
-  readonly datasourceId: string;
-  readonly property: string;
-  readonly expected: PropertyType;
-  readonly actual: string;
-  readonly message: string;
-}
-
-export function validateContractShape(
-  contract: FormInputContract,
-  snapshot: unknown,
-): ReadonlyArray<ContractValidationError> {
-  if (snapshot === undefined || snapshot === null) return [];
-  if (typeof snapshot !== 'object' || Array.isArray(snapshot)) return [];
-  const data = snapshot as Record<string, unknown>;
-  const errors: ContractValidationError[] = [];
-  const alias = contract.alias ?? contract.datasourceId;
-
-  for (const [prop, spec] of Object.entries(contract.schema)) {
-    const value = data[prop];
-    if (spec.required && (value === undefined || value === null)) {
-      errors.push({
-        contractAlias: alias,
-        datasourceId: contract.datasourceId,
-        property: prop,
-        expected: spec.type,
-        actual: 'undefined',
-        message: `Required property '${prop}' is missing`,
-      });
-      continue;
-    }
-    if (value === undefined || value === null) continue;
-    if (spec.type !== 'any' && !typeMatches(value, spec.type)) {
-      errors.push({
-        contractAlias: alias,
-        datasourceId: contract.datasourceId,
-        property: prop,
-        expected: spec.type,
-        actual: typeof value,
-        message: `Property '${prop}' expected ${spec.type}, got ${typeof value}`,
-      });
-    }
-  }
-  return errors;
-}
-
-function typeMatches(value: unknown, expected: PropertyType): boolean {
-  switch (expected) {
-    case 'string': return typeof value === 'string';
-    case 'number': return typeof value === 'number';
-    case 'boolean': return typeof value === 'boolean';
-    case 'date': return typeof value === 'string' || value instanceof Date;
-    case 'object': return typeof value === 'object' && !Array.isArray(value);
-    case 'array': return Array.isArray(value);
-    case 'any': return true;
-  }
-}
+export { validateSnapshotAgainstSchema, validateSchemaCompatibility } from './schema-types';
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 
