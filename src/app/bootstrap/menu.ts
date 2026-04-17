@@ -10,12 +10,9 @@ export const menu = defineMenu([
       { id: 'clients-list', label: 'Lista klientów', icon: '·', route: '/clients' }
   ] },
   { id: 'trxs',  label: 'Transakcje',     icon: '▥', children: [
-      { id: 'fx-spot',      label: 'FX Spot Deal',  icon: '💱', route: '/fx-spot' },
-      { id: 'tx-historia',  label: 'Historia',      icon: '·',  route: '/positions' },
+      { id: 'tx-historia', label: 'Historia', icon: '·', route: '/positions' },
   ] },
-  { id: 'other-trxs',         label: 'Inne transakcje',     icon: '▥', children: [
-      { id: 'new-tx', label: 'Nowa transakcja (wizard)', icon: '➕', route: '/process/new-tx/client' },
-  ] },
+  { id: 'other-trxs',         label: 'Inne transakcje',     icon: '▥', children: [] },
   { id: 'alerts-indicators',  label: 'Alerty / Indykacje',  icon: '▥', children: [] },
   { id: 'management',         label: 'Zarządzanie',         icon: '▥', children: [] },
   { id: 'godealer-management', label: 'GOdealer - zarządzanie', icon: '▥', children: [] },

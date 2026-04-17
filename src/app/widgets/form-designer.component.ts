@@ -17,7 +17,6 @@ import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
 import { DraftFormStoreService, type DraftForm, type DraftFormField } from '../services/draft-form-store.service';
-import { seedDesigners } from '../forms/seed-designers';
 import { DraftPageStoreService } from '../services/draft-page-store.service';
 
 type EventAction =
@@ -485,10 +484,6 @@ export class FormDesignerComponent {
   readonly filter = signal<string>('');
   readonly selectedId = signal<string | null>(null);
   readonly selectedFieldIndex = signal<number | null>(null);
-
-  constructor() {
-    seedDesigners(this.pageStore, this.formStore);
-  }
 
   readonly createOpen = signal<boolean>(false);
   readonly createError = signal<string | null>(null);

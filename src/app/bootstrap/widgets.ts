@@ -35,8 +35,6 @@ import { DatasourceDesignerComponent } from '../widgets/datasource-designer.comp
 import { FormDesignerComponent } from '../widgets/form-designer.component';
 import { AdvancedFormComponent } from '../widgets/advanced-form.component';
 import { ProcessDesignerComponent } from '../widgets/process-designer.component';
-import { ProcessSummaryComponent } from '../widgets/process-summary.component';
-import { FxSpotDealComponent } from '../widgets/fx-spot-deal.component';
 import { FormRefComponent } from '../widgets/form-ref.component';
 
 export const widgets = [
@@ -68,10 +66,6 @@ export const widgets = [
   AdvancedFormComponent,
   // Process Designer — dedykowana sekcja z listą procesów + DAG kroków (P5)
   ProcessDesignerComponent,
-  // Process Summary — renderuje flat object jako tabelkę kv (review step wizardów)
-  ProcessSummaryComponent,
-  // FX Spot Deal — formularz transakcji z live pricing + RFQ flow
-  FxSpotDealComponent,
   // form-ref — osadza standalone formularz z DraftFormStore przez referencję
   FormRefComponent,
 ];
