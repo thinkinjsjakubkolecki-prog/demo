@@ -36,6 +36,7 @@ import { FormDesignerComponent } from '../widgets/form-designer.component';
 import { AdvancedFormComponent } from '../widgets/advanced-form.component';
 import { ProcessDesignerComponent } from '../widgets/process-designer.component';
 import { ProcessSummaryComponent } from '../widgets/process-summary.component';
+import { FxSpotDealComponent } from '../widgets/fx-spot-deal.component';
 
 export const widgets = [
   // Generic — framework
@@ -68,4 +69,6 @@ export const widgets = [
   ProcessDesignerComponent,
   // Process Summary — renderuje flat object jako tabelkę kv (review step wizardów)
   ProcessSummaryComponent,
+  // FX Spot Deal — formularz transakcji z live pricing + RFQ flow
+  FxSpotDealComponent,
 ];

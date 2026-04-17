@@ -10,7 +10,8 @@ export const menu = defineMenu([
       { id: 'clients-list', label: 'Lista klientów', icon: '·', route: '/clients' }
   ] },
   { id: 'trxs',  label: 'Transakcje',     icon: '▥', children: [
-      { id: 'tx-historia', label: 'Historia', icon: '·', route: '/positions' },
+      { id: 'fx-spot',      label: 'FX Spot Deal',  icon: '💱', route: '/fx-spot' },
+      { id: 'tx-historia',  label: 'Historia',      icon: '·',  route: '/positions' },
   ] },
   { id: 'other-trxs',         label: 'Inne transakcje',     icon: '▥', children: [
       { id: 'new-tx', label: 'Nowa transakcja (wizard)', icon: '➕', route: '/process/new-tx/client' },
