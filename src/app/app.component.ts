@@ -4,15 +4,11 @@
  * w widgets-core ale wymaga ng-packagr (TODO w follow-up) zanim będzie
  * można go używać przez `imports: [...]` w template.
  */
-import { ChangeDetectionStrategy, Component, inject, DestroyRef } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { EVENT_BUS } from '@echelon-framework/runtime';
-import type { EventBus } from '@echelon-framework/core';
 import { menu } from './bootstrap/menu';
 import type { MenuItem } from '@echelon-framework/page-builders';
-import { exportPositionsToCsv } from './bootstrap/framework-integrations';
 
 @Component({
   selector: 'fx-app',
@@ -125,17 +121,6 @@ export class AppComponent {
   })();
 
   private readonly expanded = new Set<string>(menu.filter((i) => i.defaultOpen).map((i) => i.id));
-  private readonly destroyRef = inject(DestroyRef);
-  private readonly eventBus = inject(EVENT_BUS) as EventBus;
-
-  constructor() {
-    // Side-effect handler dla CSV export requestowanego z positions.page.
-    // Trzymamy poza handlerem configu — side-effecty z DOM/download trafiają
-    // do code-behind, handler pozostaje deklaratywny.
-    this.eventBus.on<ReadonlyArray<Record<string, unknown>>>('fx.positions.csv.download-requested')
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => { exportPositionsToCsv(event.payload ?? []); });
-  }
 
   toggle(id: string): void { if (this.expanded.has(id)) { this.expanded.delete(id); } else { this.expanded.add(id); } }
   isOpen(id: string): boolean { return this.expanded.has(id); }

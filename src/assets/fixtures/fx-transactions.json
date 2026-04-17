@@ -1,7 +1,0 @@
-[
-  { "nrFx": "FX-2026-001234", "client": "Velo Sp. z o.o.", "dateTraded": "2026-04-14", "valueDate": "2026-04-16", "type": "SPOT",        "rate": 4.3121, "amount": 250000, "direction": "INTERNET", "status": "Wykonana",   "profile": "TREASURY",  "holderId": "HID-7821", "transactionDate": "2026-04-14 10:23" },
-  { "nrFx": "FX-2026-001235", "client": "Velo Sp. z o.o.", "dateTraded": "2026-04-14", "valueDate": "2026-04-21", "type": "FX FORWARD", "rate": 4.3245, "amount": 1000000,"direction": "INTERNET", "status": "Wykonana",   "profile": "TREASURY",  "holderId": "HID-7821", "transactionDate": "2026-04-14 11:02" },
-  { "nrFx": "FX-2026-001236", "client": "Velo Sp. z o.o.", "dateTraded": "2026-04-13", "valueDate": "2026-04-15", "type": "SPOT",        "rate": 4.3098, "amount":  500000, "direction": "INTERNET", "status": "Rozliczona", "profile": "TREASURY",  "holderId": "HID-7821", "transactionDate": "2026-04-13 14:18" },
-  { "nrFx": "FX-2026-001237", "client": "Velo Sp. z o.o.", "dateTraded": "2026-04-12", "valueDate": "2026-04-14", "type": "SWAP",        "rate": 4.3050, "amount": 2000000,"direction": "DEALER",   "status": "Rozliczona", "profile": "TREASURY",  "holderId": "HID-7821", "transactionDate": "2026-04-12 09:45" },
-  { "nrFx": "FX-2026-001238", "client": "Velo Sp. z o.o.", "dateTraded": "2026-04-11", "valueDate": "2026-04-13", "type": "SPOT",        "rate": 4.2987, "amount":  750000, "direction": "INTERNET", "status": "Rozliczona", "profile": "TREASURY",  "holderId": "HID-7821", "transactionDate": "2026-04-11 13:30" }
-]

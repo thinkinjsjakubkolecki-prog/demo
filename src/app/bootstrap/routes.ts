@@ -8,7 +8,7 @@ import { routes as autoRoutes } from './pages';
 import { DraftPageRendererComponent } from '../pages/draft-page-renderer.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/clients', pathMatch: 'full' },
+  { path: '', redirectTo: '/designer', pathMatch: 'full' },
   // Dynamic route dla draftów designera — czyta ID z URL, resolve przez
   // DraftPageStoreService (localStorage). Nie wymaga rebuildu appki.
   { path: 'draft/:id', component: DraftPageRendererComponent },

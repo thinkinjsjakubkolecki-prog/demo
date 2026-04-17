@@ -1,6 +1,0 @@
-[
-  { "id": "P-001", "client": "ACME-PL",    "pair": "USD/PLN", "side": "buy",  "qty": 1000000, "entryRate": 4.0420 },
-  { "id": "P-002", "client": "TRADEX",     "pair": "USD/PLN", "side": "sell", "qty":  500000, "entryRate": 4.0610 },
-  { "id": "P-003", "client": "BLUERIVER",  "pair": "USD/PLN", "side": "buy",  "qty": 2500000, "entryRate": 4.0498 },
-  { "id": "P-004", "client": "STELLAR-FX", "pair": "USD/PLN", "side": "buy",  "qty":  750000, "entryRate": 4.0510 }
-]
