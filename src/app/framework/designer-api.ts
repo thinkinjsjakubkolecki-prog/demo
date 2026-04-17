@@ -16,6 +16,7 @@ import { AdvancedFormComponent } from './advanced-form.component';
 import { ContainerComponent } from './container.component';
 import { ExportPanelComponent } from './export-panel.component';
 import { TranslationManagerComponent } from './translation-manager.component';
+import { ThemeManagerComponent } from './theme-manager.component';
 
 /**
  * Zwraca listę WSZYSTKICH widget-ów designera do rejestracji w provideEchelon.
@@ -37,6 +38,7 @@ export function designerWidgets(): readonly Type<unknown>[] {
     ContainerComponent,
     ExportPanelComponent,
     TranslationManagerComponent,
+    ThemeManagerComponent,
   ];
 }
 
@@ -72,6 +74,7 @@ export function designerPages(options: DesignerPagesOptions): Routes {
     { path: `${base}/processes`, pageId: 'process-designer', title: 'Process Designer' },
     { path: 'menu-editor', pageId: 'menu-editor', title: 'Menu Editor' },
     { path: `${base}/translations`, pageId: 'translation-manager', title: 'Translation Manager' },
+    { path: `${base}/themes`, pageId: 'theme-manager', title: 'Theme Manager' },
     { path: `${base}/export`, pageId: 'export-panel', title: 'Export Bundle' },
   ];
 
@@ -114,6 +117,7 @@ export function designerMenuItems(basePath = '/designer'): readonly DesignerMenu
     { id: 'proc-designer', label: 'Process Designer', icon: '🔄', route: `${basePath}/processes` },
     { id: 'menu-editor', label: 'Menu Editor', icon: '🧭', route: '/menu-editor' },
     { id: 'translations', label: 'Tłumaczenia', icon: '🌐', route: `${basePath}/translations` },
+    { id: 'themes', label: 'CSS Temy', icon: '🎨', route: `${basePath}/themes` },
     { id: 'export', label: 'Export Bundle', icon: '📤', route: `${basePath}/export` },
   ];
 }
