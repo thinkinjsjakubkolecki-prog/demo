@@ -9,3 +9,4 @@ export * from './draft-datasource-store';
 export * from './draft-page-store';
 export * from './graph';
 export * from './mermaid';
+export * from './draft-translation-store';

@@ -14,6 +14,7 @@ import '../framework/datasources-designer.page';
 import '../framework/forms-designer.page';
 import '../framework/process-designer.page';
 import '../framework/model-designer.page';
+import '../framework/translation-manager.page';
 import '../framework/export.page';
 
 export const { pages, routes, declarations } = collectRegisteredPages({

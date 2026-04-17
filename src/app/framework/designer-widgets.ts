@@ -21,5 +21,7 @@ export { MenuEditorPage } from './menu-editor.page';
 
 export { ExportPanelComponent } from './export-panel.component';
 export { ExportPage } from './export.page';
+export { TranslationManagerComponent } from './translation-manager.component';
+export { TranslationManagerPage } from './translation-manager.page';
 export { designerWidgets, designerPages, designerMenuItems } from './designer-api';
 export { exportBundle, exportBundleAsJson, exportBundleAsTypeScript, type ExportBundle } from './export-bundle';

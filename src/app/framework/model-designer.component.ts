@@ -13,6 +13,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EchelonWidget } from '@echelon-framework/runtime';
 import { DraftModelStoreService, type DraftModel, type ModelField, type ModelRelation } from './designer-core';
+import { DraftTranslationStoreService, generateI18nKey } from './draft-translation-store';
 import type { PropertyType } from './designer-core';
 
 @EchelonWidget({
@@ -130,12 +131,17 @@ import type { PropertyType } from './designer-core';
               </div>
               <div class="fields-table">
                 <div class="ft-row header">
-                  <span>ID</span><span>Label</span><span>Typ</span><span>PK</span><span>Req</span><span>Uniq</span><span>Relacja / Enum</span><span>Opis</span><span></span>
+                  <span>ID</span><span>Label</span><span>i18n key</span><span>Typ</span><span>PK</span><span>Req</span><span>Uniq</span><span>Relacja / Enum</span><span></span>
                 </div>
                 @for (f of model.fields; track f.id; let i = $index) {
                   <div class="ft-row" [class.pk]="f.primaryKey" [class.has-ref]="!!f.ref">
                     <input type="text" [value]="f.id" (change)="updateFieldProp(i, 'id', $any($event.target).value)" />
                     <input type="text" [value]="f.label ?? ''" (change)="updateFieldProp(i, 'label', $any($event.target).value)" />
+                    <span class="cell-i18n" [class.missing]="!i18n.get(i18nKeyFor(model.id, f.id))" [title]="i18nKeyFor(model.id, f.id)">
+                      {{ i18nKeyFor(model.id, f.id) }}
+                      @if (i18n.get(i18nKeyFor(model.id, f.id))) { <span class="i18n-ok">✓</span> }
+                      @else { <span class="i18n-miss">!</span> }
+                    </span>
                     <select [value]="f.type" (change)="onTypeChange(i, f, $any($event.target).value)">
                       @for (t of propTypes; track t) { <option [value]="t">{{ t }}</option> }
                     </select>
@@ -164,7 +170,6 @@ import type { PropertyType } from './designer-core';
                         <span class="no-ref">—</span>
                       }
                     </div>
-                    <input type="text" [value]="f.description ?? ''" (change)="updateFieldProp(i, 'description', $any($event.target).value)" />
                     <div class="ft-actions">
                       <button type="button" class="btn-tiny" (click)="moveField(i, -1)" [disabled]="i === 0">↑</button>
                       <button type="button" class="btn-tiny" (click)="moveField(i, 1)" [disabled]="i === model.fields.length - 1">↓</button>
@@ -261,7 +266,11 @@ import type { PropertyType } from './designer-core';
     .count-pill { background: #1e3a5f; color: #93c5fd; padding: 0 7px; border-radius: 10px; font-size: 9px; }
 
     .fields-table { display: flex; flex-direction: column; gap: 2px; overflow-x: auto; }
-    .ft-row { display: grid; grid-template-columns: 1fr 1fr 0.8fr 0.4fr 0.4fr 0.4fr 1.5fr 1.5fr 70px; gap: 3px; align-items: center; padding: 4px; }
+    .ft-row { display: grid; grid-template-columns: 1fr 1fr 2fr 0.8fr 0.4fr 0.4fr 0.4fr 1.5fr 70px; gap: 3px; align-items: center; padding: 4px; }
+    .cell-i18n { font-size: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cell-i18n.missing { color: #fca5a5; }
+    .i18n-ok { color: #6ee7b7; font-size: 10px; margin-left: 2px; }
+    .i18n-miss { color: #fca5a5; font-size: 10px; font-weight: 700; margin-left: 2px; }
     .ft-row.header { font-size: 9px; text-transform: uppercase; letter-spacing: 0.2px; color: var(--muted, #6b7280); font-weight: 600; background: #1f2937; border-radius: 2px; padding: 6px 4px; }
     .ft-row.pk { background: #1e3a5f1a; border-left: 2px solid #8b5cf6; }
     .ft-row.has-ref { background: #5b21b60a; }
@@ -305,6 +314,7 @@ import type { PropertyType } from './designer-core';
 })
 export class ModelDesignerComponent {
   readonly modelStore = inject(DraftModelStoreService);
+  private readonly i18n = inject(DraftTranslationStoreService);
 
   readonly propTypes: ReadonlyArray<PropertyType> = ['string', 'number', 'boolean', 'object', 'array', 'date', 'any'];
 
@@ -382,6 +392,7 @@ export class ModelDesignerComponent {
     if (!title) { this.createError.set('Podaj nazwę'); return; }
     if (this.modelStore.get(id)) { this.createError.set(`Model "${id}" już istnieje`); return; }
     this.modelStore.upsert({ id, title, description: this.newDesc().trim() || undefined, fields: [] });
+    this.i18n.ensureKey(generateI18nKey('model', id, undefined, 'title'), title, 'model');
     this.closeCreateDialog();
     this.selectedId.set(id);
   }
@@ -398,8 +409,25 @@ export class ModelDesignerComponent {
     const fields = [...model.fields];
     let n = fields.length + 1;
     while (fields.some((f) => f.id === `field${n}`)) n++;
-    fields.push({ id: `field${n}`, type: 'string' });
+    const fieldId = `field${n}`;
+    fields.push({ id: fieldId, type: 'string' });
     this.modelStore.updateFields(model.id, fields);
+    this.i18n.ensureKey(generateI18nKey('model', model.id, fieldId, 'label'), fieldId, 'model');
+  }
+
+  i18nKeyFor(modelId: string, fieldId: string, prop = 'label'): string {
+    return generateI18nKey('model', modelId, fieldId, prop);
+  }
+
+  syncI18nForModel(model: DraftModel): void {
+    this.i18n.bulkEnsureKeys([
+      { key: generateI18nKey('model', model.id, undefined, 'title'), defaultValue: model.title, context: 'model' },
+      ...model.fields.map((f) => ({
+        key: generateI18nKey('model', model.id, f.id, 'label'),
+        defaultValue: f.label ?? f.id,
+        context: 'model',
+      })),
+    ]);
   }
 
   removeField(i: number): void {
