@@ -23,7 +23,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EchelonWidget, DATA_BUS } from '@echelon-framework/runtime';
 import type { DataBus } from '@echelon-framework/core';
-import { DraftFormStoreService, type DraftForm, type DraftFormField } from './designer-core';
+import { DraftFormStoreService, type DraftForm, type DraftFormField, DraftModelStoreService } from './designer-core';
 
 @EchelonWidget({
   manifest: {
@@ -100,6 +100,39 @@ import { DraftFormStoreService, type DraftForm, type DraftFormField } from './de
                            [value]="values()[field.id] ?? ''"
                            (input)="setValue(field, $any($event.target).value)" />
                   }
+                  @case ('lookup') {
+                    <div class="ref-lookup">
+                      <input type="text" class="ref-lookup-search" [placeholder]="'Szukaj ' + (field.label || field.id) + '...'"
+                             [ngModel]="lookupQueries()[field.id] ?? ''"
+                             (ngModelChange)="onLookupSearch(field, $event)"
+                             (focus)="openLookup(field.id)" (blur)="closeLookupDelayed(field.id)" />
+                      @if (lookupOpen()[field.id]) {
+                        <div class="ref-lookup-dropdown">
+                          @if (lookupResults()[field.id]?.length) {
+                            @for (item of lookupResults()[field.id]; track item.value) {
+                              <div class="ref-lookup-option" (mousedown)="selectLookup(field, item)">
+                                {{ item.display }}
+                              </div>
+                            }
+                          } @else {
+                            <div class="ref-lookup-empty">Brak wyników</div>
+                          }
+                        </div>
+                      }
+                      @if (field.lookupConfig?.multi && lookupSelected()[field.id]?.length) {
+                        <div class="ref-lookup-chips">
+                          @for (sel of lookupSelected()[field.id]; track sel.value) {
+                            <span class="ref-lookup-chip">{{ sel.display }} <button type="button" (click)="removeLookupSelection(field, sel.value)">✕</button></span>
+                          }
+                        </div>
+                      } @else if (!field.lookupConfig?.multi && values()[field.id]) {
+                        <div class="ref-lookup-selected">
+                          {{ lookupDisplayFor(field, values()[field.id]) }}
+                          <button type="button" class="ref-lookup-clear" (click)="setValue(field, null)">✕</button>
+                        </div>
+                      }
+                    </div>
+                  }
                   @default {
                     <input [type]="field.type || 'text'" [name]="field.id" [placeholder]="field.placeholder || ''"
                            [value]="values()[field.id] ?? ''"
@@ -141,6 +174,19 @@ import { DraftFormStoreService, type DraftForm, type DraftFormField } from './de
     .ref-submit { padding: 8px 20px; background: #1e3a5f; border: 1px solid #3b82f6; color: #e0f2fe; border-radius: 3px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; }
     .ref-submit:hover { background: #1e40af; }
 
+    .ref-lookup { position: relative; }
+    .ref-lookup-search { width: 100%; }
+    .ref-lookup-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 50; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-accent, #58a6ff); border-top: none; border-radius: 0 0 3px 3px; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .ref-lookup-option { padding: 8px 12px; cursor: pointer; font-size: 12px; color: var(--ech-fg, #e5e7eb); }
+    .ref-lookup-option:hover { background: color-mix(in srgb, var(--ech-accent, #58a6ff) 15%, transparent); }
+    .ref-lookup-empty { padding: 12px; text-align: center; color: var(--ech-muted, #9ca3af); font-size: 12px; font-style: italic; }
+    .ref-lookup-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .ref-lookup-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--ech-accent, #58a6ff); color: var(--ech-bg, #0b1120); border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .ref-lookup-chip button { background: transparent; border: none; color: inherit; cursor: pointer; font-size: 10px; padding: 0 2px; opacity: 0.7; }
+    .ref-lookup-chip button:hover { opacity: 1; }
+    .ref-lookup-selected { display: flex; align-items: center; gap: 6px; margin-top: 4px; padding: 4px 8px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-accent, #58a6ff); border-radius: 3px; font-size: 12px; }
+    .ref-lookup-clear { background: transparent; border: none; color: var(--ech-muted, #9ca3af); cursor: pointer; margin-left: auto; }
+
     .ref-missing { padding: 30px; text-align: center; color: var(--ech-muted, #9ca3af); font-size: 13px; }
     .ref-missing code { background: #1f2937; padding: 1px 6px; border-radius: 2px; color: #fca5a5; }
   `],
@@ -154,8 +200,13 @@ export class FormRefComponent {
   @Output() readonly change = new EventEmitter<Record<string, unknown>>();
 
   private readonly formStore = inject(DraftFormStoreService);
+  private readonly modelStore = inject(DraftModelStoreService);
   private readonly dataBus = inject(DATA_BUS, { optional: true }) as DataBus | null;
   readonly values = signal<Record<string, unknown>>({});
+  readonly lookupQueries = signal<Record<string, string>>({});
+  readonly lookupOpen = signal<Record<string, boolean>>({});
+  readonly lookupResults = signal<Record<string, ReadonlyArray<{ value: unknown; display: string }>>>({});
+  readonly lookupSelected = signal<Record<string, Array<{ value: unknown; display: string }>>>({});
 
   readonly form = computed<DraftForm | null>(() => {
     const id = this._formId();
@@ -223,5 +274,81 @@ export class FormRefComponent {
   onSubmit(e: Event): void {
     e.preventDefault();
     this.submit.emit(this.values());
+  }
+
+  // ─── Lookup ───
+
+  onLookupSearch(field: DraftFormField, query: string): void {
+    this.lookupQueries.update((q) => ({ ...q, [field.id]: query }));
+    if (!field.lookupConfig) return;
+    const cfg = field.lookupConfig;
+    const model = this.modelStore.get(cfg.sourceModel);
+    if (!model) { this.lookupResults.update((r) => ({ ...r, [field.id]: [] })); return; }
+
+    const mockData = this.generateMockLookupData(model.fields, cfg, 20);
+    const searchField = cfg.searchField ?? cfg.displayFields[0] ?? 'id';
+    const q = query.toLowerCase();
+    const filtered = q.length > 0
+      ? mockData.filter((item) => String(item[searchField] ?? '').toLowerCase().includes(q))
+      : mockData;
+
+    const results = filtered.slice(0, cfg.maxResults ?? 20).map((item) => ({
+      value: item[cfg.valueField],
+      display: cfg.displayFields.map((f) => String(item[f] ?? '')).filter(Boolean).join(' · '),
+    }));
+    this.lookupResults.update((r) => ({ ...r, [field.id]: results }));
+  }
+
+  openLookup(fieldId: string): void {
+    this.lookupOpen.update((o) => ({ ...o, [fieldId]: true }));
+  }
+
+  closeLookupDelayed(fieldId: string): void {
+    setTimeout(() => this.lookupOpen.update((o) => ({ ...o, [fieldId]: false })), 200);
+  }
+
+  selectLookup(field: DraftFormField, item: { value: unknown; display: string }): void {
+    if (field.lookupConfig?.multi) {
+      this.lookupSelected.update((s) => {
+        const cur = [...(s[field.id] ?? [])];
+        if (!cur.find((x) => x.value === item.value)) cur.push(item);
+        return { ...s, [field.id]: cur };
+      });
+      this.setValue(field, this.lookupSelected()[field.id]?.map((s) => s.value) ?? []);
+    } else {
+      this.setValue(field, item.value);
+    }
+    this.lookupQueries.update((q) => ({ ...q, [field.id]: '' }));
+  }
+
+  removeLookupSelection(field: DraftFormField, value: unknown): void {
+    this.lookupSelected.update((s) => {
+      const cur = (s[field.id] ?? []).filter((x) => x.value !== value);
+      return { ...s, [field.id]: cur };
+    });
+    this.setValue(field, this.lookupSelected()[field.id]?.map((s) => s.value) ?? []);
+  }
+
+  lookupDisplayFor(field: DraftFormField, value: unknown): string {
+    const results = this.lookupResults()[field.id] ?? [];
+    return results.find((r) => r.value === value)?.display ?? String(value);
+  }
+
+  private generateMockLookupData(modelFields: ReadonlyArray<{ id: string; type: string }>, cfg: DraftFormField['lookupConfig']  & {}, count: number): ReadonlyArray<Record<string, unknown>> {
+    const items: Record<string, unknown>[] = [];
+    for (let i = 1; i <= count; i++) {
+      const item: Record<string, unknown> = {};
+      for (const mf of modelFields) {
+        switch (mf.type) {
+          case 'string': item[mf.id] = `${mf.id}-${String(i).padStart(3, '0')}`; break;
+          case 'number': item[mf.id] = i * 100; break;
+          case 'boolean': item[mf.id] = i % 2 === 0; break;
+          case 'date': item[mf.id] = `2026-0${(i % 9) + 1}-${String((i % 28) + 1).padStart(2, '0')}`; break;
+          default: item[mf.id] = `${mf.id}-${i}`; break;
+        }
+      }
+      items.push(item);
+    }
+    return items;
   }
 }
