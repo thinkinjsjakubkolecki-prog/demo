@@ -14,7 +14,8 @@ import { menu } from './bootstrap/menu';
 import type { MenuItem } from '@echelon-framework/page-builders';
 import { exportPositionsToCsv } from './bootstrap/framework-integrations';
 import { DraftFormStoreService } from './services/draft-form-store.service';
-import { seedFxSpotForm } from './forms/fx-spot-transaction.form';
+import { DraftPageStoreService } from './services/draft-page-store.service';
+import { seedDesigners } from './forms/seed-designers';
 
 @Component({
   selector: 'fx-app',
@@ -130,9 +131,10 @@ export class AppComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly eventBus = inject(EVENT_BUS) as EventBus;
   private readonly formStore = inject(DraftFormStoreService);
+  private readonly pageStore = inject(DraftPageStoreService);
 
   constructor() {
-    seedFxSpotForm(this.formStore);
+    seedDesigners(this.pageStore, this.formStore);
     // Side-effect handler dla CSV export requestowanego z positions.page.
     // Trzymamy poza handlerem configu — side-effecty z DOM/download trafiają
     // do code-behind, handler pozostaje deklaratywny.
