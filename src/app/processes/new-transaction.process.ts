@@ -93,29 +93,27 @@ const step3Config = PageBuilder.create(`${PROCESS_ID}-review`)
   .widget('step-header', { x: 0, y: 0, w: 12 },
     widget.any('page-title', { options: { title: 'Krok 3 — Przegląd i zatwierdzenie' } }))
   .widget('summary', { x: 0, y: 1, w: 12, h: 6 },
-    widget.any('kv-list', {
-      bind: { entries: `$ds.${SESSION_KEY}` },
+    widget.any('process-summary', {
+      bind: { data: `$ds.${SESSION_KEY}` },
       options: { title: 'Podsumowanie transakcji' },
     }))
   .widget('commit-bar', { x: 0, y: 7, w: 12, h: 2 },
     widget.any('actions-bar', {
       options: {
         actions: [
-          { id: 'commit', label: '✓ Zatwierdź transakcję', kind: 'primary',
-            emit: { event: 'fx.process.new-tx.commit', payload: 'commit' } },
-          { id: 'back', label: '← Wróć', kind: 'ghost',
-            emit: { event: 'fx.process.new-tx.back', payload: 'back' } },
+          { id: 'commit', label: '✓ Zatwierdź transakcję', variant: 'primary' },
+          { id: 'back', label: '← Wróć', variant: 'secondary' },
         ],
       },
     }))
-  .handler('fx.process.new-tx.commit', [
+  .handler('commit-bar.actionClick', [
     { emit: 'fx.rfq.submitted', payload: `$ds.${SESSION_KEY}` } as unknown as EventAction,
     { clearDatasource: SESSION_KEY } as EventAction,
     { navigate: stepRoute('done') } as unknown as EventAction,
-  ])
-  .handler('fx.process.new-tx.back', [
+  ], { eq: 'commit' })
+  .handler('commit-bar.actionClick', [
     { navigate: stepRoute('params') } as unknown as EventAction,
-  ])
+  ], { eq: 'back' })
   .build();
 
 // Step 4 — Gotowe
@@ -131,12 +129,11 @@ const step4Config = PageBuilder.create(`${PROCESS_ID}-done`)
     widget.any('actions-bar', {
       options: {
         actions: [
-          { id: 'new', label: '+ Nowa transakcja', kind: 'primary',
-            emit: { event: 'fx.process.new-tx.restart', payload: 'restart' } },
+          { id: 'restart', label: '+ Nowa transakcja', variant: 'primary' },
         ],
       },
     }))
-  .handler('fx.process.new-tx.restart', [
+  .handler('new-btn.actionClick', [
     { navigate: stepRoute('client') } as unknown as EventAction,
   ])
   .build();

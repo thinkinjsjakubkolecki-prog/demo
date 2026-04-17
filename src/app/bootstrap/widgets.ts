@@ -35,6 +35,7 @@ import { DatasourceDesignerComponent } from '../widgets/datasource-designer.comp
 import { FormDesignerComponent } from '../widgets/form-designer.component';
 import { AdvancedFormComponent } from '../widgets/advanced-form.component';
 import { ProcessDesignerComponent } from '../widgets/process-designer.component';
+import { ProcessSummaryComponent } from '../widgets/process-summary.component';
 
 export const widgets = [
   // Generic — framework
@@ -65,4 +66,6 @@ export const widgets = [
   AdvancedFormComponent,
   // Process Designer — dedykowana sekcja z listą procesów + DAG kroków (P5)
   ProcessDesignerComponent,
+  // Process Summary — renderuje flat object jako tabelkę kv (review step wizardów)
+  ProcessSummaryComponent,
 ];
