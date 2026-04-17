@@ -16,7 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
-import { DraftFormStoreService, type DraftForm, type DraftFormField } from '../services/draft-form-store.service';
+import { DraftFormStoreService, type DraftForm, type DraftFormField, type FormInputContract, type InputProperty, type PropertyType } from '../services/draft-form-store.service';
 import { DraftPageStoreService } from '../services/draft-page-store.service';
 
 type EventAction =
@@ -137,20 +137,60 @@ function isFormWidget(type: string): boolean {
               </div>
             </div>
 
-            <!-- KONTRAKT -->
+            <!-- KONTRAKT — TYPED INPUT CONTRACTS -->
             <div class="contract">
-              <div class="contract-section">
+              <div class="contract-section full">
                 <div class="contract-header">
-                  📥 Requires (czego potrzebuję od rodzica)
-                  <button type="button" class="btn-add-mini" (click)="addRequire()">+</button>
+                  📥 Input Contracts (typed requires)
+                  <button type="button" class="btn-add-mini" (click)="addContract()">+ input</button>
                 </div>
-                @for (r of form.requires; track $index; let ri = $index) {
-                  <div class="contract-row">
-                    <input type="text" [ngModel]="r" (ngModelChange)="updateRequire(ri, $event)" placeholder="np. clientsList" />
-                    <button type="button" class="btn-rm-mini" (click)="removeRequire(ri)">✕</button>
+                @for (c of contracts(); track $index; let ci = $index) {
+                  <div class="input-contract" [class.expanded]="expandedContract() === ci">
+                    <div class="ic-header" (click)="toggleContract(ci)">
+                      <span class="ic-caret">{{ expandedContract() === ci ? '▾' : '▸' }}</span>
+                      <span class="ic-ds">{{ c.datasourceId || '(brak id)' }}</span>
+                      @if (c.alias && c.alias !== c.datasourceId) { <span class="ic-alias">as {{ c.alias }}</span> }
+                      <span class="ic-props">{{ objectKeys(c.schema).length }} props</span>
+                      <button type="button" class="btn-rm-mini" (click)="removeContract(ci); $event.stopPropagation()">✕</button>
+                    </div>
+                    @if (expandedContract() === ci) {
+                      <div class="ic-body">
+                        <div class="ic-row-2">
+                          <label class="field"><span class="field-label">Datasource ID</span>
+                            <input type="text" [ngModel]="c.datasourceId" (ngModelChange)="updateContractField(ci, 'datasourceId', $event)" placeholder="np. clientData" /></label>
+                          <label class="field"><span class="field-label">Alias (wewnętrzny)</span>
+                            <input type="text" [ngModel]="c.alias ?? ''" (ngModelChange)="updateContractField(ci, 'alias', $event)" placeholder="np. client" /></label>
+                        </div>
+                        <label class="field"><span class="field-label">Opis</span>
+                          <input type="text" [ngModel]="c.description ?? ''" (ngModelChange)="updateContractField(ci, 'description', $event)" placeholder="Dane klienta z listy" /></label>
+
+                        <div class="ic-schema">
+                          <div class="ic-schema-header">
+                            <span>Schema — oczekiwany kształt danych</span>
+                            <button type="button" class="btn-add-mini" (click)="addSchemaProperty(ci)">+ property</button>
+                          </div>
+                          <div class="schema-table">
+                            <div class="schema-row header">
+                              <span>Nazwa</span><span>Typ</span><span>Required</span><span>Opis</span><span></span>
+                            </div>
+                            @for (propName of objectKeys(c.schema); track propName; let pi = $index) {
+                              <div class="schema-row">
+                                <input type="text" [value]="propName" (change)="renameSchemaProperty(ci, propName, $any($event.target).value)" />
+                                <select [value]="c.schema[propName].type" (change)="updateSchemaPropertyType(ci, propName, $any($event.target).value)">
+                                  @for (t of propertyTypes; track t) { <option [value]="t">{{ t }}</option> }
+                                </select>
+                                <input type="checkbox" [checked]="!!c.schema[propName].required" (change)="updateSchemaPropertyRequired(ci, propName, $any($event.target).checked)" />
+                                <input type="text" [value]="c.schema[propName].description ?? ''" (change)="updateSchemaPropertyDesc(ci, propName, $any($event.target).value)" placeholder="opis" />
+                                <button type="button" class="btn-rm-mini" (click)="removeSchemaProperty(ci, propName)">✕</button>
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    }
                   </div>
                 }
-                @if (form.requires.length === 0) { <div class="contract-empty">Brak wymagań — formularz samodzielny</div> }
+                @if (contracts().length === 0) { <div class="contract-empty">Brak input contracts — formularz nie wymaga danych z zewnątrz</div> }
               </div>
               <div class="contract-section">
                 <div class="contract-header">
@@ -395,7 +435,27 @@ function isFormWidget(type: string): boolean {
     .contract-row { display: flex; gap: 4px; margin-bottom: 3px; }
     .contract-row input { flex: 1; padding: 4px 6px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 2px; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .contract-row .desc-input { flex: 1.5; font-family: inherit; }
+    .contract-section.full { grid-column: 1 / -1; }
     .contract-empty { font-size: 10px; color: var(--muted, #6b7280); font-style: italic; padding: 2px; }
+
+    .input-contract { background: #0b1120; border: 1px solid var(--border, #1f2937); border-left: 3px solid #3b82f6; border-radius: 3px; margin-bottom: 4px; }
+    .input-contract.expanded { border-left-color: #10b981; }
+    .ic-header { display: flex; align-items: center; gap: 6px; padding: 7px 10px; cursor: pointer; font-size: 11px; }
+    .ic-header:hover { background: #1f293744; }
+    .ic-caret { color: var(--muted, #6b7280); font-size: 10px; width: 12px; }
+    .ic-ds { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; color: #93c5fd; }
+    .ic-alias { color: #6ee7b7; font-size: 10px; }
+    .ic-props { margin-left: auto; font-size: 9px; color: var(--muted, #6b7280); background: #1f2937; padding: 1px 6px; border-radius: 2px; }
+    .ic-body { padding: 10px; border-top: 1px solid var(--border, #1f2937); display: flex; flex-direction: column; gap: 8px; }
+    .ic-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .ic-schema { margin-top: 4px; }
+    .ic-schema-header { display: flex; align-items: center; gap: 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--muted, #9ca3af); font-weight: 600; margin-bottom: 6px; }
+    .schema-table { display: flex; flex-direction: column; gap: 2px; }
+    .schema-row { display: grid; grid-template-columns: 1.2fr 0.8fr 0.5fr 1.5fr 24px; gap: 3px; align-items: center; }
+    .schema-row.header { font-size: 9px; text-transform: uppercase; letter-spacing: 0.2px; color: var(--muted, #6b7280); font-weight: 600; padding: 2px 4px; }
+    .schema-row input[type=text], .schema-row select { padding: 3px 5px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 2px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .schema-row input[type=checkbox] { width: 14px; height: 14px; justify-self: center; }
     .btn-add-mini { margin-left: auto; background: #064e3b; border: 1px solid #10b981; color: #d1fae5; padding: 1px 8px; border-radius: 2px; cursor: pointer; font-size: 10px; font-family: inherit; letter-spacing: 0; text-transform: none; }
     .btn-add-mini:hover { background: #065f46; }
     .btn-rm-mini { background: transparent; border: 1px solid #7f1d1d66; color: #fca5a5; border-radius: 2px; font-size: 10px; cursor: pointer; padding: 2px 6px; font-family: inherit; width: 24px; flex-shrink: 0; }
@@ -484,6 +544,14 @@ export class FormDesignerComponent {
   readonly filter = signal<string>('');
   readonly selectedId = signal<string | null>(null);
   readonly selectedFieldIndex = signal<number | null>(null);
+
+  readonly propertyTypes: ReadonlyArray<PropertyType> = ['string', 'number', 'boolean', 'object', 'array', 'date', 'any'];
+  readonly expandedContract = signal<number | null>(null);
+
+  readonly contracts = computed<ReadonlyArray<FormInputContract>>(() => {
+    const form = this.selectedForm();
+    return form?.inputContracts ?? [];
+  });
 
   readonly createOpen = signal<boolean>(false);
   readonly createError = signal<string | null>(null);
@@ -665,6 +733,99 @@ export class FormDesignerComponent {
     const arr = [...f.emits];
     arr[i] = { ...arr[i], description: val || undefined };
     this.formStore.save({ ...f, emits: arr });
+  }
+
+  // ─── Input Contracts CRUD ───
+
+  objectKeys(obj: Readonly<Record<string, unknown>>): string[] {
+    return Object.keys(obj);
+  }
+
+  toggleContract(ci: number): void {
+    this.expandedContract.set(this.expandedContract() === ci ? null : ci);
+  }
+
+  addContract(): void {
+    const f = this.selectedForm();
+    if (!f) return;
+    const contracts = [...(f.inputContracts ?? []), { datasourceId: '', schema: {} } as FormInputContract];
+    this.formStore.updateContracts(f.id, contracts);
+    this.expandedContract.set(contracts.length - 1);
+  }
+
+  removeContract(ci: number): void {
+    const f = this.selectedForm();
+    if (!f?.inputContracts) return;
+    const contracts = f.inputContracts.filter((_, i) => i !== ci);
+    this.formStore.updateContracts(f.id, contracts);
+    if (this.expandedContract() === ci) this.expandedContract.set(null);
+  }
+
+  updateContractField(ci: number, key: 'datasourceId' | 'alias' | 'description', value: string): void {
+    const f = this.selectedForm();
+    if (!f?.inputContracts) return;
+    const contracts = [...f.inputContracts];
+    contracts[ci] = { ...contracts[ci], [key]: value || undefined };
+    this.formStore.updateContracts(f.id, contracts);
+  }
+
+  addSchemaProperty(ci: number): void {
+    const f = this.selectedForm();
+    if (!f?.inputContracts) return;
+    const contracts = [...f.inputContracts];
+    const c = contracts[ci];
+    let n = 1;
+    while (c.schema[`prop${n}`]) n++;
+    contracts[ci] = { ...c, schema: { ...c.schema, [`prop${n}`]: { type: 'string' } } };
+    this.formStore.updateContracts(f.id, contracts);
+  }
+
+  removeSchemaProperty(ci: number, propName: string): void {
+    const f = this.selectedForm();
+    if (!f?.inputContracts) return;
+    const contracts = [...f.inputContracts];
+    const c = contracts[ci];
+    const { [propName]: _, ...rest } = c.schema;
+    contracts[ci] = { ...c, schema: rest };
+    this.formStore.updateContracts(f.id, contracts);
+  }
+
+  renameSchemaProperty(ci: number, oldName: string, newName: string): void {
+    if (!newName || newName === oldName) return;
+    const f = this.selectedForm();
+    if (!f?.inputContracts) return;
+    const contracts = [...f.inputContracts];
+    const c = contracts[ci];
+    const entries = Object.entries(c.schema).map(([k, v]) => [k === oldName ? newName : k, v] as const);
+    contracts[ci] = { ...c, schema: Object.fromEntries(entries) };
+    this.formStore.updateContracts(f.id, contracts);
+  }
+
+  updateSchemaPropertyType(ci: number, propName: string, type: string): void {
+    const f = this.selectedForm();
+    if (!f?.inputContracts) return;
+    const contracts = [...f.inputContracts];
+    const c = contracts[ci];
+    contracts[ci] = { ...c, schema: { ...c.schema, [propName]: { ...c.schema[propName], type: type as PropertyType } } };
+    this.formStore.updateContracts(f.id, contracts);
+  }
+
+  updateSchemaPropertyRequired(ci: number, propName: string, required: boolean): void {
+    const f = this.selectedForm();
+    if (!f?.inputContracts) return;
+    const contracts = [...f.inputContracts];
+    const c = contracts[ci];
+    contracts[ci] = { ...c, schema: { ...c.schema, [propName]: { ...c.schema[propName], required } } };
+    this.formStore.updateContracts(f.id, contracts);
+  }
+
+  updateSchemaPropertyDesc(ci: number, propName: string, desc: string): void {
+    const f = this.selectedForm();
+    if (!f?.inputContracts) return;
+    const contracts = [...f.inputContracts];
+    const c = contracts[ci];
+    contracts[ci] = { ...c, schema: { ...c.schema, [propName]: { ...c.schema[propName], description: desc || undefined } } };
+    this.formStore.updateContracts(f.id, contracts);
   }
 
   // ─── Fields CRUD ───
