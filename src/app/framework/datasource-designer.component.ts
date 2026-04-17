@@ -248,6 +248,7 @@ interface DsEntry {
                 <option value="stream">stream — websocket live</option>
                 <option value="local">local — wartość statyczna</option>
                 <option value="computed">computed — wyliczana z innych ds</option>
+                <option value="mock">mock — dane testowe (JSON fixture)</option>
               </select>
             </label>
 
@@ -291,6 +292,26 @@ interface DsEntry {
                 <span class="field-label">Initial value (JSON)</span>
                 <textarea rows="3" [ngModel]="newDsInitial()" (ngModelChange)="newDsInitial.set($event)" placeholder='np. "hello" albo { "a": 1 }'></textarea>
               </label>
+            }
+
+            @if (newDsKind() === 'mock') {
+              <div class="mock-section">
+                <div class="mock-header">
+                  <span>📋 Mock Data (JSON fixture)</span>
+                  @if (newDsOutputModel()) {
+                    <button type="button" class="btn-gen-mock" (click)="generateMockFromModel()">⚡ Generuj z modelu</button>
+                  }
+                </div>
+                <textarea class="mock-editor" rows="12" [ngModel]="newDsMockData()" (ngModelChange)="newDsMockData.set($event)"
+                          [class.invalid]="!isMockDataValid()"
+                          [placeholder]="mockPlaceholder()" spellcheck="false"></textarea>
+                @if (!isMockDataValid()) {
+                  <div class="mock-error">⚠ Nieprawidłowy JSON</div>
+                }
+                <div class="mock-hint">
+                  Wklej JSON array lub obiekt. Przy wybranym Output Model możesz wygenerować dane automatycznie.
+                </div>
+              </div>
             }
 
             @if (newDsKind() === 'computed') {
@@ -409,6 +430,15 @@ interface DsEntry {
     .btn-add-param { padding: 4px 10px; background: transparent; border: 1px dashed var(--ech-border, #374151); color: var(--ech-muted, #9ca3af); border-radius: 2px; font-size: 11px; cursor: pointer; font-family: inherit; }
     .btn-add-param:hover { border-color: var(--ech-accent, #58a6ff); color: var(--ech-accent, #58a6ff); }
 
+    .mock-section { display: flex; flex-direction: column; gap: 6px; }
+    .mock-header { display: flex; align-items: center; gap: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--ech-muted, #9ca3af); font-weight: 600; }
+    .btn-gen-mock { margin-left: auto; padding: 3px 10px; background: #5b21b6; border: 1px solid #8b5cf6; color: #e9d5ff; border-radius: 2px; font-size: 10px; cursor: pointer; font-family: inherit; }
+    .btn-gen-mock:hover { background: #6d28d9; }
+    .mock-editor { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: #6ee7b7; border-radius: var(--ech-radius-sm, 3px); padding: 10px; resize: vertical; line-height: 1.4; tab-size: 2; }
+    .mock-editor.invalid { border-color: #ef4444; color: #fca5a5; }
+    .mock-error { font-size: 10px; color: #fca5a5; }
+    .mock-hint { font-size: 10px; color: var(--ech-muted, #6b7280); font-style: italic; }
+
     .schema-badge code { background: #5b21b622; border: 1px solid #8b5cf633; color: #c4b5fd; padding: 3px 10px; border-radius: 3px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   `],
 })
@@ -430,11 +460,12 @@ export class DatasourceDesignerComponent {
   readonly createError = signal<string | null>(null);
   readonly newDsId = signal('');
   readonly newDsTitle = signal('');
-  readonly newDsKind = signal<'transport' | 'stream' | 'local' | 'computed'>('transport');
+  readonly newDsKind = signal<'transport' | 'stream' | 'local' | 'computed' | 'mock'>('transport');
   readonly newDsTransport = signal<'http' | 'websocket' | 'mock'>('http');
   readonly newDsEndpoint = signal('');
   readonly newDsOutputModel = signal('');
   readonly newDsCardinality = signal<'single' | 'array' | 'paginated'>('array');
+  readonly newDsMockData = signal<string>('[]');
   readonly newDsInitial = signal('');
   readonly newDsFn = signal('');
   readonly newDsDeps = signal('');
@@ -665,6 +696,55 @@ export class DatasourceDesignerComponent {
     this.dsStore.updateContract(sel.id, { ...ds.contract, paramBindings: bindings });
   }
 
+  isMockDataValid(): boolean {
+    try { JSON.parse(this.newDsMockData()); return true; } catch { return false; }
+  }
+
+  mockPlaceholder(): string {
+    const model = this.newDsOutputModel();
+    if (!model) return '[\n  { "id": "1", "name": "Example" }\n]';
+    const m = this.modelStore.get(model);
+    if (!m || m.fields.length === 0) return '[]';
+    const example: Record<string, unknown> = {};
+    for (const f of m.fields) {
+      switch (f.type) {
+        case 'string': example[f.id] = `${f.id}-001`; break;
+        case 'number': example[f.id] = 100; break;
+        case 'boolean': example[f.id] = true; break;
+        case 'date': example[f.id] = '2026-01-15'; break;
+        default: example[f.id] = `${f.id}-value`; break;
+      }
+    }
+    return JSON.stringify([example], null, 2);
+  }
+
+  generateMockFromModel(): void {
+    const model = this.newDsOutputModel();
+    if (!model) return;
+    const m = this.modelStore.get(model);
+    if (!m) return;
+    const items: Record<string, unknown>[] = [];
+    for (let i = 1; i <= 10; i++) {
+      const item: Record<string, unknown> = {};
+      for (const f of m.fields) {
+        switch (f.type) {
+          case 'string':
+            if (f.primaryKey) item[f.id] = `${model.toUpperCase()}-${String(i).padStart(3, '0')}`;
+            else if (f.id.toLowerCase().includes('name')) item[f.id] = `${f.label ?? f.id} ${i}`;
+            else item[f.id] = `${f.id}-${String(i).padStart(3, '0')}`;
+            break;
+          case 'number': item[f.id] = i * 1000; break;
+          case 'boolean': item[f.id] = i % 2 === 0; break;
+          case 'date': item[f.id] = `2026-${String((i % 12) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`; break;
+          case 'array': item[f.id] = []; break;
+          default: item[f.id] = `${f.id}-${i}`; break;
+        }
+      }
+      items.push(item);
+    }
+    this.newDsMockData.set(JSON.stringify(items, null, 2));
+  }
+
   byKind(kind: string): number {
     return this.allDatasources().filter((d) => d.kind === kind).length;
   }
@@ -740,6 +820,7 @@ export class DatasourceDesignerComponent {
     this.newDsEndpoint.set('');
     this.newDsOutputModel.set('');
     this.newDsCardinality.set('array');
+    this.newDsMockData.set('[]');
     this.newDsInitial.set('');
     this.newDsFn.set('');
     this.newDsDeps.set('');
@@ -772,6 +853,7 @@ export class DatasourceDesignerComponent {
       ...(this.newDsInitial() ? { initial: (() => { try { return JSON.parse(this.newDsInitial()); } catch { return this.newDsInitial(); } })() } : {}),
       ...(this.newDsFn() ? { fn: this.newDsFn() } : {}),
       ...(this.newDsDeps() ? { deps: this.newDsDeps().split(',').map((s) => s.trim()).filter(Boolean) } : {}),
+      ...(this.newDsKind() === 'mock' ? { initial: (() => { try { return JSON.parse(this.newDsMockData()); } catch { return []; } })() } : {}),
       contract: {
         ...(Object.keys(outputSchema).length > 0 ? { outputSchema } : {}),
         ...(outputModel ? { outputModel, outputCardinality: cardinality } : {}),
