@@ -144,7 +144,9 @@ import { DraftFormStoreService, type DraftForm, type DraftFormField } from '../s
   `],
 })
 export class FormRefComponent {
-  @Input() formId = '';
+  @Input() set formId(v: string) { this._formId.set(v ?? ''); }
+  get formId(): string { return this._formId(); }
+  private readonly _formId = signal('');
 
   @Output() readonly submit = new EventEmitter<Record<string, unknown>>();
   @Output() readonly change = new EventEmitter<Record<string, unknown>>();
@@ -153,8 +155,9 @@ export class FormRefComponent {
   readonly values = signal<Record<string, unknown>>({});
 
   readonly form = computed<DraftForm | null>(() => {
-    if (!this.formId) return null;
-    return this.formStore.get(this.formId);
+    const id = this._formId();
+    if (!id) return null;
+    return this.formStore.get(id);
   });
 
   setValue(field: DraftFormField, value: unknown): void {
