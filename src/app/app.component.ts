@@ -52,7 +52,7 @@ import { BUILT_IN_THEMES, applyTheme } from './framework/css-themes';
               <ng-container *ngTemplateOutlet="treeTpl; context: { items: n.children, depth: depth + 1 }"></ng-container>
             }
           } @else if (n.route) {
-            <a class="row leaf" [routerLink]="n.route" routerLinkActive="active">
+            <a class="row leaf" [routerLink]="n.route" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
               <span class="caret-spacer"></span>
               @if (n.icon) { <span class="ic">{{ n.icon }}</span> }
               <span class="lbl">{{ n.label }}</span>
