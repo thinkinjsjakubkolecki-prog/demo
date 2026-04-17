@@ -89,6 +89,17 @@ export interface DraftForm {
   readonly emits: ReadonlyArray<{ event: string; description?: string }>;
   /** Typed input contracts — autorytarywne źródło requires od Phase 1+. */
   readonly inputContracts?: ReadonlyArray<FormInputContract>;
+  /**
+   * Output model — model danych który formularz PRODUKUJE.
+   * Formularz = datasource kind:'form' z outputSchema = Model.
+   * Strona może bindować $ds.{formId} jak każdy inny datasource.
+   */
+  readonly outputModel?: string;
+  /**
+   * Formularz jako datasource — rejestruje się w pipeline danych.
+   * true = formularz jest widoczny w DS Designer jako kind:'form'.
+   */
+  readonly registerAsDatasource?: boolean;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
@@ -159,6 +170,12 @@ export class DraftFormStoreService {
     const existing = this.get(id);
     if (!existing) return;
     this.save({ ...existing, inputContracts: contracts });
+  }
+
+  setOutputModel(id: string, modelId: string | undefined): void {
+    const existing = this.get(id);
+    if (!existing) return;
+    this.save({ ...existing, outputModel: modelId, registerAsDatasource: !!modelId });
   }
 
   private loadFromStorage(): void {

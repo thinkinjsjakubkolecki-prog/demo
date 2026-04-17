@@ -19,6 +19,7 @@ import type { PageConfig } from '@echelon-framework/core';
 import { DraftFormStoreService, type DraftForm, type DraftFormField, type FormInputContract, type InputProperty, type PropertyType } from './designer-core';
 import { DraftPageStoreService } from './designer-core';
 import { DraftModelStoreService } from './designer-core';
+import { DraftTranslationStoreService } from './draft-translation-store';
 
 type EventAction =
   | { readonly emit: string; readonly payload?: string | Record<string, unknown> }
@@ -136,6 +137,38 @@ function isFormWidget(type: string): boolean {
               <div class="detail-actions">
                 <button type="button" class="btn-danger" (click)="deleteForm(form.id)">🗑 Usuń</button>
               </div>
+            </div>
+
+            <!-- OUTPUT MODEL — formularz jako datasource -->
+            <div class="output-model-section">
+              <div class="om-header">📐 Output Model (co formularz produkuje)</div>
+              <div class="om-row">
+                <select class="om-select" [ngModel]="form.outputModel ?? ''" (ngModelChange)="setOutputModel($event)">
+                  <option value="">— formularz nie produkuje typed output —</option>
+                  @for (m of modelStore.all(); track m.id) {
+                    <option [value]="m.id">🧩 {{ m.id }} — {{ m.title }} ({{ m.fields.length }} pól)</option>
+                  }
+                </select>
+                @if (form.outputModel) {
+                  <button type="button" class="btn-generate" (click)="generateFieldsFromModel()" title="Wygeneruj pola formularza z modelu">
+                    ⚡ Generuj pola z modelu
+                  </button>
+                }
+              </div>
+              @if (form.outputModel) {
+                <div class="om-info">
+                  @if (form.registerAsDatasource) {
+                    <span class="om-badge ds">📦 Zarejestrowany jako datasource — widoczny w DS Designer jako <code>kind: form</code></span>
+                  }
+                  @if (missingModelFields().length > 0) {
+                    <div class="om-warning">
+                      ⚠ Brakujące pola modelu (required): {{ missingModelFields().join(', ') }}
+                    </div>
+                  } @else {
+                    <span class="om-ok">✓ Formularz pokrywa wszystkie required pola modelu</span>
+                  }
+                </div>
+              }
             </div>
 
             <!-- KONTRAKT — TYPED INPUT CONTRACTS -->
@@ -524,6 +557,19 @@ function isFormWidget(type: string): boolean {
     .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--ech-border, #1f2937); }
     .error-box { padding: 8px 10px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fecaca; border-radius: 3px; font-size: 11px; }
 
+    .output-model-section { background: var(--ech-panel-alt, #111827); border: 1px solid #8b5cf633; border-radius: 4px; padding: 10px; margin-bottom: 0; }
+    .om-header { font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; color: #c4b5fd; font-weight: 600; margin-bottom: 8px; }
+    .om-row { display: flex; gap: 8px; align-items: center; }
+    .om-select { flex: 1; padding: 6px 10px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 12px; font-family: inherit; }
+    .btn-generate { padding: 6px 14px; background: #5b21b6; border: 1px solid #8b5cf6; color: #e9d5ff; border-radius: 3px; font-size: 11px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .btn-generate:hover { background: #6d28d9; }
+    .om-info { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+    .om-badge { font-size: 10px; padding: 3px 8px; border-radius: 3px; }
+    .om-badge.ds { background: #064e3b33; color: #6ee7b7; border: 1px solid #10b98133; }
+    .om-badge code { background: #0b1120; padding: 1px 4px; border-radius: 2px; color: #93c5fd; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; }
+    .om-warning { font-size: 10px; color: #fca5a5; background: #7f1d1d22; border: 1px solid #ef444433; padding: 4px 8px; border-radius: 2px; }
+    .om-ok { font-size: 10px; color: #6ee7b7; }
+
     .usages-section { background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; padding: 10px; }
     .usages-section.empty-usage { border-style: dashed; border-color: #374151; }
     .usages-header { font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--ech-muted, #9ca3af); font-weight: 600; margin-bottom: 6px; }
@@ -546,6 +592,7 @@ export class FormDesignerComponent {
   readonly formStore = inject(DraftFormStoreService);
   private readonly pageStore = inject(DraftPageStoreService);
   readonly modelStore = inject(DraftModelStoreService);
+  private readonly i18n = inject(DraftTranslationStoreService, { optional: true });
 
   readonly fieldTypes = FIELD_TYPES;
   readonly actionPhases = ['onChange', 'onBlur', 'onFocus'] as const;
@@ -649,6 +696,58 @@ export class FormDesignerComponent {
 
   selectField(i: number): void {
     this.selectedFieldIndex.set(i);
+  }
+
+  // ─── Output Model ───
+
+  readonly missingModelFields = computed<ReadonlyArray<string>>(() => {
+    const form = this.selectedForm();
+    if (!form?.outputModel) return [];
+    const model = this.modelStore.get(form.outputModel);
+    if (!model) return [];
+    const formFieldIds = new Set(form.fields.map((f) => f.id));
+    return model.fields
+      .filter((mf) => mf.required && !formFieldIds.has(mf.id))
+      .map((mf) => mf.id);
+  });
+
+  setOutputModel(modelId: string): void {
+    const form = this.selectedForm();
+    if (!form) return;
+    this.formStore.setOutputModel(form.id, modelId || undefined);
+  }
+
+  generateFieldsFromModel(): void {
+    const form = this.selectedForm();
+    if (!form?.outputModel) return;
+    const model = this.modelStore.get(form.outputModel);
+    if (!model) return;
+
+    const existing = new Set(form.fields.map((f) => f.id));
+    const newFields = [...form.fields];
+    const typeMap: Record<string, string> = {
+      string: 'text', number: 'number', boolean: 'checkbox',
+      date: 'date', object: 'text', array: 'text', any: 'text',
+    };
+
+    for (const mf of model.fields) {
+      if (existing.has(mf.id)) continue;
+      newFields.push({
+        id: mf.id,
+        label: mf.label ?? mf.id,
+        type: mf.ref ? 'select' : (typeMap[mf.type] ?? 'text'),
+        required: mf.required,
+        width: mf.type === 'boolean' ? 3 : 6,
+        ...(mf.enumValues ? { options: mf.enumValues.map((v) => ({ value: v, label: v })) } : {}),
+      });
+    }
+
+    this.formStore.updateFields(form.id, newFields);
+    if (this.i18n) {
+      for (const mf of model.fields) {
+        this.i18n.ensureKey(`form.${form.id}.${mf.id}.label`, mf.label ?? mf.id, 'form');
+      }
+    }
   }
 
   // ─── Create ───

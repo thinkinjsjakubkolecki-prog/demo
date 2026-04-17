@@ -24,7 +24,7 @@ import type { DataBus, PageConfig, DatasourceConfig } from '@echelon-framework/c
 import { DraftPageStoreService } from './designer-core';
 import { DraftDatasourceStoreService, type DraftDatasource } from './designer-core';
 import { DraftModelStoreService } from './designer-core';
-import type { Schema } from './designer-core';
+import { DraftFormStoreService } from './draft-form-store';
 
 interface DsEntry {
   readonly id: string;
@@ -358,6 +358,7 @@ export class DatasourceDesignerComponent {
   readonly draftStore = inject(DraftPageStoreService);
   readonly dsStore = inject(DraftDatasourceStoreService);
   readonly modelStore = inject(DraftModelStoreService);
+  readonly formStore = inject(DraftFormStoreService);
   private readonly dataBus = inject(DATA_BUS, { optional: true }) as DataBus | null;
   private readonly destroyRef = inject(DestroyRef);
 
@@ -423,6 +424,18 @@ export class DatasourceDesignerComponent {
           outputModelId: (cfg as Record<string, unknown>)['outputModel'] as string | undefined,
         });
       }
+    }
+
+    // Formularze jako datasources (kind: 'form')
+    for (const f of this.formStore.all()) {
+      if (!f.registerAsDatasource) continue;
+      out.push({
+        id: f.id,
+        source: 'standalone',
+        sourceLabel: `📋 Form: ${f.title}`,
+        kind: 'form',
+        outputModelId: f.outputModel,
+      });
     }
 
     out.sort((a, b) => a.id.localeCompare(b.id));
