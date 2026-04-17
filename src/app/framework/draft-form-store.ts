@@ -54,6 +54,72 @@ export interface FieldInputBinding {
   readonly optionLabelKey?: string;
 }
 
+// ─── Form intent + field policy ──────────────────────────────────────────────
+
+export type FormIntent = 'create' | 'edit' | 'view' | 'filter' | 'patch';
+
+export interface ModelFieldPolicy {
+  readonly fieldId: string;
+  /** Override: include/exclude this field from the form regardless of intent defaults. */
+  readonly include?: boolean;
+  /** Override: required state (null = inherit from intent default). */
+  readonly required?: boolean | null;
+  /** Override: readonly state. */
+  readonly readOnly?: boolean;
+  /** Override: default value for this specific form. */
+  readonly defaultValue?: unknown;
+}
+
+export interface ResolvedFieldBehavior {
+  readonly include: boolean;
+  readonly required: boolean;
+  readonly readOnly: boolean;
+}
+
+type ModelFieldLike = { required?: boolean; primaryKey?: boolean; serverManaged?: boolean };
+
+const INTENT_DEFAULTS: Record<FormIntent, (mf: ModelFieldLike) => ResolvedFieldBehavior> = {
+  create: (mf) => ({
+    include: !mf.serverManaged,
+    required: !!mf.required && !mf.serverManaged && !mf.primaryKey,
+    readOnly: false,
+  }),
+  edit: (mf) => ({
+    include: !mf.serverManaged || !!mf.primaryKey,
+    required: !!mf.required,
+    readOnly: !!mf.primaryKey || !!mf.serverManaged,
+  }),
+  view: () => ({
+    include: true,
+    required: false,
+    readOnly: true,
+  }),
+  filter: (mf) => ({
+    include: !mf.serverManaged,
+    required: false,
+    readOnly: false,
+  }),
+  patch: (mf) => ({
+    include: !mf.serverManaged,
+    required: false,
+    readOnly: false,
+  }),
+};
+
+export function resolveFieldBehavior(
+  mf: ModelFieldLike,
+  intent: FormIntent,
+  policy?: ModelFieldPolicy,
+): ResolvedFieldBehavior {
+  const base = INTENT_DEFAULTS[intent](mf);
+  if (!policy) return base;
+  return {
+    include: policy.include ?? base.include,
+    required: policy.required ?? base.required,
+    readOnly: policy.readOnly ?? base.readOnly,
+  };
+}
+
 // ─── Form field ─────────────────────────────────────────────────────────────
 
 export interface DraftFormField {
@@ -89,6 +155,10 @@ export interface DraftForm {
   readonly emits: ReadonlyArray<{ event: string; description?: string }>;
   /** Typed input contracts — autorytarywne źródło requires od Phase 1+. */
   readonly inputContracts?: ReadonlyArray<FormInputContract>;
+  /** Intencja formularza — determinuje default include/required/readOnly per pole. */
+  readonly intent?: FormIntent;
+  /** Per-field overrides intent defaults. Tylko deviacje od intent default. */
+  readonly fieldPolicies?: ReadonlyArray<ModelFieldPolicy>;
   /**
    * Output model — model danych który formularz PRODUKUJE.
    * Formularz = datasource kind:'form' z outputSchema = Model.

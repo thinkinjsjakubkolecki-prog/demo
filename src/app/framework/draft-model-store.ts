@@ -38,6 +38,8 @@ export interface ModelField {
   readonly ref?: ModelRelation;
   /** Wartość domyślna. */
   readonly defaultValue?: unknown;
+  /** Pole zarządzane przez serwer — auto-generowane, nie edytowalne przez usera (np. id, createdAt, version). */
+  readonly serverManaged?: boolean;
 }
 
 export interface ModelRelation {

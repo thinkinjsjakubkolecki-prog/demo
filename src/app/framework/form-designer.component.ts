@@ -17,6 +17,7 @@ import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
 import { DraftFormStoreService, type DraftForm, type DraftFormField, type FormInputContract, type InputProperty, type PropertyType } from './designer-core';
+import { type FormIntent, type ModelFieldPolicy, resolveFieldBehavior } from './draft-form-store';
 import { DraftPageStoreService } from './designer-core';
 import { DraftModelStoreService } from './designer-core';
 import { DraftTranslationStoreService } from './draft-translation-store';
@@ -139,7 +140,23 @@ function isFormWidget(type: string): boolean {
               </div>
             </div>
 
-            <!-- OUTPUT MODEL — formularz jako datasource -->
+            <!-- INTENT + OUTPUT MODEL -->
+            <div class="output-model-section">
+              <div class="om-header">🎯 Intent + Output Model</div>
+              <div class="om-row">
+                <label class="field intent-field">
+                  <span class="field-label">Intent</span>
+                  <select [ngModel]="form.intent ?? 'create'" (ngModelChange)="setIntent($event)">
+                    <option value="create">create — nowy rekord (PK/auto pominięte)</option>
+                    <option value="edit">edit — edycja istniejącego (PK readonly)</option>
+                    <option value="view">view — podgląd (wszystko readonly)</option>
+                    <option value="filter">filter — filtrowanie (nic required)</option>
+                    <option value="patch">patch — częściowa aktualizacja (nic required)</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
             <div class="output-model-section">
               <div class="om-header">📐 Output Model (co formularz produkuje)</div>
               <div class="om-row">
@@ -170,6 +187,27 @@ function isFormWidget(type: string): boolean {
                 </div>
               }
             </div>
+
+            <!-- FIELD POLICIES — overrides per intent -->
+            @if (form.outputModel && resolvedBehaviors().length > 0) {
+              <div class="policies-section">
+                <div class="pol-header">📋 Field Policies (intent: {{ form.intent ?? 'create' }})</div>
+                <div class="pol-table">
+                  <div class="pol-row header">
+                    <span>Pole</span><span>Include</span><span>Required</span><span>ReadOnly</span><span>Override</span>
+                  </div>
+                  @for (rb of resolvedBehaviors(); track rb.fieldId) {
+                    <div class="pol-row" [class.excluded]="!rb.include" [class.overridden]="rb.hasOverride">
+                      <span class="pol-field">{{ rb.fieldId }}</span>
+                      <span class="pol-bool" [class.on]="rb.include">{{ rb.include ? '✓' : '✕' }}</span>
+                      <span class="pol-bool" [class.on]="rb.required">{{ rb.required ? '✓' : '—' }}</span>
+                      <span class="pol-bool" [class.on]="rb.readOnly">{{ rb.readOnly ? '🔒' : '—' }}</span>
+                      <button type="button" class="btn-toggle" (click)="toggleFieldPolicy(rb.fieldId, 'include')">inc</button>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
 
             <!-- KONTRAKT — TYPED INPUT CONTRACTS -->
             <div class="contract">
@@ -569,6 +607,21 @@ function isFormWidget(type: string): boolean {
     .om-badge code { background: #0b1120; padding: 1px 4px; border-radius: 2px; color: #93c5fd; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; }
     .om-warning { font-size: 10px; color: #fca5a5; background: #7f1d1d22; border: 1px solid #ef444433; padding: 4px 8px; border-radius: 2px; }
     .om-ok { font-size: 10px; color: #6ee7b7; }
+    .intent-field { flex: 1; }
+    .intent-field select { width: 100%; }
+
+    .policies-section { background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; padding: 10px; }
+    .pol-header { font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--ech-muted, #9ca3af); font-weight: 600; margin-bottom: 6px; }
+    .pol-table { display: flex; flex-direction: column; gap: 1px; }
+    .pol-row { display: grid; grid-template-columns: 2fr 0.6fr 0.6fr 0.6fr 0.5fr; gap: 4px; padding: 4px 8px; align-items: center; font-size: 10px; }
+    .pol-row.header { font-size: 9px; text-transform: uppercase; color: var(--ech-muted, #6b7280); font-weight: 600; background: #1f2937; border-radius: 2px; padding: 5px 8px; }
+    .pol-row.excluded { opacity: 0.4; }
+    .pol-row.overridden { background: #78350f11; border-left: 2px solid #f59e0b; }
+    .pol-field { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #93c5fd; }
+    .pol-bool { text-align: center; color: var(--ech-muted, #6b7280); }
+    .pol-bool.on { color: #6ee7b7; }
+    .btn-toggle { padding: 1px 6px; background: transparent; border: 1px solid var(--ech-border, #374151); color: var(--ech-muted, #9ca3af); border-radius: 2px; cursor: pointer; font-size: 9px; font-family: inherit; }
+    .btn-toggle:hover { border-color: #f59e0b; color: #fcd34d; }
 
     .usages-section { background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; padding: 10px; }
     .usages-section.empty-usage { border-style: dashed; border-color: #374151; }
@@ -698,23 +751,69 @@ export class FormDesignerComponent {
     this.selectedFieldIndex.set(i);
   }
 
-  // ─── Output Model ───
+  // ─── Intent + Output Model ───
+
+  readonly intentOptions: ReadonlyArray<FormIntent> = ['create', 'edit', 'view', 'filter', 'patch'];
+
+  readonly resolvedBehaviors = computed<ReadonlyArray<{ fieldId: string; include: boolean; required: boolean; readOnly: boolean; hasOverride: boolean }>>(() => {
+    const form = this.selectedForm();
+    if (!form?.outputModel) return [];
+    const model = this.modelStore.get(form.outputModel);
+    if (!model) return [];
+    const intent = form.intent ?? 'create';
+    const policies = form.fieldPolicies ?? [];
+    return model.fields.map((mf) => {
+      const policy = policies.find((p) => p.fieldId === mf.id);
+      const behavior = resolveFieldBehavior(mf, intent, policy);
+      return { fieldId: mf.id, ...behavior, hasOverride: !!policy };
+    });
+  });
 
   readonly missingModelFields = computed<ReadonlyArray<string>>(() => {
     const form = this.selectedForm();
     if (!form?.outputModel) return [];
     const model = this.modelStore.get(form.outputModel);
     if (!model) return [];
+    const intent = form.intent ?? 'create';
+    const policies = form.fieldPolicies ?? [];
     const formFieldIds = new Set(form.fields.map((f) => f.id));
+
     return model.fields
-      .filter((mf) => mf.required && !formFieldIds.has(mf.id))
+      .filter((mf) => {
+        const policy = policies.find((p) => p.fieldId === mf.id);
+        const behavior = resolveFieldBehavior(mf, intent, policy);
+        return behavior.include && behavior.required && !formFieldIds.has(mf.id);
+      })
       .map((mf) => mf.id);
   });
+
+  setIntent(intent: string): void {
+    const form = this.selectedForm();
+    if (!form) return;
+    this.formStore.save({ ...form, intent: intent as FormIntent });
+  }
 
   setOutputModel(modelId: string): void {
     const form = this.selectedForm();
     if (!form) return;
     this.formStore.setOutputModel(form.id, modelId || undefined);
+  }
+
+  toggleFieldPolicy(fieldId: string, key: 'include' | 'required' | 'readOnly'): void {
+    const form = this.selectedForm();
+    if (!form) return;
+    const policies = [...(form.fieldPolicies ?? [])];
+    const idx = policies.findIndex((p) => p.fieldId === fieldId);
+    if (idx >= 0) {
+      const current = policies[idx][key];
+      policies[idx] = { ...policies[idx], [key]: current === undefined ? false : !current };
+      if (Object.keys(policies[idx]).every((k) => k === 'fieldId' || policies[idx][k as keyof ModelFieldPolicy] === undefined)) {
+        policies.splice(idx, 1);
+      }
+    } else {
+      policies.push({ fieldId, [key]: false });
+    }
+    this.formStore.save({ ...form, fieldPolicies: policies });
   }
 
   generateFieldsFromModel(): void {
@@ -723,6 +822,8 @@ export class FormDesignerComponent {
     const model = this.modelStore.get(form.outputModel);
     if (!model) return;
 
+    const intent = form.intent ?? 'create';
+    const policies = form.fieldPolicies ?? [];
     const existing = new Set(form.fields.map((f) => f.id));
     const newFields = [...form.fields];
     const typeMap: Record<string, string> = {
@@ -732,11 +833,15 @@ export class FormDesignerComponent {
 
     for (const mf of model.fields) {
       if (existing.has(mf.id)) continue;
+      const policy = policies.find((p) => p.fieldId === mf.id);
+      const behavior = resolveFieldBehavior(mf, intent, policy);
+      if (!behavior.include) continue;
+
       newFields.push({
         id: mf.id,
         label: mf.label ?? mf.id,
         type: mf.ref ? 'select' : (typeMap[mf.type] ?? 'text'),
-        required: mf.required,
+        required: behavior.required,
         width: mf.type === 'boolean' ? 3 : 6,
         ...(mf.enumValues ? { options: mf.enumValues.map((v) => ({ value: v, label: v })) } : {}),
       });

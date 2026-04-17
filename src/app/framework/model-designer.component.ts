@@ -131,7 +131,7 @@ import type { PropertyType } from './designer-core';
               </div>
               <div class="fields-table">
                 <div class="ft-row header">
-                  <span>ID</span><span>Label</span><span>i18n key</span><span>Typ</span><span>PK</span><span>Req</span><span>Uniq</span><span>Relacja / Enum</span><span></span>
+                  <span>ID</span><span>Label</span><span>i18n key</span><span>Typ</span><span>PK</span><span>Req</span><span>Auto</span><span>Relacja / Enum</span><span></span>
                 </div>
                 @for (f of model.fields; track f.id; let i = $index) {
                   <div class="ft-row" [class.pk]="f.primaryKey" [class.has-ref]="!!f.ref">
@@ -147,7 +147,7 @@ import type { PropertyType } from './designer-core';
                     </select>
                     <input type="checkbox" [checked]="!!f.primaryKey" (change)="updateFieldProp(i, 'primaryKey', $any($event.target).checked)" />
                     <input type="checkbox" [checked]="!!f.required" (change)="updateFieldProp(i, 'required', $any($event.target).checked)" />
-                    <input type="checkbox" [checked]="!!f.unique" (change)="updateFieldProp(i, 'unique', $any($event.target).checked)" />
+                    <input type="checkbox" [checked]="!!f.serverManaged" (change)="updateFieldProp(i, 'serverManaged', $any($event.target).checked)" title="Server-managed (auto)" />
                     <div class="ref-cell">
                       @if (f.type === 'object' || f.type === 'array') {
                         <select [value]="f.ref?.modelId ?? ''" (change)="setFieldRef(i, f, $any($event.target).value)" class="ref-select">
@@ -266,7 +266,7 @@ import type { PropertyType } from './designer-core';
     .count-pill { background: #1e3a5f; color: #93c5fd; padding: 0 7px; border-radius: 10px; font-size: 9px; }
 
     .fields-table { display: flex; flex-direction: column; gap: 2px; overflow-x: auto; }
-    .ft-row { display: grid; grid-template-columns: 1fr 1fr 2fr 0.8fr 0.4fr 0.4fr 0.4fr 1.5fr 70px; gap: 3px; align-items: center; padding: 4px; }
+    .ft-row { display: grid; grid-template-columns: 1fr 1fr 2fr 0.8fr 0.35fr 0.35fr 0.35fr 1.5fr 70px; gap: 3px; align-items: center; padding: 4px; }
     .cell-i18n { font-size: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ech-muted, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .cell-i18n.missing { color: #fca5a5; }
     .i18n-ok { color: #6ee7b7; font-size: 10px; margin-left: 2px; }
