@@ -15,6 +15,8 @@ export function seedDesigners(
   seedFxSpotPage(pageStore);
   seedFxSpotForm(formStore);
   seedFxSpotDealForm(formStore);
+  // eslint-disable-next-line no-console
+  console.log('[seed-designers] forms in store:', formStore.all().map((f) => f.id));
 }
 
 function seedFxSpotPage(store: DraftPageStoreService): void {

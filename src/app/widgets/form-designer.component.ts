@@ -456,7 +456,8 @@ export class FormDesignerComponent {
 
   readonly allEntries = computed<ReadonlyArray<FormListEntry>>(() => {
     const out: FormListEntry[] = [];
-    for (const f of this.formStore.all()) {
+    const storeForms = this.formStore.all();
+    for (const f of storeForms) {
       out.push({ id: f.id, title: f.title, fieldsCount: f.fields.length, isStandalone: true });
     }
     const classes = getRegisteredPageClasses() as Array<{ config?: PageConfig }>;
@@ -470,6 +471,8 @@ export class FormDesignerComponent {
         out.push({ id: wId, title: `${p.title ?? p.id} / ${wId}`, fieldsCount: fields.length, isStandalone: false, sourceInfo: `strona: ${p.id}` });
       }
     }
+    // eslint-disable-next-line no-console
+    console.log('[form-designer] allEntries:', out.length, 'standalone:', storeForms.length, out.map((e) => e.id));
     return out;
   });
 
