@@ -17,6 +17,7 @@ import { ContainerComponent } from './container.component';
 import { ExportPanelComponent } from './export-panel.component';
 import { TranslationManagerComponent } from './translation-manager.component';
 import { ThemeManagerComponent } from './theme-manager.component';
+import { LookupFieldComponent } from './lookup-field.component';
 
 /**
  * Zwraca listę WSZYSTKICH widget-ów designera do rejestracji w provideEchelon.
@@ -39,6 +40,7 @@ export function designerWidgets(): readonly Type<unknown>[] {
     ExportPanelComponent,
     TranslationManagerComponent,
     ThemeManagerComponent,
+    LookupFieldComponent,
   ];
 }
 

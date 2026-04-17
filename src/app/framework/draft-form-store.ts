@@ -122,6 +122,27 @@ export function resolveFieldBehavior(
 
 // ─── Form field ─────────────────────────────────────────────────────────────
 
+export interface LookupFieldConfig {
+  /** Model z którego szukamy (np. 'Client'). */
+  readonly sourceModel: string;
+  /** DS który obsługuje search query (np. 'clientSearch'). */
+  readonly sourceDatasource?: string;
+  /** Pole modelu zwracane jako wartość formularza (np. 'id'). */
+  readonly valueField: string;
+  /** Pola modelu wyświetlane w dropdown (np. ['name', 'code']). */
+  readonly displayFields: ReadonlyArray<string>;
+  /** Pole modelu po którym szukamy (np. 'name'). */
+  readonly searchField?: string;
+  /** Multi-select (np. tagi, przypisani userzy). Default: false. */
+  readonly multi?: boolean;
+  /** Min znaków zanim odpali search. Default: 1. */
+  readonly minSearchLength?: number;
+  /** Debounce ms. Default: 300. */
+  readonly debounceMs?: number;
+  /** Max wyników w dropdown. Default: 20. */
+  readonly maxResults?: number;
+}
+
 export interface DraftFormField {
   id: string;
   label?: string;
@@ -140,6 +161,8 @@ export interface DraftFormField {
   };
   /** Typed bindingi — pole czyta dane z input contracts. */
   inputBindings?: ReadonlyArray<FieldInputBinding>;
+  /** Konfiguracja lookup — pole typu 'lookup' szuka w innym modelu. */
+  lookupConfig?: LookupFieldConfig;
 }
 
 // ─── Draft form ─────────────────────────────────────────────────────────────

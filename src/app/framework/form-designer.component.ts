@@ -837,14 +837,24 @@ export class FormDesignerComponent {
       const behavior = resolveFieldBehavior(mf, intent, policy);
       if (!behavior.include) continue;
 
-      newFields.push({
+      const field: DraftFormField = {
         id: mf.id,
         label: mf.label ?? mf.id,
-        type: mf.ref ? 'select' : (typeMap[mf.type] ?? 'text'),
+        type: mf.ref ? 'lookup' : (typeMap[mf.type] ?? 'text'),
         required: behavior.required,
         width: mf.type === 'boolean' ? 3 : 6,
         ...(mf.enumValues ? { options: mf.enumValues.map((v) => ({ value: v, label: v })) } : {}),
-      });
+        ...(mf.ref ? {
+          lookupConfig: {
+            sourceModel: mf.ref.modelId,
+            valueField: 'id',
+            displayFields: this.guessDisplayFields(mf.ref.modelId),
+            searchField: this.guessSearchField(mf.ref.modelId),
+            multi: mf.ref.kind === '1:N' || mf.ref.kind === 'N:M',
+          },
+        } : {}),
+      };
+      newFields.push(field);
     }
 
     this.formStore.updateFields(form.id, newFields);
@@ -853,6 +863,24 @@ export class FormDesignerComponent {
         this.i18n.ensureKey(`form.${form.id}.${mf.id}.label`, mf.label ?? mf.id, 'form');
       }
     }
+  }
+
+  private guessDisplayFields(modelId: string): string[] {
+    const model = this.modelStore.get(modelId);
+    if (!model) return ['id'];
+    const nameField = model.fields.find((f) => ['name', 'title', 'label', 'description'].includes(f.id));
+    const codeField = model.fields.find((f) => ['code', 'id', 'key', 'slug'].includes(f.id));
+    const fields: string[] = [];
+    if (nameField) fields.push(nameField.id);
+    if (codeField && codeField.id !== nameField?.id) fields.push(codeField.id);
+    return fields.length > 0 ? fields : [model.fields[0]?.id ?? 'id'];
+  }
+
+  private guessSearchField(modelId: string): string {
+    const model = this.modelStore.get(modelId);
+    if (!model) return 'name';
+    const nameField = model.fields.find((f) => ['name', 'title', 'label'].includes(f.id));
+    return nameField?.id ?? model.fields[0]?.id ?? 'name';
   }
 
   // ─── Create ───
