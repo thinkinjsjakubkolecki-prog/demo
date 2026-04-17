@@ -40,6 +40,8 @@ export interface ModelField {
   readonly defaultValue?: unknown;
   /** Pole zarządzane przez serwer — auto-generowane, nie edytowalne przez usera (np. id, createdAt, version). */
   readonly serverManaged?: boolean;
+  /** Dla type:'array' bez ref — typ elementu prymitywnego (string/number/boolean/date). */
+  readonly itemType?: PropertyType;
 }
 
 export interface ModelRelation {

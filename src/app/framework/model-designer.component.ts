@@ -166,7 +166,13 @@ import type { PropertyType } from './designer-core';
                             <option value="N:M">N:M</option>
                           </select>
                         } @else if (f.type === 'array') {
-                          <span class="prim-hint">{{ f.type }}[]</span>
+                          <select [ngModel]="f.itemType ?? 'string'" (ngModelChange)="updateFieldProp(i, 'itemType', $event)" class="item-type-select">
+                            <option value="string">string[]</option>
+                            <option value="number">number[]</option>
+                            <option value="boolean">boolean[]</option>
+                            <option value="date">date[]</option>
+                            <option value="any">any[]</option>
+                          </select>
                         }
                       } @else if (f.type === 'string') {
                         <input type="text" [value]="(f.enumValues ?? []).join(', ')" (change)="setFieldEnum(i, $any($event.target).value)" placeholder="enum: val1, val2" class="enum-input" />
@@ -283,7 +289,7 @@ import type { PropertyType } from './designer-core';
     .kind-select { width: 50px; padding: 3px 2px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 2px; font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .enum-input { width: 100%; padding: 3px 5px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: #6ee7b7; border-radius: 2px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .no-ref { color: var(--ech-muted, #4b5563); font-size: 10px; }
-    .prim-hint { font-size: 9px; color: var(--ech-muted, #6b7280); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .item-type-select { width: 90px; padding: 2px 4px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: #6ee7b7; border-radius: 2px; font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .ft-row input[type=text], .ft-row select { padding: 3px 5px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 2px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .ft-row input[type=checkbox] { width: 14px; height: 14px; justify-self: center; }
     .ft-actions { display: flex; gap: 2px; }
@@ -370,6 +376,7 @@ export class ModelDesignerComponent {
       let type: string = f.type;
       if (f.enumValues && f.enumValues.length > 0) type = f.enumValues.map((v) => `'${v}'`).join(' | ');
       else if (f.ref) type = f.ref.kind === '1:N' || f.ref.kind === 'N:M' ? `${f.ref.modelId}[]` : f.ref.modelId;
+      else if (f.type === 'array') type = `${f.itemType ?? 'string'}[]`;
       const desc = f.description ? `  // ${f.description}` : '';
       const pk = f.primaryKey ? ' (PK)' : '';
       lines.push(`  ${f.id}${opt}: ${type};${pk}${desc}`);
