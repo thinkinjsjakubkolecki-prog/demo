@@ -62,6 +62,46 @@ const PAIR_MIDS: Record<string, number> = { USDPLN: 4.05, EURPLN: 4.28, GBPPLN: 
   imports: [CommonModule, FormsModule],
   template: `
     <div class="deal-form" data-testid="widget-fx-spot-deal" data-echelon-state="ready">
+
+      @if (bookingPhase() === 'booking') {
+        <div class="booking-overlay">
+          <div class="booking-spinner"></div>
+          <div class="booking-text">Księgowanie transakcji...</div>
+        </div>
+      }
+
+      @if (bookingPhase() === 'success') {
+        <div class="result-screen success">
+          <div class="result-icon">✓</div>
+          <div class="result-title">Transakcja zaksięgowana</div>
+          <dl class="result-summary">
+            <dt>Klient</dt><dd>{{ lastBooking()?.clientName || lastBooking()?.client }}</dd>
+            <dt>Para</dt><dd>{{ lastBooking()?.pair }}</dd>
+            <dt>Operacja</dt><dd>{{ lastBooking()?.side }}</dd>
+            <dt>Kwota</dt><dd>{{ lastBooking()?.amount | number:'1.2-2' }}</dd>
+            <dt>Kurs</dt><dd>{{ lastBooking()?.txRate }}</dd>
+            @if (lastBooking()?.rfqPrice) { <dt>Cena RFQ</dt><dd>{{ lastBooking()?.rfqPrice }}</dd> }
+            <dt>Typ</dt><dd>{{ lastBooking()?.dealType }}</dd>
+            <dt>Ref</dt><dd>{{ lastBooking()?.bookingRef }}</dd>
+          </dl>
+          <div class="result-actions">
+            <button type="button" class="btn-submit" (click)="newDeal()">+ Nowa transakcja</button>
+          </div>
+        </div>
+      }
+
+      @if (bookingPhase() === 'error') {
+        <div class="result-screen error">
+          <div class="result-icon error-icon">✕</div>
+          <div class="result-title">Błąd księgowania</div>
+          <div class="result-error">{{ bookingError() }}</div>
+          <div class="result-actions">
+            <button type="button" class="btn-rfq" (click)="retryFromError()">← Wróć do formularza</button>
+          </div>
+        </div>
+      }
+
+      @if (bookingPhase() === 'idle') {
       <div class="deal-header">
         <h3>FX Spot — Transakcja</h3>
         @if (rfqMode()) {
@@ -198,6 +238,7 @@ const PAIR_MIDS: Record<string, number> = { USDPLN: 4.05, EURPLN: 4.28, GBPPLN: 
           <button type="button" class="btn-cancel" (click)="onCancel()">Anuluj</button>
         }
       </div>
+      }
     </div>
   `,
   styles: [`
@@ -248,6 +289,22 @@ const PAIR_MIDS: Record<string, number> = { USDPLN: 4.05, EURPLN: 4.28, GBPPLN: 
     .btn-cancel { padding: 8px 16px; background: transparent; border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: auto; }
     .expired-info { font-size: 12px; color: #fcd34d; width: 100%; margin-bottom: 6px; }
 
+    .booking-overlay { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; gap: 16px; }
+    .booking-spinner { width: 48px; height: 48px; border: 4px solid var(--border, #374151); border-top-color: var(--accent, #58a6ff); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .booking-text { font-size: 14px; color: var(--muted, #9ca3af); }
+
+    .result-screen { display: flex; flex-direction: column; align-items: center; padding: 40px 20px; gap: 16px; text-align: center; }
+    .result-icon { font-size: 48px; width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .result-screen.success .result-icon { background: #064e3b; color: #6ee7b7; border: 2px solid #10b981; }
+    .result-screen.error .result-icon { background: #7f1d1d; color: #fca5a5; border: 2px solid #ef4444; }
+    .result-title { font-size: 20px; font-weight: 700; color: var(--fg, #e5e7eb); }
+    .result-error { font-size: 13px; color: #fca5a5; background: #7f1d1d33; border: 1px solid #ef444466; padding: 10px 16px; border-radius: 4px; max-width: 400px; }
+    .result-summary { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 20px; text-align: left; background: var(--panel-alt, #111827); border: 1px solid var(--border, #1f2937); border-radius: 6px; padding: 16px 20px; min-width: 360px; }
+    .result-summary dt { color: var(--muted, #9ca3af); font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; align-self: center; }
+    .result-summary dd { color: var(--fg, #e5e7eb); margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    .result-actions { display: flex; gap: 10px; margin-top: 8px; }
+
     .progress-bar { width: 100%; height: 6px; background: #1f2937; border-radius: 3px; margin-top: 6px; overflow: hidden; }
     .progress-fill { height: 100%; border-radius: 3px; transition: width 0.25s linear; }
     .progress-fill.pending { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
@@ -278,6 +335,10 @@ export class FxSpotDealComponent {
 
   readonly limitDisplay = LIMIT_AMOUNT.toLocaleString('pl-PL');
   readonly requestTimeoutSec = REQUEST_TIMEOUT_SEC;
+
+  readonly bookingPhase = signal<'idle' | 'booking' | 'success' | 'error'>('idle');
+  readonly bookingError = signal<string>('');
+  readonly lastBooking = signal<Record<string, unknown> | null>(null);
 
   private readonly _spotRaw = signal<SpotTick | null>(null);
   private readonly _rfqResp = signal<RfqResponse>({ status: 'idle' });
@@ -377,7 +438,7 @@ export class FxSpotDealComponent {
 
   onSubmit(): void {
     if (!this.canSubmit()) return;
-    this.submit.emit(this.buildPayload());
+    this.bookDeal(this.buildPayload());
   }
 
   sendRfq(): void {
@@ -406,7 +467,7 @@ export class FxSpotDealComponent {
   acceptRfq(): void {
     this.clearAllTimers();
     this._rfqResp.update((r) => ({ ...r, status: 'accepted' }));
-    this.rfqAccept.emit({ ...this.buildPayload(), rfqPrice: this.rfqPrice() });
+    this.bookDeal({ ...this.buildPayload(), rfqPrice: this.rfqPrice() });
   }
 
   rejectRfq(): void {
@@ -421,6 +482,48 @@ export class FxSpotDealComponent {
     this.clearAllTimers();
     this.amount = 100_000;
     this.onParamsChange();
+  }
+
+  private bookDeal(payload: Record<string, unknown>): void {
+    this.bookingPhase.set('booking');
+    this.clearAllTimers();
+
+    // SYMULACJA: 1-2s booking delay. ~85% success, ~15% error.
+    // W produkcji: fetch(transaction.book, payload) → onSuccess/onError.
+    const delay = 1000 + Math.random() * 1500;
+    const willFail = Math.random() < 0.15;
+
+    setTimeout(() => {
+      if (willFail) {
+        this.bookingPhase.set('error');
+        this.bookingError.set('Limit intraday przekroczony dla tego klienta. Skontaktuj się z Risk Management (ERR-4021).');
+      } else {
+        const ref = `FX-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+        this.lastBooking.set({ ...payload, bookingRef: ref, bookedAt: new Date().toISOString() });
+        this.bookingPhase.set('success');
+        this.submit.emit({ ...payload, bookingRef: ref });
+      }
+    }, delay);
+  }
+
+  newDeal(): void {
+    this.bookingPhase.set('idle');
+    this.lastBooking.set(null);
+    this._rfqMode.set(false);
+    this._rfqResp.set({ status: 'idle' });
+    this.amount = 100_000;
+    this.marginPips = 50;
+    this.side = 'SELL';
+    this.valueDate = '';
+    this.onParamsChange();
+  }
+
+  retryFromError(): void {
+    this.bookingPhase.set('idle');
+    this.bookingError.set('');
+    if (this._rfqMode()) {
+      this._rfqResp.set({ status: 'idle' });
+    }
   }
 
   private buildPayload(): Record<string, unknown> {
