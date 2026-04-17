@@ -12,7 +12,9 @@ export const menu = defineMenu([
   { id: 'trxs',  label: 'Transakcje',     icon: '▥', children: [
       { id: 'tx-historia', label: 'Historia', icon: '·', route: '/positions' },
   ] },
-  { id: 'other-trxs',         label: 'Inne transakcje',     icon: '▥', children: [] },
+  { id: 'other-trxs',         label: 'Inne transakcje',     icon: '▥', children: [
+      { id: 'new-tx', label: 'Nowa transakcja (wizard)', icon: '➕', route: '/process/new-tx/client' },
+  ] },
   { id: 'alerts-indicators',  label: 'Alerty / Indykacje',  icon: '▥', children: [] },
   { id: 'management',         label: 'Zarządzanie',         icon: '▥', children: [] },
   { id: 'godealer-management', label: 'GOdealer - zarządzanie', icon: '▥', children: [] },
