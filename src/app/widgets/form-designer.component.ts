@@ -17,6 +17,8 @@ import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
 import { DraftFormStoreService, type DraftForm, type DraftFormField } from '../services/draft-form-store.service';
+import { seedDesigners } from '../forms/seed-designers';
+import { DraftPageStoreService } from '../services/draft-page-store.service';
 
 type EventAction =
   | { readonly emit: string; readonly payload?: string | Record<string, unknown> }
@@ -102,7 +104,7 @@ function isFormWidget(type: string): boolean {
       <div class="layout">
         <aside class="list">
           <div class="list-header">Formularze</div>
-          @for (e of filteredEntries(); track e.id) {
+          @for (e of filteredEntries(); track e.id + (e.sourceInfo ?? '')) {
             <button type="button" class="form-item"
                     [class.active]="selectedId() === e.id"
                     [class.standalone]="e.isStandalone"
@@ -440,6 +442,7 @@ function isFormWidget(type: string): boolean {
 })
 export class FormDesignerComponent {
   readonly formStore = inject(DraftFormStoreService);
+  private readonly pageStore = inject(DraftPageStoreService);
 
   readonly fieldTypes = FIELD_TYPES;
   readonly actionPhases = ['onChange', 'onBlur', 'onFocus'] as const;
@@ -447,6 +450,10 @@ export class FormDesignerComponent {
   readonly filter = signal<string>('');
   readonly selectedId = signal<string | null>(null);
   readonly selectedFieldIndex = signal<number | null>(null);
+
+  constructor() {
+    seedDesigners(this.pageStore, this.formStore);
+  }
 
   readonly createOpen = signal<boolean>(false);
   readonly createError = signal<string | null>(null);
