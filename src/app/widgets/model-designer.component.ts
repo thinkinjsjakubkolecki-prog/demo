@@ -130,19 +130,40 @@ import type { PropertyType } from '../services/schema-types';
               </div>
               <div class="fields-table">
                 <div class="ft-row header">
-                  <span>ID</span><span>Label</span><span>Typ</span><span>PK</span><span>Req</span><span>Uniq</span><span>Enum / Ref</span><span>Opis</span><span></span>
+                  <span>ID</span><span>Label</span><span>Typ</span><span>PK</span><span>Req</span><span>Uniq</span><span>Relacja / Enum</span><span>Opis</span><span></span>
                 </div>
                 @for (f of model.fields; track f.id; let i = $index) {
-                  <div class="ft-row" [class.pk]="f.primaryKey">
+                  <div class="ft-row" [class.pk]="f.primaryKey" [class.has-ref]="!!f.ref">
                     <input type="text" [value]="f.id" (change)="updateFieldProp(i, 'id', $any($event.target).value)" />
                     <input type="text" [value]="f.label ?? ''" (change)="updateFieldProp(i, 'label', $any($event.target).value)" />
-                    <select [value]="f.type" (change)="updateFieldProp(i, 'type', $any($event.target).value)">
+                    <select [value]="f.type" (change)="onTypeChange(i, f, $any($event.target).value)">
                       @for (t of propTypes; track t) { <option [value]="t">{{ t }}</option> }
                     </select>
                     <input type="checkbox" [checked]="!!f.primaryKey" (change)="updateFieldProp(i, 'primaryKey', $any($event.target).checked)" />
                     <input type="checkbox" [checked]="!!f.required" (change)="updateFieldProp(i, 'required', $any($event.target).checked)" />
                     <input type="checkbox" [checked]="!!f.unique" (change)="updateFieldProp(i, 'unique', $any($event.target).checked)" />
-                    <input type="text" [value]="fieldExtra(f)" (change)="updateFieldExtra(i, f, $any($event.target).value)" [placeholder]="fieldExtraPlaceholder(f)" />
+                    <div class="ref-cell">
+                      @if (f.type === 'object' || f.type === 'array') {
+                        <select [value]="f.ref?.modelId ?? ''" (change)="setFieldRef(i, f, $any($event.target).value)" class="ref-select">
+                          <option value="">— model —</option>
+                          @for (m of otherModels(model.id); track m.id) {
+                            <option [value]="m.id">🧩 {{ m.id }}</option>
+                          }
+                        </select>
+                        @if (f.ref) {
+                          <select [value]="f.ref.kind" (change)="setFieldRefKind(i, f, $any($event.target).value)" class="kind-select">
+                            <option value="1:1">1:1</option>
+                            <option value="1:N">1:N</option>
+                            <option value="N:1">N:1</option>
+                            <option value="N:M">N:M</option>
+                          </select>
+                        }
+                      } @else if (f.type === 'string') {
+                        <input type="text" [value]="(f.enumValues ?? []).join(', ')" (change)="setFieldEnum(i, $any($event.target).value)" placeholder="enum: val1, val2" class="enum-input" />
+                      } @else {
+                        <span class="no-ref">—</span>
+                      }
+                    </div>
                     <input type="text" [value]="f.description ?? ''" (change)="updateFieldProp(i, 'description', $any($event.target).value)" />
                     <div class="ft-actions">
                       <button type="button" class="btn-tiny" (click)="moveField(i, -1)" [disabled]="i === 0">↑</button>
@@ -243,6 +264,12 @@ import type { PropertyType } from '../services/schema-types';
     .ft-row { display: grid; grid-template-columns: 1fr 1fr 0.8fr 0.4fr 0.4fr 0.4fr 1.5fr 1.5fr 70px; gap: 3px; align-items: center; padding: 4px; }
     .ft-row.header { font-size: 9px; text-transform: uppercase; letter-spacing: 0.2px; color: var(--muted, #6b7280); font-weight: 600; background: #1f2937; border-radius: 2px; padding: 6px 4px; }
     .ft-row.pk { background: #1e3a5f1a; border-left: 2px solid #8b5cf6; }
+    .ft-row.has-ref { background: #5b21b60a; }
+    .ref-cell { display: flex; gap: 3px; align-items: center; }
+    .ref-select { flex: 1; padding: 3px 4px; background: var(--panel, #0f172a); border: 1px solid #8b5cf644; color: #c4b5fd; border-radius: 2px; font-size: 10px; font-family: inherit; }
+    .kind-select { width: 50px; padding: 3px 2px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 2px; font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .enum-input { width: 100%; padding: 3px 5px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); color: #6ee7b7; border-radius: 2px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .no-ref { color: var(--muted, #4b5563); font-size: 10px; }
     .ft-row input[type=text], .ft-row select { padding: 3px 5px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 2px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .ft-row input[type=checkbox] { width: 14px; height: 14px; justify-self: center; }
     .ft-actions { display: flex; gap: 2px; }
@@ -392,6 +419,49 @@ export class ModelDesignerComponent {
     const [moved] = fields.splice(i, 1);
     fields.splice(t, 0, moved);
     this.modelStore.updateFields(model.id, fields);
+  }
+
+  otherModels(currentId: string): ReadonlyArray<DraftModel> {
+    return this.modelStore.all().filter((m) => m.id !== currentId);
+  }
+
+  onTypeChange(i: number, f: ModelField, newType: string): void {
+    const fields = [...(this.selectedModel()?.fields ?? [])];
+    const updated: ModelField = { ...f, type: newType as PropertyType };
+    if (newType !== 'object' && newType !== 'array') {
+      delete (updated as unknown as Record<string, unknown>)['ref'];
+    }
+    if (newType !== 'string') {
+      delete (updated as unknown as Record<string, unknown>)['enumValues'];
+    }
+    fields[i] = updated;
+    this.modelStore.updateFields(this.selectedId()!, fields);
+  }
+
+  setFieldRef(i: number, f: ModelField, modelId: string): void {
+    const fields = [...(this.selectedModel()?.fields ?? [])];
+    if (!modelId) {
+      const { ref: _, ...rest } = f;
+      fields[i] = rest as ModelField;
+    } else {
+      const kind = f.type === 'array' ? '1:N' : '1:1';
+      fields[i] = { ...f, ref: { modelId, kind: f.ref?.kind ?? kind as ModelRelation['kind'] } };
+    }
+    this.modelStore.updateFields(this.selectedId()!, fields);
+  }
+
+  setFieldRefKind(i: number, f: ModelField, kind: string): void {
+    if (!f.ref) return;
+    const fields = [...(this.selectedModel()?.fields ?? [])];
+    fields[i] = { ...f, ref: { ...f.ref, kind: kind as ModelRelation['kind'] } };
+    this.modelStore.updateFields(this.selectedId()!, fields);
+  }
+
+  setFieldEnum(i: number, value: string): void {
+    const fields = [...(this.selectedModel()?.fields ?? [])];
+    const vals = value.split(',').map((v) => v.trim()).filter(Boolean);
+    fields[i] = { ...fields[i], enumValues: vals.length > 0 ? vals : undefined };
+    this.modelStore.updateFields(this.selectedId()!, fields);
   }
 
   updateFieldProp(i: number, key: string, value: unknown): void {
