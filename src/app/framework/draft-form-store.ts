@@ -143,6 +143,83 @@ export interface LookupFieldConfig {
   readonly maxResults?: number;
 }
 
+// ─── Composite field configs ────────────────────────────────────────────────
+
+export interface MoneyFieldConfig {
+  readonly currencies: ReadonlyArray<string>;
+  readonly defaultCurrency?: string;
+  readonly precision?: number;
+}
+
+export interface DateRangeFieldConfig {
+  readonly startLabel?: string;
+  readonly endLabel?: string;
+  readonly minDate?: string;
+  readonly maxDate?: string;
+}
+
+export interface AddressFieldConfig {
+  readonly fields: ReadonlyArray<'street' | 'city' | 'zip' | 'country' | 'state'>;
+  readonly countries?: ReadonlyArray<{ code: string; name: string }>;
+}
+
+export interface PhoneFieldConfig {
+  readonly defaultCountryCode?: string;
+  readonly countryCodes?: ReadonlyArray<{ code: string; prefix: string; name: string }>;
+}
+
+export interface FileFieldConfig {
+  readonly accept?: string;
+  readonly maxSizeMb?: number;
+  readonly maxFiles?: number;
+  readonly multi?: boolean;
+  readonly preview?: boolean;
+}
+
+export interface RangeFieldConfig {
+  readonly min: number;
+  readonly max: number;
+  readonly step?: number;
+  readonly showValue?: boolean;
+  readonly unit?: string;
+}
+
+export interface RatingFieldConfig {
+  readonly max: number;
+  readonly icon?: 'star' | 'heart' | 'circle';
+}
+
+export interface RepeaterFieldConfig {
+  readonly itemFields: ReadonlyArray<DraftFormField>;
+  readonly minItems?: number;
+  readonly maxItems?: number;
+  readonly addLabel?: string;
+}
+
+export interface InlineTableFieldConfig {
+  readonly columns: ReadonlyArray<{ id: string; label: string; type: string; width?: number }>;
+  readonly minRows?: number;
+  readonly maxRows?: number;
+  readonly addLabel?: string;
+}
+
+export interface RichTextFieldConfig {
+  readonly toolbar?: ReadonlyArray<'bold' | 'italic' | 'underline' | 'list' | 'link' | 'heading'>;
+  readonly maxLength?: number;
+}
+
+export interface CodeFieldConfig {
+  readonly language?: string;
+  readonly lineNumbers?: boolean;
+  readonly maxLines?: number;
+}
+
+export interface SignatureFieldConfig {
+  readonly width?: number;
+  readonly height?: number;
+  readonly penColor?: string;
+}
+
 export interface DraftFormField {
   id: string;
   label?: string;
@@ -163,6 +240,19 @@ export interface DraftFormField {
   inputBindings?: ReadonlyArray<FieldInputBinding>;
   /** Konfiguracja lookup — pole typu 'lookup' szuka w innym modelu. */
   lookupConfig?: LookupFieldConfig;
+  /** Konfiguracja złożonych typów pól. */
+  moneyConfig?: MoneyFieldConfig;
+  dateRangeConfig?: DateRangeFieldConfig;
+  addressConfig?: AddressFieldConfig;
+  phoneConfig?: PhoneFieldConfig;
+  fileConfig?: FileFieldConfig;
+  rangeConfig?: RangeFieldConfig;
+  ratingConfig?: RatingFieldConfig;
+  repeaterConfig?: RepeaterFieldConfig;
+  inlineTableConfig?: InlineTableFieldConfig;
+  richTextConfig?: RichTextFieldConfig;
+  codeConfig?: CodeFieldConfig;
+  signatureConfig?: SignatureFieldConfig;
 }
 
 // ─── Draft form ─────────────────────────────────────────────────────────────

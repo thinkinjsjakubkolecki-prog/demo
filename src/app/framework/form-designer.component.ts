@@ -41,6 +41,10 @@ const FIELD_TYPES = [
   'boolean', 'checkbox', 'select', 'textarea',
   'date', 'datetime', 'email', 'password', 'url',
   'lookup',
+  'file', 'range', 'time', 'color', 'rating', 'toggle',
+  'money', 'date-range', 'address', 'phone',
+  'repeater', 'inline-table',
+  'rich-text', 'code', 'json', 'signature',
 ] as const;
 
 function isFormWidget(type: string): boolean {
