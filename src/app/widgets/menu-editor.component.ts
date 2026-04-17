@@ -11,11 +11,13 @@
 import { computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { inject } from '@angular/core';
 import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { MenuItem } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
 import { menu as initialMenu } from '../bootstrap/menu';
+import { DraftPageStoreService } from '../services/draft-page-store.service';
 
 interface DraftMenuItem {
   id: string;
@@ -191,13 +193,18 @@ export class MenuEditorComponent {
     return findById(this.items(), id);
   });
 
+  private readonly draftStore = inject(DraftPageStoreService);
+
   readonly availableRoutes = computed<ReadonlyArray<{ route: string; title: string }>>(() => {
-    const classes = getRegisteredPageClasses() as Array<{ name?: string; config?: PageConfig; __echelonPage__?: { route?: string } }>;
+    const classes = getRegisteredPageClasses() as Array<{ name?: string; config?: PageConfig; __echelonPageMeta?: { route?: string } }>;
     const out: Array<{ route: string; title: string }> = [];
     for (const cls of classes) {
-      const route = cls.__echelonPage__?.route;
+      const route = cls.__echelonPageMeta?.route;
       const title = cls.config?.page.title ?? cls.name ?? '?';
       if (route) out.push({ route, title });
+    }
+    for (const d of this.draftStore.all()) {
+      out.push({ route: `/draft/${d.id}`, title: `⚡ ${d.title}` });
     }
     out.sort((a, b) => a.route.localeCompare(b.route));
     return out;

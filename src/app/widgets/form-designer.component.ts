@@ -97,7 +97,48 @@ function isFormWidget(type: string): boolean {
         </div>
         <input type="search" class="search" placeholder="Szukaj po page / widget id..."
                [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
+        <button type="button" class="btn-new" (click)="openCreateFormDialog()"
+                [disabled]="draftStore.all().length === 0"
+                [title]="draftStore.all().length === 0 ? 'Stwórz draft page najpierw w Pages Designer' : 'Dodaj formularz do wybranego drafta'">
+          + Nowy formularz
+        </button>
       </div>
+
+      @if (createFormOpen()) {
+        <div class="modal-backdrop" (click)="closeCreateFormDialog()"></div>
+        <div class="modal">
+          <div class="modal-header">
+            <h3>+ Nowy formularz</h3>
+            <button type="button" class="btn-close" (click)="closeCreateFormDialog()">✕</button>
+          </div>
+          <div class="modal-body">
+            <label class="field">
+              <span class="field-label">Draft page (target)</span>
+              <select [ngModel]="newFormPageId()" (ngModelChange)="newFormPageId.set($event)">
+                @for (d of draftStore.all(); track d.id) {
+                  <option [value]="d.id">{{ d.title }} ({{ d.id }})</option>
+                }
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Widget ID</span>
+              <input type="text" [ngModel]="newFormWidgetId()" (ngModelChange)="newFormWidgetId.set($event)" placeholder="np. registrationForm" />
+            </label>
+            <label class="field">
+              <span class="field-label">Typ widget-a</span>
+              <select [ngModel]="newFormWidgetType()" (ngModelChange)="newFormWidgetType.set($event)">
+                <option value="advanced-form">advanced-form (z per-field actions)</option>
+                <option value="validated-form">validated-form (framework)</option>
+              </select>
+            </label>
+            @if (createFormError()) { <div class="error-box">{{ createFormError() }}</div> }
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-ghost" (click)="closeCreateFormDialog()">Anuluj</button>
+            <button type="button" class="btn-primary" (click)="createForm()">Utwórz</button>
+          </div>
+        </div>
+      }
 
       <div class="layout">
         <aside class="list">
@@ -468,12 +509,33 @@ function isFormWidget(type: string): boolean {
     .empty-icon { font-size: 48px; opacity: 0.4; }
     .empty-title { font-size: 16px; font-weight: 600; color: var(--fg, #e5e7eb); }
     .empty-desc { font-size: 13px; }
+
+    .btn-new { padding: 6px 14px; background: #064e3b; border: 1px solid #10b981; color: #d1fae5; border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .btn-new:hover:not(:disabled) { background: #065f46; }
+    .btn-new:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; }
+    .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 101; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); border-radius: 6px; width: 460px; max-width: calc(100vw - 40px); display: flex; flex-direction: column; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border, #1f2937); }
+    .modal-header h3 { margin: 0; font-size: 14px; color: var(--fg, #e5e7eb); font-weight: 600; }
+    .modal-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border, #1f2937); }
+    .btn-ghost { padding: 6px 14px; background: transparent; border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .btn-ghost:hover { background: #1f2937; }
+    .btn-close { background: transparent; border: none; color: var(--muted, #9ca3af); font-size: 18px; cursor: pointer; padding: 4px 8px; }
+    .error-box { padding: 8px 10px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fecaca; border-radius: 3px; font-size: 11px; }
   `],
 })
 export class FormDesignerComponent {
-  private readonly draftStore = inject(DraftPageStoreService);
+  readonly draftStore = inject(DraftPageStoreService);
 
   readonly fieldTypes = FIELD_TYPES;
+
+  readonly createFormOpen = signal<boolean>(false);
+  readonly createFormError = signal<string | null>(null);
+  readonly newFormPageId = signal<string>('');
+  readonly newFormWidgetId = signal<string>('');
+  readonly newFormWidgetType = signal<string>('advanced-form');
   readonly actionPhases = ['onChange', 'onBlur', 'onFocus'] as const;
 
   readonly filter = signal<string>('');
@@ -782,5 +844,55 @@ export class FormDesignerComponent {
       page: { ...draft.config.page, widgets: widgetsAny as unknown as PageConfig['page']['widgets'] },
     };
     this.draftStore.update(draft.id, nextConfig);
+  }
+
+  // ─── Create new form ───
+
+  openCreateFormDialog(): void {
+    const first = this.draftStore.all()[0];
+    this.newFormPageId.set(first?.id ?? '');
+    this.newFormWidgetId.set('');
+    this.newFormWidgetType.set('advanced-form');
+    this.createFormError.set(null);
+    this.createFormOpen.set(true);
+  }
+
+  closeCreateFormDialog(): void {
+    this.createFormOpen.set(false);
+  }
+
+  createForm(): void {
+    this.createFormError.set(null);
+    const pageId = this.newFormPageId();
+    const widgetId = this.newFormWidgetId().trim();
+    const widgetType = this.newFormWidgetType();
+
+    if (!pageId) { this.createFormError.set('Wybierz target draft page'); return; }
+    if (!widgetId) { this.createFormError.set('Podaj widget ID'); return; }
+
+    const draft = this.draftStore.get(pageId);
+    if (!draft) { this.createFormError.set('Draft nie znaleziony'); return; }
+
+    const widgets = { ...(draft.config.page.widgets ?? {}) } as unknown as Record<string, Record<string, unknown>>;
+    if (widgets[widgetId]) { this.createFormError.set(`Widget "${widgetId}" już istnieje w tym drafcie`); return; }
+
+    widgets[widgetId] = {
+      type: widgetType,
+      options: { fields: [], submitLabel: 'Zapisz' },
+    };
+
+    const layout = draft.config.page.layout ?? { type: 'grid', cols: 12, items: [] };
+    const items = [...((layout as unknown as { items?: unknown[] }).items ?? []), { widget: widgetId, x: 0, y: 100, w: 12, h: 8 }];
+
+    const nextConfig: PageConfig = {
+      ...draft.config,
+      page: {
+        ...draft.config.page,
+        widgets: widgets as unknown as PageConfig['page']['widgets'],
+        layout: { ...layout, items } as PageConfig['page']['layout'],
+      },
+    };
+    this.draftStore.update(draft.id, nextConfig);
+    this.closeCreateFormDialog();
   }
 }

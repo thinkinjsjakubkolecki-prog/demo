@@ -30,27 +30,33 @@ interface StepInfo {
   readonly nextStepId: string | null;
 }
 
-function extractProcesses(): ReadonlyArray<ProcessInfo> {
+function extractProcesses(draftStore: DraftPageStoreService): ReadonlyArray<ProcessInfo> {
   const classes = getRegisteredPageClasses() as Array<{ config?: PageConfig }>;
   const processPages = new Map<string, { step: string; config: PageConfig; route: string }[]>();
 
   for (const cls of classes) {
     const cfg = cls.config;
     if (!cfg) continue;
-    const pageId = cfg.page.id;
-    const match = pageId.match(/^([^-]+(?:-[^-]+)*?)-([^-]+)$/);
-    if (!match) continue;
-
     const meta = (cls as Record<string, unknown>)['__echelonPageMeta'] as { route?: string } | undefined;
     const route = meta?.route ?? '';
     if (!route.startsWith('/process/')) continue;
 
     const parts = route.replace('/process/', '').split('/');
-    const processId = parts[0] ?? pageId;
-    const stepId = parts[1] ?? match[2];
+    const processId = parts[0] ?? cfg.page.id;
+    const stepId = parts[1] ?? 'step';
 
     if (!processPages.has(processId)) processPages.set(processId, []);
     processPages.get(processId)!.push({ step: stepId, config: cfg, route });
+  }
+
+  for (const d of draftStore.all()) {
+    if (!d.route.startsWith('/process/')) continue;
+    const parts = d.route.replace('/process/', '').split('/');
+    const processId = parts[0] ?? d.id;
+    const stepId = parts[1] ?? 'step';
+
+    if (!processPages.has(processId)) processPages.set(processId, []);
+    processPages.get(processId)!.push({ step: stepId, config: d.config, route: d.route });
   }
 
   const out: ProcessInfo[] = [];
@@ -124,7 +130,41 @@ function extractProcesses(): ReadonlyArray<ProcessInfo> {
           <span class="sep">·</span>
           <span>{{ totalSteps() }} kroków łącznie</span>
         </div>
+        <button type="button" class="btn-new" (click)="openCreateDialog()">+ Nowy proces</button>
       </div>
+
+      @if (createOpen()) {
+        <div class="modal-backdrop" (click)="closeCreateDialog()"></div>
+        <div class="modal">
+          <div class="modal-header">
+            <h3>+ Nowy proces (wizard)</h3>
+            <button type="button" class="btn-close" (click)="closeCreateDialog()">✕</button>
+          </div>
+          <div class="modal-body">
+            <label class="field">
+              <span class="field-label">ID procesu</span>
+              <input type="text" [ngModel]="newProcId()" (ngModelChange)="newProcId.set($event)" placeholder="np. new-client" />
+            </label>
+            <label class="field">
+              <span class="field-label">Nazwa</span>
+              <input type="text" [ngModel]="newProcTitle()" (ngModelChange)="newProcTitle.set($event)" placeholder="np. Rejestracja klienta" />
+            </label>
+            <label class="field">
+              <span class="field-label">Liczba kroków</span>
+              <input type="number" min="2" max="10" [ngModel]="newProcSteps()" (ngModelChange)="newProcSteps.set(+$event)" />
+            </label>
+            <div class="help-text">
+              Każdy krok zostanie utworzony jako draft page z route <code>/process/{{ newProcId() || '...' }}/step-N</code>
+              z pustym formularzem <code>advanced-form</code>. Po utworzeniu możesz edytować pola w Forms Designer.
+            </div>
+            @if (createError()) { <div class="error-box">{{ createError() }}</div> }
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-ghost" (click)="closeCreateDialog()">Anuluj</button>
+            <button type="button" class="btn-primary" (click)="createProcess()">Utwórz</button>
+          </div>
+        </div>
+      }
 
       <div class="layout">
         <aside class="list">
@@ -268,13 +308,40 @@ function extractProcesses(): ReadonlyArray<ProcessInfo> {
     .empty-icon { font-size: 48px; opacity: 0.4; }
     .empty-title { font-size: 16px; font-weight: 600; color: var(--fg, #e5e7eb); }
     .empty-desc { font-size: 13px; }
+
+    .btn-new { margin-left: auto; padding: 6px 14px; background: #064e3b; border: 1px solid #10b981; color: #d1fae5; border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .btn-new:hover { background: #065f46; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; }
+    .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 101; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); border-radius: 6px; width: 480px; max-width: calc(100vw - 40px); display: flex; flex-direction: column; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border, #1f2937); }
+    .modal-header h3 { margin: 0; font-size: 14px; color: var(--fg, #e5e7eb); font-weight: 600; }
+    .modal-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border, #1f2937); }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--muted, #9ca3af); font-weight: 600; }
+    .field input, .field select { padding: 6px 10px; background: var(--panel-alt, #1f2937); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 12px; font-family: inherit; }
+    .help-text { font-size: 11px; color: var(--muted, #9ca3af); line-height: 1.5; }
+    .help-text code { background: #0b1120; padding: 1px 5px; border-radius: 2px; color: #93c5fd; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+    .btn-primary { padding: 6px 14px; background: #064e3b; border: 1px solid #10b981; color: #d1fae5; border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .btn-primary:hover { background: #065f46; }
+    .btn-ghost { padding: 6px 14px; background: transparent; border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .btn-ghost:hover { background: #1f2937; }
+    .btn-close { background: transparent; border: none; color: var(--muted, #9ca3af); font-size: 18px; cursor: pointer; padding: 4px 8px; }
+    .error-box { padding: 8px 10px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fecaca; border-radius: 3px; font-size: 11px; }
   `],
 })
 export class ProcessDesignerComponent {
+  private readonly draftStore = inject(DraftPageStoreService);
+
   readonly selected = signal<ProcessInfo | null>(null);
+  readonly createOpen = signal<boolean>(false);
+  readonly createError = signal<string | null>(null);
+  readonly newProcId = signal<string>('');
+  readonly newProcTitle = signal<string>('');
+  readonly newProcSteps = signal<number>(3);
 
   readonly allProcesses = computed<ReadonlyArray<ProcessInfo>>(() => {
-    return extractProcesses();
+    return extractProcesses(this.draftStore);
   });
 
   readonly totalSteps = computed<number>(() =>
@@ -283,5 +350,112 @@ export class ProcessDesignerComponent {
 
   select(p: ProcessInfo): void {
     this.selected.set(p);
+  }
+
+  openCreateDialog(): void {
+    this.newProcId.set('');
+    this.newProcTitle.set('');
+    this.newProcSteps.set(3);
+    this.createError.set(null);
+    this.createOpen.set(true);
+  }
+
+  closeCreateDialog(): void {
+    this.createOpen.set(false);
+  }
+
+  createProcess(): void {
+    this.createError.set(null);
+    const procId = this.newProcId().trim();
+    const procTitle = this.newProcTitle().trim();
+    const stepCount = this.newProcSteps();
+
+    if (!procId) { this.createError.set('Podaj ID procesu'); return; }
+    if (!procTitle) { this.createError.set('Podaj nazwę procesu'); return; }
+    if (stepCount < 2 || stepCount > 10) { this.createError.set('Liczba kroków: 2-10'); return; }
+
+    const sessionKey = `${procId}Draft`;
+    const stepNames = Array.from({ length: stepCount }, (_, i) => `step-${i + 1}`);
+
+    for (let i = 0; i < stepCount; i++) {
+      const stepId = stepNames[i];
+      const isLast = i === stepCount - 1;
+      const nextStep = isLast ? null : stepNames[i + 1];
+      const route = `/process/${procId}/${stepId}`;
+      const pageId = `${procId}-${stepId}`;
+      const title = `${procTitle} — Krok ${i + 1}`;
+
+      const widgets: Record<string, unknown> = {
+        'step-header': { type: 'page-title', options: { title } },
+      };
+
+      const handlers: unknown[] = [];
+      const layout = { type: 'grid', cols: 12, items: [{ widget: 'step-header', x: 0, y: 0, w: 12 }] as unknown[] };
+
+      if (!isLast) {
+        const formId = `${stepId}Form`;
+        widgets[formId] = {
+          type: 'advanced-form',
+          bind: { initial: `$ds.${sessionKey}` },
+          options: { submitLabel: 'Dalej →', fields: [] },
+        };
+        layout.items.push({ widget: formId, x: 0, y: 1, w: 12, h: 8 });
+        handlers.push({
+          on: `${formId}.submit`,
+          do: [
+            { mergeDatasource: sessionKey, from: '$event' },
+            ...(nextStep ? [{ navigate: `/process/${procId}/${nextStep}` }] : []),
+          ],
+        });
+      } else {
+        widgets['summary'] = {
+          type: 'kv-list',
+          bind: { entries: `$ds.${sessionKey}` },
+          options: { title: 'Podsumowanie' },
+        };
+        widgets['commit-bar'] = {
+          type: 'actions-bar',
+          options: {
+            actions: [
+              { id: 'commit', label: 'Zatwierdź', kind: 'primary',
+                emit: { event: `fx.process.${procId}.commit`, payload: 'commit' } },
+            ],
+          },
+        };
+        layout.items.push(
+          { widget: 'summary', x: 0, y: 1, w: 12, h: 6 },
+          { widget: 'commit-bar', x: 0, y: 7, w: 12, h: 2 },
+        );
+        handlers.push({
+          on: `fx.process.${procId}.commit`,
+          do: [
+            { emit: `fx.process.${procId}.completed`, payload: `$ds.${sessionKey}` },
+            { clearDatasource: sessionKey },
+          ],
+        });
+      }
+
+      const pageConfig: PageConfig = {
+        $schemaVersion: '2026.04-alpha' as PageConfig['$schemaVersion'],
+        page: {
+          id: pageId,
+          title,
+          datasources: { [sessionKey]: { kind: 'local', initial: {} } },
+          layout,
+          widgets,
+          ...(handlers.length > 0 ? { eventHandlers: handlers } : {}),
+        } as PageConfig['page'],
+      };
+
+      this.draftStore.upsert({
+        id: pageId,
+        title,
+        route,
+        config: pageConfig,
+        className: `Process${procId}${stepId}`,
+      });
+    }
+
+    this.closeCreateDialog();
   }
 }
