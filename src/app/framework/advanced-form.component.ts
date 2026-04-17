@@ -139,11 +139,11 @@ export interface AdvFormFieldDef {
   styles: [`
     :host { display: block; padding: 12px; }
     .adv-form { display: flex; flex-direction: column; gap: 12px; max-width: 560px; }
-    .adv-title { font-size: 16px; font-weight: 600; color: var(--fg, #e5e7eb); margin-bottom: 4px; }
+    .adv-title { font-size: 16px; font-weight: 600; color: var(--ech-fg, #e5e7eb); margin-bottom: 4px; }
     .adv-field { display: flex; flex-direction: column; gap: 4px; }
-    .adv-label { font-size: 12px; color: var(--muted, #9ca3af); font-weight: 600; }
+    .adv-label { font-size: 12px; color: var(--ech-muted, #9ca3af); font-weight: 600; }
     .adv-label .req { color: #ef4444; margin-left: 2px; }
-    .adv-form input, .adv-form select, .adv-form textarea { padding: 7px 10px; background: var(--panel-alt, #1f2937); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 13px; font-family: inherit; }
+    .adv-form input, .adv-form select, .adv-form textarea { padding: 7px 10px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 13px; font-family: inherit; }
     .adv-form textarea { min-height: 70px; resize: vertical; }
     .adv-form input:focus, .adv-form select:focus, .adv-form textarea:focus { border-color: #3b82f6; outline: none; }
     .adv-form input[type=checkbox] { width: 16px; height: 16px; }

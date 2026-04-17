@@ -9,6 +9,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { menu } from './bootstrap/menu';
 import type { MenuItem } from '@echelon-framework/page-builders';
+import { BUILT_IN_THEMES, applyTheme } from './framework/css-themes';
 
 @Component({
   selector: 'fx-app',
@@ -69,29 +70,28 @@ import type { MenuItem } from '@echelon-framework/page-builders';
   `,
   styles: [`
     .shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
-    aside { background: var(--panel-alt); border-right: 1px solid var(--border); padding: 16px 12px;
+    aside { background: var(--ech-panel-alt, var(--ech-panel)); border-right: 1px solid var(--ech-border); padding: var(--ech-spacing) calc(var(--ech-spacing-sm) + 4px);
             display: flex; flex-direction: column; min-height: 100vh; }
-    nav { flex: 1; }
-    .brand { font-weight: 700; font-size: 16px; padding: 4px 8px 16px; color: var(--accent); letter-spacing: 1px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
-    .env { display: block; font-size: 9px; font-weight: 500; letter-spacing: 1px; color: var(--muted); margin-top: 2px; }
-    nav { display: flex; flex-direction: column; gap: 1px; }
+    nav { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+    .brand { font-weight: 700; font-size: 16px; padding: var(--ech-spacing-xs) var(--ech-spacing-sm) var(--ech-spacing); color: var(--ech-accent); letter-spacing: 1px; border-bottom: 1px solid var(--ech-border); margin-bottom: calc(var(--ech-spacing-sm) + 4px); }
+    .env { display: block; font-size: 9px; font-weight: 500; letter-spacing: 1px; color: var(--ech-muted); margin-top: 2px; }
     .node { display: flex; flex-direction: column; gap: 1px; }
-    .row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--fg); text-decoration: none; border-radius: 4px; font-size: 13px; cursor: pointer; background: transparent; border: none; text-align: left; width: 100%; }
-    .row:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-    .row.active { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
+    .row { display: flex; align-items: center; gap: var(--ech-spacing-sm); padding: var(--ech-spacing-sm) calc(var(--ech-spacing-sm) + 4px); color: var(--ech-fg); text-decoration: none; border-radius: var(--ech-radius-sm); font-size: var(--ech-font-size); cursor: pointer; background: transparent; border: none; text-align: left; width: 100%; transition: background var(--ech-transition); }
+    .row:hover { background: color-mix(in srgb, var(--ech-accent) 10%, transparent); }
+    .row.active { background: color-mix(in srgb, var(--ech-accent) 22%, transparent); color: var(--ech-accent); }
     .row.disabled { cursor: default; opacity: 0.5; }
-    .caret { display: inline-block; width: 12px; font-size: 9px; color: var(--muted); transition: transform 0.15s; }
+    .caret { display: inline-block; width: 12px; font-size: 9px; color: var(--ech-muted); transition: transform var(--ech-transition); }
     .caret.open { transform: rotate(90deg); }
     .caret-spacer { display: inline-block; width: 12px; }
     .ic { display: inline-block; width: 18px; text-align: center; opacity: 0.7; }
     .lbl { flex: 1; }
 
     .content { display: flex; flex-direction: column; min-height: 100vh; }
-    .user { display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin-top: 12px;
-            border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); }
-    .user-icon { color: var(--buy); }
-    .user-name { color: var(--fg); font-weight: 500; }
-    main { padding: 20px 24px; overflow-y: auto; flex: 1; }
+    .user { display: flex; align-items: center; gap: var(--ech-spacing-sm); padding: 10px calc(var(--ech-spacing-sm) + 4px); margin-top: calc(var(--ech-spacing-sm) + 4px);
+            border-top: 1px solid var(--ech-border); font-size: var(--ech-font-size); color: var(--ech-muted); }
+    .user-icon { color: var(--ech-success); }
+    .user-name { color: var(--ech-fg); font-weight: 500; }
+    main { padding: var(--ech-spacing) calc(var(--ech-spacing) + 8px); overflow-y: auto; flex: 1; }
     main.embed { min-height: 100vh; padding: 0; overflow: auto; }
   `],
 })
@@ -121,6 +121,12 @@ export class AppComponent {
   })();
 
   private readonly expanded = new Set<string>(menu.filter((i) => i.defaultOpen).map((i) => i.id));
+
+  constructor() {
+    const savedTheme = typeof window !== 'undefined' ? window.localStorage?.getItem('dealer-fx:theme') : null;
+    const theme = BUILT_IN_THEMES.find((t) => t.id === savedTheme) ?? BUILT_IN_THEMES[0];
+    applyTheme(theme);
+  }
 
   toggle(id: string): void { if (this.expanded.has(id)) { this.expanded.delete(id); } else { this.expanded.add(id); } }
   isOpen(id: string): boolean { return this.expanded.has(id); }

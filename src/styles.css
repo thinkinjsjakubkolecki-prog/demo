@@ -1,124 +1,84 @@
+/**
+ * Global styles — oparte na --ech-* CSS custom properties z frameworka.
+ * Temy (Theme Manager) ustawiają te zmienne na :root.
+ * Domyślna tema ładowana z localStorage lub fallback do dark-default.
+ */
+
 :root {
-  /* IntelliJ Darcula-inspired palette */
-  --bg:         #2b2b2b;   /* editor background */
-  --panel:      #3c3f41;   /* tool window / panel */
-  --panel-alt:  #313335;   /* secondary panel */
-  --border:     #515151;   /* divider */
-  --border-mut: #323232;   /* subtle divider */
-  --fg:         #a9b7c6;   /* primary text */
-  --fg-strong:  #bbbbbb;   /* emphasized text */
-  --muted:      #808080;   /* muted / labels */
-  --accent:     #499c54;   /* prod default — green */
-  --accent-alt: #cc7832;   /* Darcula orange */
-  --selection:  #214283;   /* selection blue */
-  --buy:        #6a8759;   /* Darcula string green */
-  --sell:       #cc7832;
-  --err:        #cf6b56;
-  --warn:       #d9a652;
-  --info:       #6897bb;
-  /* Aliases for framework widgets (--ech-*) — mapped to Darcula */
-  --ech-bg:      var(--bg);
-  --ech-panel:   var(--panel);
-  --ech-border:  var(--border);
-  --ech-fg:      var(--fg);
-  --ech-muted:   var(--muted);
-  --ech-accent:  var(--accent);
+  /* Fallback — jeśli żadna tema nie zaaplikowana, dark default */
+  --ech-bg: #0b1120;
+  --ech-fg: #e5e7eb;
+  --ech-muted: #9ca3af;
+  --ech-accent: #58a6ff;
+  --ech-border: #1f2937;
+  --ech-panel: #0f172a;
+  --ech-panel-alt: #111827;
+  --ech-success: #10b981;
+  --ech-warning: #f59e0b;
+  --ech-danger: #ef4444;
+  --ech-info: #3b82f6;
+  --ech-font-family: Inter, system-ui, -apple-system, sans-serif;
+  --ech-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ech-font-size: 13px;
+  --ech-radius: 6px;
+  --ech-radius-sm: 3px;
+  --ech-spacing: 16px;
+  --ech-spacing-sm: 8px;
+  --ech-spacing-xs: 4px;
+  --ech-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  --ech-transition: 0.15s ease;
+
+  /* Aliasy backward-compat — stare widgety i shell */
+  --bg: var(--ech-bg);
+  --fg: var(--ech-fg);
+  --muted: var(--ech-muted);
+  --accent: var(--ech-accent);
+  --border: var(--ech-border);
+  --panel: var(--ech-panel);
+  --panel-alt: var(--ech-panel-alt);
 }
 
-/* Darcula scrollbars */
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: #5c5c5c; border-radius: 5px; border: 2px solid var(--bg); }
-::-webkit-scrollbar-thumb:hover { background: #787878; }
+/* Scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--ech-bg); }
+::-webkit-scrollbar-thumb { background: var(--ech-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ech-muted); }
 
-::selection { background: var(--selection); color: var(--fg-strong); }
+::selection { background: var(--ech-accent); color: var(--ech-bg); }
 
-/* Env-driven accent. main.ts ustawia [data-env] na <html>. */
-:root[data-env="dev"]  { --accent: #cc7832; --selection: #5a3c1c; }  /* orange */
-:root[data-env="test"] { --accent: #d9a652; --selection: #5a4a1c; }  /* amber  */
-:root[data-env="prod"] { --accent: #499c54; --selection: #1c5a2a; }  /* green  */
 * { box-sizing: border-box; }
+
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
-  font-size: 14px;
-}
-button {
-  font: inherit;
-  cursor: pointer;
-}
-input, select, textarea {
-  font: inherit;
-  background: var(--panel);
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 6px 8px;
+  background: var(--ech-bg);
+  color: var(--ech-fg);
+  font-family: var(--ech-font-family);
+  font-size: var(--ech-font-size);
+  line-height: 1.5;
 }
 
-/* Material-ish density override dla filter-form & profile-form kontrolek */
-ech-filter-form .bar,
-ech-profile-form .card {
-  padding: 18px 20px;
+button { font: inherit; cursor: pointer; }
+
+input, select, textarea {
+  font-family: var(--ech-font-family);
+  font-size: var(--ech-font-size);
+  background: var(--ech-panel);
+  color: var(--ech-fg);
+  border: 1px solid var(--ech-border);
+  border-radius: var(--ech-radius-sm);
+  padding: 6px 10px;
+  transition: border-color var(--ech-transition);
 }
-ech-filter-form label,
-ech-profile-form label {
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  letter-spacing: 0.3px !important;
-  margin-bottom: 6px;
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--ech-accent);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ech-accent) 20%, transparent);
 }
-ech-filter-form input,
-ech-filter-form select,
-ech-profile-form input,
-ech-profile-form select {
-  font-size: 14px !important;
-  padding: 11px 14px !important;
-  height: 44px;
-  border-width: 1.5px !important;
-  border-radius: 6px !important;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-ech-filter-form input:hover,
-ech-filter-form select:hover,
-ech-profile-form input:hover,
-ech-profile-form select:hover {
-  border-color: var(--muted) !important;
-}
-ech-filter-form input:focus,
-ech-filter-form select:focus,
-ech-profile-form input:focus,
-ech-profile-form select:focus {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px rgba(88,166,255,0.18);
-  outline: none !important;
-}
-ech-filter-form .chips {
-  min-height: 44px;
-  padding: 6px 8px !important;
-  border-radius: 6px !important;
-  border-width: 1.5px !important;
-}
-ech-filter-form .chips input {
-  height: auto;
-  padding: 4px 6px !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-ech-filter-form .chip {
-  font-size: 13px !important;
-  padding: 4px 8px 4px 12px !important;
-  border-radius: 18px !important;
-}
-ech-filter-form .actions button,
-ech-profile-form .actions button {
-  height: 40px;
-  padding: 0 22px !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  border-radius: 6px !important;
+
+a { color: var(--ech-accent); }
+a:hover { text-decoration: underline; }
+
+code, pre {
+  font-family: var(--ech-font-mono);
 }

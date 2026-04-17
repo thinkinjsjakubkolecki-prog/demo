@@ -72,11 +72,11 @@ interface ContainerOptions {
   styles: [`
     :host { display: block; width: 100%; height: 100%; min-height: 120px; }
     .container-box { width: 100%; height: 100%; display: flex; flex-direction: column; }
-    .container-box.card { background: var(--panel-alt, #111827); border: 1px solid var(--border, #374151); border-radius: 6px; padding: 12px; }
+    .container-box.card { background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #374151); border-radius: 6px; padding: 12px; }
     .container-box.section { padding: 8px 0; }
-    .container-header { font-size: 14px; font-weight: 600; color: var(--fg, #e5e7eb); padding-bottom: 8px; border-bottom: 1px solid var(--border, #1f2937); margin-bottom: 10px; }
+    .container-header { font-size: 14px; font-weight: 600; color: var(--ech-fg, #e5e7eb); padding-bottom: 8px; border-bottom: 1px solid var(--ech-border, #1f2937); margin-bottom: 10px; }
     .container-body { flex: 1; min-height: 0; }
-    .container-empty { padding: 40px 20px; text-align: center; color: var(--muted, #9ca3af); font-style: italic; font-size: 12px; border: 1px dashed var(--border, #374151); border-radius: 4px; }
+    .container-empty { padding: 40px 20px; text-align: center; color: var(--ech-muted, #9ca3af); font-style: italic; font-size: 12px; border: 1px dashed var(--ech-border, #374151); border-radius: 4px; }
   `],
 })
 export class ContainerComponent implements OnChanges, OnDestroy {

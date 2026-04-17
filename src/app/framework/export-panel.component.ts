@@ -78,15 +78,15 @@ import { exportBundle, exportBundleAsJson, exportBundleAsTypeScript, type Export
     </div>
   `,
   styles: [`
-    :host { display: block; padding: 16px; color: var(--fg, #e5e7eb); }
-    .wrap { background: var(--panel, #0f172a); border: 1px solid var(--border, #1f2937); border-radius: 6px; padding: 20px; }
-    .header h2 { margin: 0 0 8px; font-size: 16px; font-weight: 700; color: var(--accent, #58a6ff); }
-    .desc { margin: 0 0 16px; font-size: 12px; color: var(--muted, #9ca3af); line-height: 1.5; }
+    :host { display: block; padding: 16px; color: var(--ech-fg, #e5e7eb); }
+    .wrap { background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #1f2937); border-radius: 6px; padding: 20px; }
+    .header h2 { margin: 0 0 8px; font-size: 16px; font-weight: 700; color: var(--ech-accent, #58a6ff); }
+    .desc { margin: 0 0 16px; font-size: 12px; color: var(--ech-muted, #9ca3af); line-height: 1.5; }
 
     .stats { display: flex; gap: 16px; margin-bottom: 20px; }
-    .stat { background: var(--panel-alt, #111827); border: 1px solid var(--border, #1f2937); border-radius: 4px; padding: 12px 20px; text-align: center; flex: 1; }
-    .stat-num { display: block; font-size: 24px; font-weight: 700; color: var(--fg, #e5e7eb); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted, #9ca3af); }
+    .stat { background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; padding: 12px 20px; text-align: center; flex: 1; }
+    .stat-num { display: block; font-size: 24px; font-weight: 700; color: var(--ech-fg, #e5e7eb); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ech-muted, #9ca3af); }
 
     .actions { display: flex; gap: 10px; margin-bottom: 16px; }
     .btn-export { padding: 10px 20px; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; border: 1px solid; }
@@ -98,11 +98,11 @@ import { exportBundle, exportBundleAsJson, exportBundleAsTypeScript, type Export
     .btn-export.file:hover { background: #92400e; }
 
     .output { margin-top: 16px; }
-    .output-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #1f2937; border-radius: 4px 4px 0 0; font-size: 11px; color: var(--muted, #9ca3af); font-weight: 600; text-transform: uppercase; }
+    .output-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #1f2937; border-radius: 4px 4px 0 0; font-size: 11px; color: var(--ech-muted, #9ca3af); font-weight: 600; text-transform: uppercase; }
     .btn-copy { padding: 4px 12px; background: #1e3a5f; border: 1px solid #3b82f6; color: #e0f2fe; border-radius: 2px; font-size: 11px; cursor: pointer; font-family: inherit; }
-    .output-code { margin: 0; padding: 16px; background: #0b1120; border: 1px solid var(--border, #1f2937); border-top: none; border-radius: 0 0 4px 4px; font-size: 11px; color: #d1d5db; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre; overflow: auto; max-height: 500px; }
+    .output-code { margin: 0; padding: 16px; background: #0b1120; border: 1px solid var(--ech-border, #1f2937); border-top: none; border-radius: 0 0 4px 4px; font-size: 11px; color: #d1d5db; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre; overflow: auto; max-height: 500px; }
 
-    .empty { padding: 30px; text-align: center; color: var(--muted, #6b7280); font-size: 13px; font-style: italic; border: 1px dashed var(--border, #374151); border-radius: 4px; }
+    .empty { padding: 30px; text-align: center; color: var(--ech-muted, #6b7280); font-size: 13px; font-style: italic; border: 1px dashed var(--ech-border, #374151); border-radius: 4px; }
   `],
 })
 export class ExportPanelComponent {

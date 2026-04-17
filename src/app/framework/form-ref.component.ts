@@ -120,26 +120,26 @@ import { DraftFormStoreService, type DraftForm, type DraftFormField } from './de
   `,
   styles: [`
     :host { display: block; }
-    .form-ref { background: var(--panel, #0f172a); border: 1px solid var(--border, #1f2937); border-radius: 6px; padding: 16px; }
-    .ref-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border, #1f2937); }
-    .ref-title { font-size: 15px; font-weight: 700; color: var(--fg, #e5e7eb); }
-    .ref-id { font-size: 10px; color: var(--muted, #9ca3af); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #1f2937; padding: 1px 6px; border-radius: 2px; }
-    .ref-desc { font-size: 11px; color: var(--muted, #6b7280); }
+    .form-ref { background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #1f2937); border-radius: 6px; padding: 16px; }
+    .ref-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--ech-border, #1f2937); }
+    .ref-title { font-size: 15px; font-weight: 700; color: var(--ech-fg, #e5e7eb); }
+    .ref-id { font-size: 10px; color: var(--ech-muted, #9ca3af); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #1f2937; padding: 1px 6px; border-radius: 2px; }
+    .ref-desc { font-size: 11px; color: var(--ech-muted, #6b7280); }
 
     .ref-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px; }
     .ref-cell { display: flex; flex-direction: column; gap: 4px; }
-    .ref-label { font-size: 11px; color: var(--muted, #9ca3af); font-weight: 600; }
+    .ref-label { font-size: 11px; color: var(--ech-muted, #9ca3af); font-weight: 600; }
     .ref-label .req { color: #ef4444; margin-left: 2px; }
-    .ref-form input, .ref-form select, .ref-form textarea { padding: 7px 10px; background: var(--panel-alt, #1f2937); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 13px; font-family: inherit; }
+    .ref-form input, .ref-form select, .ref-form textarea { padding: 7px 10px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 13px; font-family: inherit; }
     .ref-form input:focus, .ref-form select:focus, .ref-form textarea:focus { border-color: #3b82f6; outline: none; }
     .ref-form textarea { min-height: 60px; resize: vertical; }
     .ref-form input[type=checkbox] { width: 16px; height: 16px; }
 
-    .ref-actions { display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border, #1f2937); }
+    .ref-actions { display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--ech-border, #1f2937); }
     .ref-submit { padding: 8px 20px; background: #1e3a5f; border: 1px solid #3b82f6; color: #e0f2fe; border-radius: 3px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; }
     .ref-submit:hover { background: #1e40af; }
 
-    .ref-missing { padding: 30px; text-align: center; color: var(--muted, #9ca3af); font-size: 13px; }
+    .ref-missing { padding: 30px; text-align: center; color: var(--ech-muted, #9ca3af); font-size: 13px; }
     .ref-missing code { background: #1f2937; padding: 1px 6px; border-radius: 2px; color: #fca5a5; }
   `],
 })
