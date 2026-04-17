@@ -154,7 +154,7 @@ export class FormRefComponent {
   @Output() readonly change = new EventEmitter<Record<string, unknown>>();
 
   private readonly formStore = inject(DraftFormStoreService);
-  private readonly dataBus = inject(DATA_BUS, { optional: true });
+  private readonly dataBus = inject(DATA_BUS, { optional: true }) as DataBus | null;
   readonly values = signal<Record<string, unknown>>({});
 
   readonly form = computed<DraftForm | null>(() => {
