@@ -23,13 +23,15 @@ import { EchelonWidget } from '@echelon-framework/runtime';
 
 interface SpotTick { readonly bid?: number; readonly ask?: number; }
 interface RfqResponse {
-  readonly status: 'idle' | 'pending' | 'price-received' | 'accepted' | 'rejected' | 'expired';
+  readonly status: 'idle' | 'pending' | 'price-received' | 'accepted' | 'rejected' | 'expired' | 'timeout';
   readonly price?: number;
   readonly refRate?: number;
   readonly validUntil?: number;
 }
 
 const LIMIT_AMOUNT = 500_000;
+const REQUEST_TIMEOUT_SEC = 10;
+const ACCEPT_TIMEOUT_SEC = 15;
 const PAIRS = ['USDPLN', 'EURPLN', 'GBPPLN', 'CHFPLN', 'EURUSD'] as const;
 const PAIR_MIDS: Record<string, number> = { USDPLN: 4.05, EURPLN: 4.28, GBPPLN: 5.12, CHFPLN: 4.55, EURUSD: 1.085 };
 
@@ -108,9 +110,17 @@ const PAIR_MIDS: Record<string, number> = { USDPLN: 4.05, EURPLN: 4.28, GBPPLN: 
       <div class="section pricing" [class.rfq-active]="rfqMode()" [class.rfq-received]="rfqStatus() === 'price-received'">
         <div class="pricing-header">
           @if (!rfqMode()) { <span>📊 Live pricing</span> }
-          @else if (rfqStatus() === 'pending') { <span class="blink">⏳ Oczekiwanie na cenę RFQ...</span> }
-          @else if (rfqStatus() === 'price-received') { <span>💰 Cena z RFQ (ważna {{ rfqTtl() }}s)</span> }
-          @else if (rfqStatus() === 'expired') { <span class="warn">⏰ Cena wygasła</span> }
+          @else if (rfqStatus() === 'pending') {
+            <span class="blink">⏳ Oczekiwanie na cenę RFQ... {{ pendingTtl() }}s</span>
+            <div class="progress-bar"><div class="progress-fill pending" [style.width.%]="pendingProgress()"></div></div>
+          }
+          @else if (rfqStatus() === 'price-received') {
+            <span>💰 Cena z RFQ</span>
+            <span class="ttl-badge" [class.critical]="rfqTtl() <= 5">{{ rfqTtl() }}s</span>
+            <div class="progress-bar"><div class="progress-fill accept" [style.width.%]="acceptProgress()" [class.critical]="rfqTtl() <= 5"></div></div>
+          }
+          @else if (rfqStatus() === 'expired') { <span class="warn">⏰ Czas na akceptację minął</span> }
+          @else if (rfqStatus() === 'timeout') { <span class="warn">⏰ Serwer nie odpowiedział w czasie</span> }
           @else if (rfqStatus() === 'rejected') { <span class="warn">✕ Odrzucono</span> }
           @else { <span>— tryb RFQ —</span> }
         </div>
@@ -167,7 +177,13 @@ const PAIR_MIDS: Record<string, number> = { USDPLN: 4.05, EURPLN: 4.28, GBPPLN: 
               </button>
             }
             @case ('expired') {
-              <div class="expired-info">Cena wygasła. Możesz ponownie wysłać zapytanie lub zmienić kwotę.</div>
+              <div class="expired-info">⏰ Czas na akceptację minął. Wyślij ponownie lub zmień kwotę.</div>
+              <button type="button" class="btn-rfq" (click)="sendRfq()">
+                🔄 Ponowne zapytanie RFQ
+              </button>
+            }
+            @case ('timeout') {
+              <div class="expired-info">⏰ Serwer nie odpowiedział w ciągu {{ requestTimeoutSec }}s. Spróbuj ponownie.</div>
               <button type="button" class="btn-rfq" (click)="sendRfq()">
                 🔄 Ponowne zapytanie RFQ
               </button>
@@ -231,6 +247,14 @@ const PAIR_MIDS: Record<string, number> = { USDPLN: 4.05, EURPLN: 4.28, GBPPLN: 
     .btn-reject:hover { background: #7f1d1d66; }
     .btn-cancel { padding: 8px 16px; background: transparent; border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: auto; }
     .expired-info { font-size: 12px; color: #fcd34d; width: 100%; margin-bottom: 6px; }
+
+    .progress-bar { width: 100%; height: 6px; background: #1f2937; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.25s linear; }
+    .progress-fill.pending { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .progress-fill.accept { background: linear-gradient(90deg, #10b981, #6ee7b7); }
+    .progress-fill.accept.critical { background: linear-gradient(90deg, #ef4444, #fca5a5); animation: pulse 0.5s infinite; }
+    .ttl-badge { font-size: 14px; font-weight: 700; color: #6ee7b7; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-left: auto; }
+    .ttl-badge.critical { color: #ef4444; animation: pulse 0.5s infinite; }
   `],
 })
 export class FxSpotDealComponent {
@@ -253,17 +277,33 @@ export class FxSpotDealComponent {
   marginPips = 50;
 
   readonly limitDisplay = LIMIT_AMOUNT.toLocaleString('pl-PL');
+  readonly requestTimeoutSec = REQUEST_TIMEOUT_SEC;
 
   private readonly _spotRaw = signal<SpotTick | null>(null);
   private readonly _rfqResp = signal<RfqResponse>({ status: 'idle' });
   private readonly _rfqMode = signal(false);
-  private _rfqTimer: ReturnType<typeof setInterval> | null = null;
+  private _acceptTimer: ReturnType<typeof setInterval> | null = null;
+  private _pendingTimer: ReturnType<typeof setInterval> | null = null;
   private readonly _rfqTtl = signal(0);
+  private readonly _pendingTtl = signal(0);
+  private _pendingDeadline = 0;
+  private _acceptDeadline = 0;
 
   readonly rfqMode = this._rfqMode.asReadonly();
   readonly rfqStatus = computed(() => this._rfqResp().status);
   readonly rfqPrice = computed(() => this._rfqResp().price ?? null);
   readonly rfqTtl = this._rfqTtl.asReadonly();
+  readonly pendingTtl = this._pendingTtl.asReadonly();
+
+  readonly pendingProgress = computed(() => {
+    const remaining = this._pendingTtl();
+    return Math.max(0, (remaining / REQUEST_TIMEOUT_SEC) * 100);
+  });
+
+  readonly acceptProgress = computed(() => {
+    const remaining = this._rfqTtl();
+    return Math.max(0, (remaining / ACCEPT_TIMEOUT_SEC) * 100);
+  });
 
   readonly spotBid = computed(() => {
     const s = this._spotRaw();
@@ -307,7 +347,7 @@ export class FxSpotDealComponent {
     effect(() => {
       const resp = this._rfqResp();
       if (resp.status === 'price-received' && resp.validUntil) {
-        this.startTtlCountdown(resp.validUntil);
+        this.startAcceptCountdown(resp.validUntil);
       }
     });
   }
@@ -326,7 +366,7 @@ export class FxSpotDealComponent {
     } else if (!isOverLimit && wasRfq) {
       this._rfqMode.set(false);
       this._rfqResp.set({ status: 'idle' });
-      this.clearTtlTimer();
+      this.clearAllTimers();
     }
     this.onParamsChange();
   }
@@ -343,31 +383,34 @@ export class FxSpotDealComponent {
   sendRfq(): void {
     this._rfqResp.set({ status: 'pending' });
     this.rfqRequest.emit(this.buildPayload());
+    this.startPendingCountdown();
 
-    // SYMULACJA: po 2-4s serwer odpowiada ceną (w produkcji — handler łapie event i robi fetch)
+    // SYMULACJA: po 2-5s serwer odpowiada ceną (w produkcji — handler łapie event i robi fetch)
+    const delay = 2000 + Math.random() * 3000;
     setTimeout(() => {
       if (this._rfqResp().status !== 'pending') return;
       const s = this._spotRaw();
       const base = s ? (this.side === 'BUY' ? (s.ask ?? 4.05) : (s.bid ?? 4.05)) : (PAIR_MIDS[this.pair] ?? 4.05);
       const margin = this.marginPips * 0.0001;
       const price = +(base + (this.side === 'BUY' ? margin : -margin)).toFixed(5);
+      this.clearPendingTimer();
       this._rfqResp.set({
         status: 'price-received',
         price,
         refRate: +base.toFixed(5),
-        validUntil: Date.now() + 15_000,
+        validUntil: Date.now() + ACCEPT_TIMEOUT_SEC * 1000,
       });
-    }, 2000 + Math.random() * 2000);
+    }, delay);
   }
 
   acceptRfq(): void {
-    this.clearTtlTimer();
+    this.clearAllTimers();
     this._rfqResp.update((r) => ({ ...r, status: 'accepted' }));
     this.rfqAccept.emit({ ...this.buildPayload(), rfqPrice: this.rfqPrice() });
   }
 
   rejectRfq(): void {
-    this.clearTtlTimer();
+    this.clearAllTimers();
     this._rfqResp.set({ status: 'rejected' });
     this.rfqReject.emit();
   }
@@ -375,7 +418,7 @@ export class FxSpotDealComponent {
   onCancel(): void {
     this._rfqMode.set(false);
     this._rfqResp.set({ status: 'idle' });
-    this.clearTtlTimer();
+    this.clearAllTimers();
     this.amount = 100_000;
     this.onParamsChange();
   }
@@ -395,26 +438,50 @@ export class FxSpotDealComponent {
     };
   }
 
-  private startTtlCountdown(validUntil: number): void {
-    this.clearTtlTimer();
-    const update = (): void => {
-      const remaining = Math.max(0, Math.round((validUntil - Date.now()) / 1000));
+  private startPendingCountdown(): void {
+    this.clearPendingTimer();
+    this._pendingDeadline = Date.now() + REQUEST_TIMEOUT_SEC * 1000;
+    const tick = (): void => {
+      const remaining = Math.max(0, Math.round((this._pendingDeadline - Date.now()) / 1000));
+      this._pendingTtl.set(remaining);
+      if (remaining <= 0) {
+        this.clearPendingTimer();
+        if (this._rfqResp().status === 'pending') {
+          this._rfqResp.set({ status: 'timeout' });
+        }
+      }
+    };
+    tick();
+    this._pendingTimer = setInterval(tick, 250);
+  }
+
+  private startAcceptCountdown(validUntil: number): void {
+    this.clearAcceptTimer();
+    this._acceptDeadline = validUntil;
+    const tick = (): void => {
+      const remaining = Math.max(0, Math.round((this._acceptDeadline - Date.now()) / 1000));
       this._rfqTtl.set(remaining);
       if (remaining <= 0) {
-        this.clearTtlTimer();
+        this.clearAcceptTimer();
         if (this._rfqResp().status === 'price-received') {
           this._rfqResp.set({ status: 'expired' });
         }
       }
     };
-    update();
-    this._rfqTimer = setInterval(update, 1000);
+    tick();
+    this._acceptTimer = setInterval(tick, 250);
   }
 
-  private clearTtlTimer(): void {
-    if (this._rfqTimer !== null) {
-      clearInterval(this._rfqTimer);
-      this._rfqTimer = null;
-    }
+  private clearPendingTimer(): void {
+    if (this._pendingTimer !== null) { clearInterval(this._pendingTimer); this._pendingTimer = null; }
+  }
+
+  private clearAcceptTimer(): void {
+    if (this._acceptTimer !== null) { clearInterval(this._acceptTimer); this._acceptTimer = null; }
+  }
+
+  private clearAllTimers(): void {
+    this.clearPendingTimer();
+    this.clearAcceptTimer();
   }
 }
