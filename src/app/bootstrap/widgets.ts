@@ -34,6 +34,7 @@ import { ContainerComponent } from '../widgets/container.component';
 import { DatasourceDesignerComponent } from '../widgets/datasource-designer.component';
 import { FormDesignerComponent } from '../widgets/form-designer.component';
 import { AdvancedFormComponent } from '../widgets/advanced-form.component';
+import { ProcessDesignerComponent } from '../widgets/process-designer.component';
 
 export const widgets = [
   // Generic — framework
@@ -62,4 +63,6 @@ export const widgets = [
   FormDesignerComponent,
   // fx-advanced-form — form widget z per-field actions (onChange/onBlur/onFocus) + onSubmit (M37)
   AdvancedFormComponent,
+  // Process Designer — dedykowana sekcja z listą procesów + DAG kroków (P5)
+  ProcessDesignerComponent,
 ];
