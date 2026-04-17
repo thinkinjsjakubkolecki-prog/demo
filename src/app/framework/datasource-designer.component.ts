@@ -296,21 +296,62 @@ interface DsEntry {
 
             @if (newDsKind() === 'mock') {
               <div class="mock-section">
-                <div class="mock-header">
-                  <span>📋 Mock Data (JSON fixture)</span>
-                  @if (newDsOutputModel()) {
-                    <button type="button" class="btn-gen-mock" (click)="generateMockFromModel()">⚡ Generuj z modelu</button>
-                  }
-                </div>
-                <textarea class="mock-editor" rows="12" [ngModel]="newDsMockData()" (ngModelChange)="newDsMockData.set($event)"
-                          [class.invalid]="!isMockDataValid()"
-                          [placeholder]="mockPlaceholder()" spellcheck="false"></textarea>
-                @if (!isMockDataValid()) {
-                  <div class="mock-error">⚠ Nieprawidłowy JSON</div>
+                <label class="field">
+                  <span class="field-label">Zachowanie mocka</span>
+                  <select [ngModel]="newMockBehavior()" (ngModelChange)="newMockBehavior.set($event)">
+                    <option value="static">static — zwróć dane natychmiast</option>
+                    <option value="http">http — symulacja request z delay + error rate</option>
+                    <option value="stream">stream — symulacja WebSocket (ticki co N ms)</option>
+                  </select>
+                </label>
+
+                @if (newMockBehavior() === 'http') {
+                  <div class="mock-row-3">
+                    <label class="field"><span class="field-label">Delay (ms)</span>
+                      <input type="number" min="0" max="10000" step="100" [ngModel]="newMockDelay()" (ngModelChange)="newMockDelay.set(+$event)" /></label>
+                    <label class="field"><span class="field-label">Error rate (%)</span>
+                      <input type="number" min="0" max="100" step="5" [ngModel]="newMockErrorRate()" (ngModelChange)="newMockErrorRate.set(+$event)" /></label>
+                    <label class="field"><span class="field-label">Error message</span>
+                      <input type="text" [ngModel]="newMockErrorMsg()" (ngModelChange)="newMockErrorMsg.set($event)" placeholder="Server Error" /></label>
+                  </div>
                 }
-                <div class="mock-hint">
-                  Wklej JSON array lub obiekt. Przy wybranym Output Model możesz wygenerować dane automatycznie.
-                </div>
+
+                @if (newMockBehavior() === 'stream') {
+                  <div class="mock-row-3">
+                    <label class="field"><span class="field-label">Simulator</span>
+                      <select [ngModel]="newMockSimulator()" (ngModelChange)="newMockSimulator.set($event)">
+                        <option value="cycle">cycle — iteruje po danych w kółko</option>
+                        <option value="fx-random-walk">fx-random-walk — kurs walutowy (bid/ask)</option>
+                        <option value="sine">sine — fala sinusoidalna</option>
+                        <option value="random-int">random-int — losowe liczby</option>
+                      </select>
+                    </label>
+                    <label class="field"><span class="field-label">Interval (ms)</span>
+                      <input type="number" min="100" max="60000" step="100" [ngModel]="newMockInterval()" (ngModelChange)="newMockInterval.set(+$event)" /></label>
+                    @if (newMockSimulator() === 'fx-random-walk') {
+                      <label class="field"><span class="field-label">Mid price</span>
+                        <input type="number" step="0.01" [ngModel]="newMockMid()" (ngModelChange)="newMockMid.set(+$event)" /></label>
+                    }
+                    @if (newMockSimulator() === 'random-int') {
+                      <label class="field"><span class="field-label">Range (min-max)</span>
+                        <input type="text" [ngModel]="newMockRange()" (ngModelChange)="newMockRange.set($event)" placeholder="1-100" /></label>
+                    }
+                  </div>
+                }
+
+                @if (newMockBehavior() !== 'stream' || newMockSimulator() === 'cycle') {
+                  <div class="mock-data-section">
+                    <div class="mock-header">
+                      <span>📋 Mock Data (JSON)</span>
+                      @if (newDsOutputModel()) {
+                        <button type="button" class="btn-gen-mock" (click)="generateMockFromModel()">⚡ Generuj z modelu</button>
+                      }
+                    </div>
+                    <textarea class="mock-editor" rows="10" [ngModel]="newDsMockData()" (ngModelChange)="newDsMockData.set($event)"
+                              [class.invalid]="!isMockDataValid()" [placeholder]="mockPlaceholder()" spellcheck="false"></textarea>
+                    @if (!isMockDataValid()) { <div class="mock-error">⚠ Nieprawidłowy JSON</div> }
+                  </div>
+                }
               </div>
             }
 
@@ -437,7 +478,8 @@ interface DsEntry {
     .mock-editor { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: #6ee7b7; border-radius: var(--ech-radius-sm, 3px); padding: 10px; resize: vertical; line-height: 1.4; tab-size: 2; }
     .mock-editor.invalid { border-color: #ef4444; color: #fca5a5; }
     .mock-error { font-size: 10px; color: #fca5a5; }
-    .mock-hint { font-size: 10px; color: var(--ech-muted, #6b7280); font-style: italic; }
+    .mock-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .mock-data-section { margin-top: 6px; }
 
     .schema-badge code { background: #5b21b622; border: 1px solid #8b5cf633; color: #c4b5fd; padding: 3px 10px; border-radius: 3px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   `],
@@ -466,6 +508,15 @@ export class DatasourceDesignerComponent {
   readonly newDsOutputModel = signal('');
   readonly newDsCardinality = signal<'single' | 'array' | 'paginated'>('array');
   readonly newDsMockData = signal<string>('[]');
+  readonly newMockBehavior = signal<'static' | 'http' | 'stream'>('static');
+  readonly newMockDelay = signal(500);
+  readonly newMockErrorRate = signal(0);
+  readonly newMockErrorMsg = signal('Server Error');
+  readonly newMockSimulator = signal<'cycle' | 'fx-random-walk' | 'sine' | 'random-int'>('cycle');
+  readonly newMockInterval = signal(1000);
+  readonly newMockMid = signal(4.05);
+  readonly newMockAmplitude = signal(1.0);
+  readonly newMockRange = signal('1-100');
   readonly newDsInitial = signal('');
   readonly newDsFn = signal('');
   readonly newDsDeps = signal('');
@@ -821,6 +872,12 @@ export class DatasourceDesignerComponent {
     this.newDsOutputModel.set('');
     this.newDsCardinality.set('array');
     this.newDsMockData.set('[]');
+    this.newMockBehavior.set('static');
+    this.newMockDelay.set(500);
+    this.newMockErrorRate.set(0);
+    this.newMockSimulator.set('cycle');
+    this.newMockInterval.set(1000);
+    this.newMockMid.set(4.05);
     this.newDsInitial.set('');
     this.newDsFn.set('');
     this.newDsDeps.set('');
@@ -853,7 +910,28 @@ export class DatasourceDesignerComponent {
       ...(this.newDsInitial() ? { initial: (() => { try { return JSON.parse(this.newDsInitial()); } catch { return this.newDsInitial(); } })() } : {}),
       ...(this.newDsFn() ? { fn: this.newDsFn() } : {}),
       ...(this.newDsDeps() ? { deps: this.newDsDeps().split(',').map((s) => s.trim()).filter(Boolean) } : {}),
-      ...(this.newDsKind() === 'mock' ? { initial: (() => { try { return JSON.parse(this.newDsMockData()); } catch { return []; } })() } : {}),
+      ...(this.newDsKind() === 'mock' ? {
+        initial: this.newMockBehavior() !== 'stream' || this.newMockSimulator() === 'cycle'
+          ? (() => { try { return JSON.parse(this.newDsMockData()); } catch { return []; } })()
+          : undefined,
+        mockConfig: {
+          behavior: this.newMockBehavior(),
+          ...(this.newMockBehavior() === 'http' ? {
+            delay: this.newMockDelay(),
+            errorRate: this.newMockErrorRate(),
+            errorMessage: this.newMockErrorMsg(),
+          } : {}),
+          ...(this.newMockBehavior() === 'stream' ? {
+            simulator: this.newMockSimulator(),
+            intervalMs: this.newMockInterval(),
+            ...(this.newMockSimulator() === 'fx-random-walk' ? { mid: this.newMockMid(), vol: 0.0003, precision: 5 } : {}),
+            ...(this.newMockSimulator() === 'random-int' ? (() => {
+              const [min, max] = this.newMockRange().split('-').map(Number);
+              return { min: min || 1, max: max || 100 };
+            })() : {}),
+          } : {}),
+        },
+      } : {}),
       contract: {
         ...(Object.keys(outputSchema).length > 0 ? { outputSchema } : {}),
         ...(outputModel ? { outputModel, outputCardinality: cardinality } : {}),

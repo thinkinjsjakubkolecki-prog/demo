@@ -12,16 +12,34 @@
 import { Injectable, signal, computed } from '@angular/core';
 import type { Schema, DatasourceContract } from './schema-types';
 
+export interface MockConfig {
+  readonly behavior: 'static' | 'http' | 'stream';
+  readonly delay?: number;
+  readonly errorRate?: number;
+  readonly errorMessage?: string;
+  readonly simulator?: 'cycle' | 'fx-random-walk' | 'sine' | 'random-int';
+  readonly intervalMs?: number;
+  readonly mid?: number;
+  readonly vol?: number;
+  readonly precision?: number;
+  readonly amplitude?: number;
+  readonly periodMs?: number;
+  readonly min?: number;
+  readonly max?: number;
+}
+
 export interface DraftDatasource {
   readonly id: string;
   readonly title: string;
   readonly description?: string;
-  readonly kind: 'transport' | 'local' | 'computed' | 'stream';
+  readonly kind: 'transport' | 'local' | 'computed' | 'stream' | 'mock';
   readonly transport?: 'http' | 'websocket' | 'mock';
   readonly endpoint?: string;
   readonly initial?: unknown;
   readonly fn?: string;
   readonly deps?: ReadonlyArray<string>;
+  /** Konfiguracja mock — behavior, delay, simulator. */
+  readonly mockConfig?: MockConfig;
   /** Typed contract — co DS produkuje i co potrzebuje. */
   readonly contract: DatasourceContract;
   readonly createdAt: number;
