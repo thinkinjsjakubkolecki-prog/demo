@@ -157,17 +157,34 @@ interface DsEntry {
                   📐 Output Schema (typ danych na wyjściu)
                 </div>
                 <div class="schema-source">
-                  <label class="field">
-                    <span class="field-label">Źródło schematu</span>
-                    <select [ngModel]="selectedOutputModelId()" (ngModelChange)="setOutputModel(sel, $event)">
-                      <option value="">— brak (ręczny) —</option>
-                      @for (m of modelStore.all(); track m.id) {
-                        <option [value]="m.id">🧩 {{ m.id }} — {{ m.title }} ({{ m.fields.length }} pól)</option>
-                      }
-                    </select>
-                  </label>
+                  <div class="schema-row-2">
+                    <label class="field">
+                      <span class="field-label">Model</span>
+                      <select [ngModel]="selectedOutputModelId()" (ngModelChange)="setOutputModel(sel, $event)">
+                        <option value="">— brak —</option>
+                        @for (m of modelStore.all(); track m.id) {
+                          <option [value]="m.id">🧩 {{ m.id }} — {{ m.title }}</option>
+                        }
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span class="field-label">Kardynalność</span>
+                      <select [ngModel]="selectedOutputCardinality()" (ngModelChange)="setOutputCardinality(sel, $event)">
+                        <option value="single">Single ({{ selectedOutputModelId() || '?' }})</option>
+                        <option value="array">Array ({{ selectedOutputModelId() || '?' }}[])</option>
+                        <option value="paginated">Paginated ({{ '{' }} items: {{ selectedOutputModelId() || '?' }}[], total: number {{ '}' }})</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
-                @if (outputSchemaPreview(); as preview) {
+                @if (selectedOutputModelId() && outputSchemaPreview(); as preview) {
+                  <div class="schema-badge">
+                    @switch (selectedOutputCardinality()) {
+                      @case ('single') { <code>{{ selectedOutputModelId() }}</code> }
+                      @case ('array') { <code>{{ selectedOutputModelId() }}[]</code> }
+                      @case ('paginated') { <code>{{ '{' }} items: {{ selectedOutputModelId() }}[], total: number {{ '}' }}</code> }
+                    }
+                  </div>
                   <pre class="block-code schema-code">{{ preview }}</pre>
                 } @else {
                   <div class="empty-inline">Wybierz model żeby DS deklarował kształt danych na wyjściu.</div>
@@ -227,15 +244,25 @@ interface DsEntry {
               </label>
             }
 
-            <label class="field">
-              <span class="field-label">Output Model (typ danych na wyjściu)</span>
-              <select [ngModel]="newDsOutputModel()" (ngModelChange)="newDsOutputModel.set($event)">
-                <option value="">— brak —</option>
-                @for (m of modelStore.all(); track m.id) {
-                  <option [value]="m.id">🧩 {{ m.id }} — {{ m.title }}</option>
-                }
-              </select>
-            </label>
+            <div class="schema-row-2">
+              <label class="field">
+                <span class="field-label">Output Model</span>
+                <select [ngModel]="newDsOutputModel()" (ngModelChange)="newDsOutputModel.set($event)">
+                  <option value="">— brak —</option>
+                  @for (m of modelStore.all(); track m.id) {
+                    <option [value]="m.id">🧩 {{ m.id }} — {{ m.title }}</option>
+                  }
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Kardynalność</span>
+                <select [ngModel]="newDsCardinality()" (ngModelChange)="newDsCardinality.set($event)">
+                  <option value="single">Single (jeden obiekt)</option>
+                  <option value="array">Array (lista)</option>
+                  <option value="paginated">Paginated (lista + total)</option>
+                </select>
+              </label>
+            </div>
 
             @if (newDsKind() === 'local') {
               <label class="field">
@@ -352,6 +379,9 @@ interface DsEntry {
     .schema-source { margin-bottom: 8px; }
     .schema-source select { width: 100%; padding: 6px 10px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 3px; font-size: 12px; font-family: inherit; }
     .schema-code { color: #c4b5fd; }
+    .schema-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .schema-badge { margin: 6px 0; }
+    .schema-badge code { background: #5b21b622; border: 1px solid #8b5cf633; color: #c4b5fd; padding: 3px 10px; border-radius: 3px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   `],
 })
 export class DatasourceDesignerComponent {
@@ -376,6 +406,7 @@ export class DatasourceDesignerComponent {
   readonly newDsTransport = signal<'http' | 'websocket' | 'mock'>('http');
   readonly newDsEndpoint = signal('');
   readonly newDsOutputModel = signal('');
+  readonly newDsCardinality = signal<'single' | 'array' | 'paginated'>('array');
   readonly newDsInitial = signal('');
   readonly newDsFn = signal('');
   readonly newDsDeps = signal('');
@@ -486,6 +517,7 @@ export class DatasourceDesignerComponent {
   });
 
   readonly selectedOutputModelId = signal<string>('');
+  readonly selectedOutputCardinality = signal<'single' | 'array' | 'paginated'>('array');
 
   readonly outputSchemaPreview = computed<string | null>(() => {
     const modelId = this.selectedOutputModelId();
@@ -502,10 +534,24 @@ export class DatasourceDesignerComponent {
 
   setOutputModel(sel: DsEntry, modelId: string): void {
     this.selectedOutputModelId.set(modelId);
-    if (sel.source === 'standalone') {
-      const outputSchema = modelId ? (this.modelStore.toSchema(modelId) ?? {}) : {};
-      this.dsStore.updateContract(sel.id, { outputSchema });
-    }
+    this.updateOutputContract(sel);
+  }
+
+  setOutputCardinality(sel: DsEntry, cardinality: string): void {
+    this.selectedOutputCardinality.set(cardinality as 'single' | 'array' | 'paginated');
+    this.updateOutputContract(sel);
+  }
+
+  private updateOutputContract(sel: DsEntry): void {
+    if (sel.source !== 'standalone') return;
+    const modelId = this.selectedOutputModelId();
+    const cardinality = this.selectedOutputCardinality();
+    const outputSchema = modelId ? (this.modelStore.toSchema(modelId) ?? {}) : {};
+    this.dsStore.updateContract(sel.id, {
+      outputSchema,
+      outputModel: modelId || undefined,
+      outputCardinality: cardinality,
+    } as never);
   }
 
   byKind(kind: string): number {
@@ -582,6 +628,7 @@ export class DatasourceDesignerComponent {
     this.newDsTransport.set('http');
     this.newDsEndpoint.set('');
     this.newDsOutputModel.set('');
+    this.newDsCardinality.set('array');
     this.newDsInitial.set('');
     this.newDsFn.set('');
     this.newDsDeps.set('');
@@ -602,6 +649,7 @@ export class DatasourceDesignerComponent {
     if (this.dsStore.get(id)) { this.createError.set(`DS "${id}" już istnieje`); return; }
 
     const outputModel = this.newDsOutputModel();
+    const cardinality = this.newDsCardinality();
     const outputSchema = outputModel ? (this.modelStore.toSchema(outputModel) ?? {}) : {};
 
     this.dsStore.upsert({
@@ -615,6 +663,7 @@ export class DatasourceDesignerComponent {
       ...(this.newDsDeps() ? { deps: this.newDsDeps().split(',').map((s) => s.trim()).filter(Boolean) } : {}),
       contract: {
         ...(Object.keys(outputSchema).length > 0 ? { outputSchema } : {}),
+        ...(outputModel ? { outputModel, outputCardinality: cardinality } : {}),
       },
     });
     this.closeCreateDialog();

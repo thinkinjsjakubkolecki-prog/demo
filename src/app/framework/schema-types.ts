@@ -34,11 +34,17 @@ export type Schema = Readonly<Record<string, SchemaProperty>>;
 
 // ─── Datasource contract ────────────────────────────────────────────────────
 
+export type OutputCardinality = 'single' | 'array' | 'paginated';
+
 export interface DatasourceContract {
   /** Co DS wymaga na wejściu (params do fetch/refresh). */
   readonly inputSchema?: Schema;
   /** Co DS produkuje na wyjściu (kształt wartości). */
   readonly outputSchema?: Schema;
+  /** Model referencyjny output. */
+  readonly outputModel?: string;
+  /** Kardynalność output: single (Client), array (Client[]), paginated ({items: Client[], total}). */
+  readonly outputCardinality?: OutputCardinality;
   /** Kiedy DS się odświeża (eventy, interwał). */
   readonly refreshOn?: ReadonlyArray<string>;
 }
