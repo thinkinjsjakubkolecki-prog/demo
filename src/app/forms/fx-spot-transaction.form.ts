@@ -14,13 +14,25 @@
  *
  * ═══ FLOW RFQ (kwota > limit) ═══
  *   1. amount > clientLimits.maxSpotAmount → rfqMode = true
- *   2. User klika "Wyślij zapytanie RFQ" → emit fx-spot.rfq-requested
- *   3. Rodzic robi: fetch(rfq.request, { pair, side, amount, date, client })
- *   4. Serwer zwraca cenę → rodzic pushuje do $ds.rfqResponse
- *   5. rfqStatus = 'price-received', rfqPrice wypełnione, rfqValidUntil = TTL
- *   6. User akceptuje → emit fx-spot.rfq-accepted (rodzic commituje z rfqPrice)
- *      LUB odrzuca → emit fx-spot.rfq-rejected (wraca do edycji)
- *      LUB TTL wygasa → rfqStatus = 'expired' (musi ponownie requestować)
+ *   2. Wejście w RFQ:
+ *      a) ROZŁĄCZAMY strumień WS pricing — emit fx-spot.stream-pause
+ *      b) CZYŚCIMY pola pricing (spotRate, refRate, txRate, profitPln,
+ *         swapPoints, margins, discProfitPln) → placeholder "— tryb RFQ —"
+ *      c) Formularz NIE podstawia już danych ze strumienia
+ *   3. User klika "Wyślij zapytanie RFQ" → emit fx-spot.rfq-requested
+ *   4. rfqStatus = 'pending' — czekamy na odpowiedź serwera
+ *   5. Serwer zwraca cenę → rodzic pushuje do $ds.rfqResponse
+ *   6. rfqStatus = 'price-received' — pola pricing WYPEŁNIONE z RFQ response
+ *      (NIE ze strumienia WS — rfqPrice, rfqRefRate, rfqTxRate itd.)
+ *   7. User akceptuje → emit fx-spot.rfq-accepted (rodzic commituje z rfqPrice)
+ *      LUB odrzuca → emit fx-spot.rfq-rejected
+ *      LUB TTL wygasa → rfqStatus = 'expired'
+ *   8. Po odrzuceniu / expired:
+ *      NIE wracamy do strumienia WS (kwota nadal > limit)
+ *      Czekamy na akcję usera:
+ *        - zmniejszy kwotę → rfqMode = false, emit fx-spot.stream-resume
+ *        - ponownie wyśle RFQ → wróć do kroku 3
+ *        - anuluje → emit fx-spot.cancelled
  */
 import { inject } from '@angular/core';
 import { DraftFormStoreService, type DraftForm } from '../services/draft-form-store.service';
@@ -45,9 +57,11 @@ const FX_SPOT_FORM: Omit<DraftForm, 'createdAt' | 'updatedAt'> = {
   emits: [
     { event: 'fx-spot.params-changed', description: 'Parametry się zmieniły (pair/amount/side/date) — rodzic aktualizuje websocket pricing stream' },
     { event: 'fx-spot.submitted', description: 'Transakcja zatwierdzona w trybie normalnym (kwota w limicie) — payload: pełne wartości' },
-    { event: 'fx-spot.rfq-requested', description: 'Kwota > limit → wyślij zapytanie RFQ do serwera z parametrami (pair, side, amount, date). Rodzic robi fetch → czeka na odpowiedź → pushuje do rfqResponse' },
-    { event: 'fx-spot.rfq-accepted', description: 'Dealer zaakceptował cenę z RFQ — payload: wartości + rfqPrice. Rodzic commituje transakcję.' },
-    { event: 'fx-spot.rfq-rejected', description: 'Dealer odrzucił cenę z RFQ — wraca do edycji parametrów' },
+    { event: 'fx-spot.stream-pause', description: 'Wejście w tryb RFQ — rodzic ROZŁĄCZA websocket pricing stream. Pola pricing wyczyszczone.' },
+    { event: 'fx-spot.stream-resume', description: 'Wyjście z RFQ (user zmniejszył kwotę < limit) — rodzic WZNAWIA websocket stream' },
+    { event: 'fx-spot.rfq-requested', description: 'Wyślij zapytanie RFQ (pair, side, amount, date, client). Rodzic fetch → czeka → pushuje do rfqResponse' },
+    { event: 'fx-spot.rfq-accepted', description: 'User zaakceptował cenę z RFQ. Rodzic commituje transakcję z rfqPrice.' },
+    { event: 'fx-spot.rfq-rejected', description: 'User odrzucił cenę z RFQ. NIE wracamy do WS. Czekamy: ponowny RFQ / zmiana kwoty / anulowanie.' },
     { event: 'fx-spot.cancelled', description: 'User anulował transakcję' },
   ],
 
@@ -147,10 +161,19 @@ const FX_SPOT_FORM: Omit<DraftForm, 'createdAt' | 'updatedAt'> = {
       width: 3,
       actions: {
         onChange: [{ emit: 'fx-spot.params-changed' }],
-        onBlur: [{ emit: 'fx-spot.params-changed' }],
-        // Rodzic na fx-spot.params-changed sprawdza limit i jeśli amount > limit
-        // emituje fx-spot.rfq-requested. Alternatywnie: formularz sam to robi
-        // (wymaga dostępu do $ds.clientLimits — requires).
+        onBlur: [
+          { emit: 'fx-spot.params-changed' },
+          // Rodzic na params-changed: sprawdza limit.
+          //   amount > limit && !rfqMode → {
+          //     setDatasource rfqMode true,
+          //     emit fx-spot.stream-pause (rozłącz WS),
+          //     clear pricing fields
+          //   }
+          //   amount <= limit && rfqMode → {
+          //     setDatasource rfqMode false,
+          //     emit fx-spot.stream-resume (wznów WS)
+          //   }
+        ],
       },
     },
 
@@ -264,10 +287,15 @@ const FX_SPOT_FORM: Omit<DraftForm, 'createdAt' | 'updatedAt'> = {
       id: 'rfqStatus',
       label: 'Status RFQ',
       type: 'text',
-      placeholder: 'idle / pending / price-received / accepted / rejected / expired',
+      placeholder: 'idle',
       width: 4,
-      // Readonly — computed: idle → pending (po request) → price-received (od serwera)
-      //   → accepted/rejected (po akcji usera)
+      // Readonly — stany:
+      //   idle         → RFQ jeszcze nie wysłane
+      //   pending      → czekam na cenę z serwera
+      //   price-received → cena dostępna, user decyduje
+      //   accepted     → user zaakceptował (terminal)
+      //   rejected     → user odrzucił → czekamy na akcję (NIE wracamy do WS)
+      //   expired      → TTL minął → czekamy na akcję (ponowny RFQ / zmiana kwoty)
       // Bind: $ds.rfqResponse.status
     },
     {
