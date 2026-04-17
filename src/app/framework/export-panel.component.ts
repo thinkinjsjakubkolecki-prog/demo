@@ -69,6 +69,19 @@ import { exportBundle, exportBundleAsJson, exportBundleAsTypeScript, type Export
         </div>
       }
 
+      <div class="import-section">
+        <h3>📥 Import Bundle</h3>
+        <p class="import-desc">Wczytaj JSON bundle → modele, formularze, datasources, strony trafiają do draftów.</p>
+        <div class="import-actions">
+          <input type="file" accept=".json" class="import-input" (change)="onImportFile($event)" />
+          @if (importResult()) {
+            <div class="import-result" [class.success]="importResult()!.success" [class.error]="!importResult()!.success">
+              {{ importResult()!.message }}
+            </div>
+          }
+        </div>
+      </div>
+
       @if (totalCount() === 0) {
         <div class="empty">
           Brak draftów do eksportu. Stwórz modele, formularze, datasources
@@ -103,6 +116,15 @@ import { exportBundle, exportBundleAsJson, exportBundleAsTypeScript, type Export
     .output-code { margin: 0; padding: 16px; background: #0b1120; border: 1px solid var(--ech-border, #1f2937); border-top: none; border-radius: 0 0 4px 4px; font-size: 11px; color: #d1d5db; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre; overflow: auto; max-height: 500px; }
 
     .empty { padding: 30px; text-align: center; color: var(--ech-muted, #6b7280); font-size: 13px; font-style: italic; border: 1px dashed var(--ech-border, #374151); border-radius: 4px; }
+
+    .import-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--ech-border, #1f2937); }
+    .import-section h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--ech-accent, #58a6ff); }
+    .import-desc { font-size: 12px; color: var(--ech-muted, #9ca3af); margin: 0 0 10px; }
+    .import-actions { display: flex; align-items: center; gap: 10px; }
+    .import-input { font-size: 12px; }
+    .import-result { padding: 6px 12px; border-radius: 3px; font-size: 12px; }
+    .import-result.success { background: #064e3b33; color: #6ee7b7; border: 1px solid #10b981; }
+    .import-result.error { background: #7f1d1d33; color: #fca5a5; border: 1px solid #ef4444; }
   `],
 })
 export class ExportPanelComponent {
@@ -120,6 +142,7 @@ export class ExportPanelComponent {
   readonly dsCount = computed(() => this.dsStore.all().length);
   readonly pageCount = computed(() => this.pageStore.all().length);
   readonly totalCount = computed(() => this.modelCount() + this.formCount() + this.dsCount() + this.pageCount());
+  readonly importResult = signal<{ success: boolean; message: string } | null>(null);
 
   private buildBundle(): ExportBundle {
     return exportBundle(this.modelStore, this.formStore, this.dsStore, this.pageStore);
@@ -146,6 +169,39 @@ export class ExportPanelComponent {
     a.download = `echelon-designer-export-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  onImportFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const bundle = JSON.parse(reader.result as string) as ExportBundle;
+        let count = 0;
+        if (Array.isArray(bundle.models)) {
+          for (const m of bundle.models) this.modelStore.upsert(m as never);
+          count += bundle.models.length;
+        }
+        if (Array.isArray(bundle.forms)) {
+          for (const f of bundle.forms) this.formStore.upsert(f as never);
+          count += bundle.forms.length;
+        }
+        if (Array.isArray(bundle.datasources)) {
+          for (const d of bundle.datasources) this.dsStore.upsert(d as never);
+          count += bundle.datasources.length;
+        }
+        if (Array.isArray(bundle.pages)) {
+          for (const p of bundle.pages) this.pageStore.upsert(p as never);
+          count += bundle.pages.length;
+        }
+        this.importResult.set({ success: true, message: `Zaimportowano ${count} elementów z ${bundle.exportedAt ?? '?'}` });
+      } catch (e) {
+        this.importResult.set({ success: false, message: `Błąd: ${e instanceof Error ? e.message : String(e)}` });
+      }
+    };
+    reader.readAsText(file);
   }
 
   copyToClipboard(): void {

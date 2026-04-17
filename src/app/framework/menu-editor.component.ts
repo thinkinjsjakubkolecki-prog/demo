@@ -181,11 +181,24 @@ interface DraftMenuItem {
   `],
 })
 export class MenuEditorComponent {
-  readonly items = signal<DraftMenuItem[]>(cloneMenu(initialMenu as ReadonlyArray<MenuItem>));
+  readonly items = signal<DraftMenuItem[]>(this.loadFromStorage() ?? cloneMenu(initialMenu as ReadonlyArray<MenuItem>));
   readonly selectedId = signal<string | null>(null);
   private readonly expanded = signal<Set<string>>(new Set());
   readonly exportOpen = signal(false);
   readonly copied = signal(false);
+
+  private loadFromStorage(): DraftMenuItem[] | null {
+    try {
+      const raw = window?.localStorage?.getItem('dealer-fx:menu-draft');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+
+  private persistMenu(): void {
+    try {
+      window?.localStorage?.setItem('dealer-fx:menu-draft', JSON.stringify(this.items()));
+    } catch { /* ignore */ }
+  }
 
   readonly selected = computed<DraftMenuItem | null>(() => {
     const id = this.selectedId();

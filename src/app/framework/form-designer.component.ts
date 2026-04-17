@@ -20,6 +20,8 @@ import { DraftFormStoreService, type DraftForm, type DraftFormField, type FormIn
 import { type FormIntent, type ModelFieldPolicy, resolveFieldBehavior } from './draft-form-store';
 import { DraftPageStoreService } from './designer-core';
 import { DraftModelStoreService } from './designer-core';
+import { DraftDatasourceStoreService } from './draft-datasource-store';
+import { validateSchemaCompatibility, type SchemaValidationError } from './schema-types';
 import { DraftTranslationStoreService } from './draft-translation-store';
 
 type EventAction =
@@ -192,6 +194,21 @@ function isFormWidget(type: string): boolean {
                 </div>
               }
             </div>
+
+            <!-- DESIGN-TIME VALIDATION -->
+            @if (contractValidationErrors().length > 0) {
+              <div class="validation-errors">
+                <div class="val-header">⚠ Schema Validation Errors</div>
+                @for (cv of contractValidationErrors(); track cv.contract) {
+                  <div class="val-contract">
+                    <span class="val-ds">{{ cv.contract }}</span>
+                    @for (e of cv.errors; track e.property) {
+                      <div class="val-error">{{ e.property }}: {{ e.message }}</div>
+                    }
+                  </div>
+                }
+              </div>
+            }
 
             <!-- FIELD POLICIES — overrides per intent -->
             @if (form.outputModel && resolvedBehaviors().length > 0) {
@@ -679,6 +696,12 @@ function isFormWidget(type: string): boolean {
     .btn-toggle { padding: 1px 6px; background: transparent; border: 1px solid var(--ech-border, #374151); color: var(--ech-muted, #9ca3af); border-radius: 2px; cursor: pointer; font-size: 9px; font-family: inherit; }
     .btn-toggle:hover { border-color: #f59e0b; color: #fcd34d; }
 
+    .validation-errors { background: #7f1d1d1a; border: 1px solid #ef444444; border-radius: 4px; padding: 10px; }
+    .val-header { font-size: 10px; text-transform: uppercase; color: #fca5a5; font-weight: 600; margin-bottom: 6px; }
+    .val-contract { margin-bottom: 4px; }
+    .val-ds { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: #93c5fd; font-weight: 600; }
+    .val-error { font-size: 10px; color: #fca5a5; padding: 2px 0 2px 12px; }
+
     .lookup-config { margin-top: 6px; padding: 8px; background: #0b1120; border: 1px solid #3b82f633; border-radius: 3px; display: flex; flex-direction: column; gap: 6px; }
     .lc-header { font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; color: #93c5fd; font-weight: 600; margin-bottom: 2px; }
     .lc-checks { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
@@ -705,6 +728,7 @@ export class FormDesignerComponent {
   readonly formStore = inject(DraftFormStoreService);
   private readonly pageStore = inject(DraftPageStoreService);
   readonly modelStore = inject(DraftModelStoreService);
+  private readonly dsStoreRef = inject(DraftDatasourceStoreService);
   private readonly i18n = inject(DraftTranslationStoreService, { optional: true });
 
   readonly fieldTypes = FIELD_TYPES;
@@ -745,8 +769,6 @@ export class FormDesignerComponent {
         out.push({ id: wId, title: `${p.title ?? p.id} / ${wId}`, fieldsCount: fields.length, isStandalone: false, sourceInfo: `strona: ${p.id}` });
       }
     }
-    // eslint-disable-next-line no-console
-    console.log('[form-designer] allEntries:', out.length, 'standalone:', storeForms.length, out.map((e) => e.id));
     return out;
   });
 
@@ -810,6 +832,23 @@ export class FormDesignerComponent {
   selectField(i: number): void {
     this.selectedFieldIndex.set(i);
   }
+
+  // ─── Contract Validation ───
+
+  readonly contractValidationErrors = computed<ReadonlyArray<{ contract: string; errors: ReadonlyArray<SchemaValidationError> }>>(() => {
+    const form = this.selectedForm();
+    if (!form?.inputContracts) return [];
+    const out: Array<{ contract: string; errors: ReadonlyArray<SchemaValidationError> }> = [];
+    for (const contract of form.inputContracts) {
+      const ds = this.dsStoreRef.get(contract.datasourceId);
+      if (!ds?.contract?.outputSchema) continue;
+      const errors = validateSchemaCompatibility(contract.schema, ds.contract.outputSchema);
+      if (errors.length > 0) {
+        out.push({ contract: contract.alias ?? contract.datasourceId, errors });
+      }
+    }
+    return out;
+  });
 
   // ─── Intent + Output Model ───
 

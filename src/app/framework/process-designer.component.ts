@@ -194,7 +194,7 @@ function extractProcesses(draftStore: DraftPageStoreService): ReadonlyArray<Proc
                 <div class="detail-title">{{ proc.id }}</div>
                 <div class="detail-sub">{{ proc.steps.length }} kroków · entry: <code>{{ proc.entryRoute }}</code></div>
               </div>
-              <a [href]="proc.entryRoute" target="_blank" class="btn-primary">▶ Uruchom</a>
+              <a [href]="'/draft/' + proc.steps[0]?.pageId" target="_blank" class="btn-primary">▶ Uruchom</a>
             </div>
 
             <div class="dag">
@@ -404,7 +404,7 @@ export class ProcessDesignerComponent {
           on: `${formId}.submit`,
           do: [
             { mergeDatasource: sessionKey, from: '$event' },
-            ...(nextStep ? [{ navigate: `/process/${procId}/${nextStep}` }] : []),
+            ...(nextStep ? [{ navigate: `/draft/${procId}-${nextStep}` }] : []),
           ],
         });
       } else {

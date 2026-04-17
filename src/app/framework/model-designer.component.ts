@@ -13,6 +13,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EchelonWidget } from '@echelon-framework/runtime';
 import { DraftModelStoreService, type DraftModel, type ModelField, type ModelRelation } from './designer-core';
+import { DraftDatasourceStoreService } from './draft-datasource-store';
+import { DraftFormStoreService } from './draft-form-store';
 import { DraftTranslationStoreService, generateI18nKey } from './draft-translation-store';
 import type { PropertyType } from './designer-core';
 
@@ -314,6 +316,8 @@ import type { PropertyType } from './designer-core';
 })
 export class ModelDesignerComponent {
   readonly modelStore = inject(DraftModelStoreService);
+  private readonly dsStore = inject(DraftDatasourceStoreService);
+  private readonly formStoreRef = inject(DraftFormStoreService);
   private readonly i18n = inject(DraftTranslationStoreService);
 
   readonly propTypes: ReadonlyArray<PropertyType> = ['string', 'number', 'boolean', 'object', 'array', 'date', 'any'];
@@ -372,8 +376,31 @@ export class ModelDesignerComponent {
   });
 
   readonly usedBy = computed<ReadonlyArray<{ kind: string; id: string; context: string }>>(() => {
-    // TODO: skanuj DraftDatasourceStore i DraftFormStore pod kątem referencji do tego modelu
-    return [];
+    const model = this.selectedModel();
+    if (!model) return [];
+    const out: Array<{ kind: string; id: string; context: string }> = [];
+    for (const ds of this.dsStore.all()) {
+      if (ds.contract?.outputSchema) {
+        const hasRef = Object.values(ds.contract.outputSchema).some((prop) =>
+          (prop as unknown as Record<string, unknown>)['description']?.toString().includes(model.id));
+        if (hasRef) out.push({ kind: 'DS', id: ds.id, context: `outputSchema ref ${model.id}` });
+      }
+    }
+    for (const form of this.formStoreRef.all()) {
+      if (form.outputModel === model.id) {
+        out.push({ kind: 'Form', id: form.id, context: `outputModel = ${model.id}` });
+      }
+      for (const contract of form.inputContracts ?? []) {
+        const hasRef = Object.keys(contract.schema).some((k) => model.fields.some((f) => f.id === k));
+        if (hasRef) out.push({ kind: 'Form', id: form.id, context: `inputContract schema matches ${model.id}` });
+      }
+      for (const field of form.fields) {
+        if (field.lookupConfig?.sourceModel === model.id) {
+          out.push({ kind: 'Form', id: form.id, context: `field ${field.id} lookup → ${model.id}` });
+        }
+      }
+    }
+    return out;
   });
 
   select(id: string): void { this.selectedId.set(id); }

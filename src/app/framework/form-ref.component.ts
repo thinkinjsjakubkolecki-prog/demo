@@ -12,6 +12,7 @@
  */
 import {
   computed,
+  effect,
   EventEmitter,
   inject,
   Input,
@@ -20,7 +21,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { EchelonWidget } from '@echelon-framework/runtime';
+import { EchelonWidget, DATA_BUS } from '@echelon-framework/runtime';
+import type { DataBus } from '@echelon-framework/core';
 import { DraftFormStoreService, type DraftForm, type DraftFormField } from './designer-core';
 
 @EchelonWidget({
@@ -152,6 +154,7 @@ export class FormRefComponent {
   @Output() readonly change = new EventEmitter<Record<string, unknown>>();
 
   private readonly formStore = inject(DraftFormStoreService);
+  private readonly dataBus = inject(DATA_BUS, { optional: true });
   readonly values = signal<Record<string, unknown>>({});
 
   readonly form = computed<DraftForm | null>(() => {
@@ -159,6 +162,58 @@ export class FormRefComponent {
     if (!id) return null;
     return this.formStore.get(id);
   });
+
+  constructor() {
+    effect(() => {
+      const f = this.form();
+      if (!f) return;
+      this.applyInputBindings(f);
+    });
+  }
+
+  private applyInputBindings(form: DraftForm): void {
+    if (!this.dataBus || !form.inputContracts) return;
+    for (const contract of form.inputContracts) {
+      try {
+        const ds = this.dataBus.source(contract.datasourceId as never);
+        const snapshot = ds.snapshot();
+        if (!snapshot.value || typeof snapshot.value !== 'object') continue;
+        const data = snapshot.value as Record<string, unknown>;
+        for (const field of form.fields) {
+          if (!field.inputBindings) continue;
+          const alias = contract.alias ?? contract.datasourceId;
+          for (const binding of field.inputBindings) {
+            if (binding.source !== alias && binding.source !== contract.datasourceId) continue;
+            const value = this.walkPath(data, binding.path);
+            if (value === undefined) continue;
+            switch (binding.effect) {
+              case 'initialValue':
+                this.values.update((v) => v[field.id] !== undefined ? v : { ...v, [field.id]: value });
+                break;
+              case 'options':
+                break;
+              case 'disabled':
+              case 'readOnly':
+              case 'visible':
+                break;
+              case 'label':
+              case 'placeholder':
+                break;
+            }
+          }
+        }
+      } catch { /* ds not available */ }
+    }
+  }
+
+  private walkPath(obj: unknown, path: string): unknown {
+    let cur = obj;
+    for (const key of path.split('.')) {
+      if (cur === null || cur === undefined || typeof cur !== 'object') return undefined;
+      cur = (cur as Record<string, unknown>)[key];
+    }
+    return cur;
+  }
 
   setValue(field: DraftFormField, value: unknown): void {
     this.values.update((v) => ({ ...v, [field.id]: value }));
