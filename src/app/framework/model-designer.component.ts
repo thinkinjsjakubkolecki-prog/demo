@@ -480,52 +480,69 @@ export class ModelDesignerComponent {
     return this.modelStore.all().filter((m) => m.id !== currentId);
   }
 
-  onTypeChange(i: number, f: ModelField, newType: string): void {
-    const fields = [...(this.selectedModel()?.fields ?? [])];
-    const updated: ModelField = { ...f, type: newType as PropertyType };
-    if (newType !== 'object' && newType !== 'array') {
-      delete (updated as unknown as Record<string, unknown>)['ref'];
-    }
-    if (newType !== 'string') {
-      delete (updated as unknown as Record<string, unknown>)['enumValues'];
-    }
-    fields[i] = updated;
-    this.modelStore.updateFields(this.selectedId()!, fields);
+  private freshFields(): ModelField[] {
+    const id = this.selectedId();
+    if (!id) return [];
+    const model = this.modelStore.get(id);
+    return model ? [...model.fields] : [];
   }
 
-  setFieldRef(i: number, f: ModelField, modelId: string): void {
-    const fields = [...(this.selectedModel()?.fields ?? [])];
+  onTypeChange(i: number, _f: ModelField, newType: string): void {
+    const id = this.selectedId();
+    if (!id) return;
+    const fields = this.freshFields();
+    const current = fields[i];
+    if (!current) return;
+    const updated = { ...current, type: newType as PropertyType } as Record<string, unknown>;
+    if (newType !== 'object' && newType !== 'array') delete updated['ref'];
+    if (newType !== 'string') delete updated['enumValues'];
+    fields[i] = updated as unknown as ModelField;
+    this.modelStore.updateFields(id, fields);
+  }
+
+  setFieldRef(i: number, _f: ModelField, modelId: string): void {
+    const id = this.selectedId();
+    if (!id) return;
+    const fields = this.freshFields();
+    const current = fields[i];
+    if (!current) return;
     if (!modelId) {
-      const { ref: _, ...rest } = f;
+      const { ref: _, ...rest } = current;
       fields[i] = rest as ModelField;
     } else {
-      const kind = f.type === 'array' ? '1:N' : '1:1';
-      fields[i] = { ...f, ref: { modelId, kind: f.ref?.kind ?? kind as ModelRelation['kind'] } };
+      const kind = current.type === 'array' ? '1:N' : '1:1';
+      fields[i] = { ...current, ref: { modelId, kind: current.ref?.kind ?? kind as ModelRelation['kind'] } };
     }
-    this.modelStore.updateFields(this.selectedId()!, fields);
+    this.modelStore.updateFields(id, fields);
   }
 
-  setFieldRefKind(i: number, f: ModelField, kind: string): void {
-    if (!f.ref) return;
-    const fields = [...(this.selectedModel()?.fields ?? [])];
-    fields[i] = { ...f, ref: { ...f.ref, kind: kind as ModelRelation['kind'] } };
-    this.modelStore.updateFields(this.selectedId()!, fields);
+  setFieldRefKind(i: number, _f: ModelField, kind: string): void {
+    const id = this.selectedId();
+    if (!id) return;
+    const fields = this.freshFields();
+    const current = fields[i];
+    if (!current?.ref) return;
+    fields[i] = { ...current, ref: { ...current.ref, kind: kind as ModelRelation['kind'] } };
+    this.modelStore.updateFields(id, fields);
   }
 
   setFieldEnum(i: number, value: string): void {
-    const fields = [...(this.selectedModel()?.fields ?? [])];
+    const id = this.selectedId();
+    if (!id) return;
+    const fields = this.freshFields();
+    if (!fields[i]) return;
     const vals = value.split(',').map((v) => v.trim()).filter(Boolean);
     fields[i] = { ...fields[i], enumValues: vals.length > 0 ? vals : undefined };
-    this.modelStore.updateFields(this.selectedId()!, fields);
+    this.modelStore.updateFields(id, fields);
   }
 
   updateFieldProp(i: number, key: string, value: unknown): void {
-    const model = this.selectedModel();
-    if (!model) return;
-    const fields = [...model.fields];
-    const f = { ...fields[i], [key]: value === '' ? undefined : value } as ModelField;
-    fields[i] = f;
-    this.modelStore.updateFields(model.id, fields);
+    const id = this.selectedId();
+    if (!id) return;
+    const fields = this.freshFields();
+    if (!fields[i]) return;
+    fields[i] = { ...fields[i], [key]: value === '' ? undefined : value } as ModelField;
+    this.modelStore.updateFields(id, fields);
   }
 
   fieldExtra(f: ModelField): string {
