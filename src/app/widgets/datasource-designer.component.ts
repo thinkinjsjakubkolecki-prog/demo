@@ -22,6 +22,8 @@ import { EchelonWidget, DATA_BUS } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { DataBus, PageConfig, DatasourceConfig } from '@echelon-framework/core';
 import { DraftPageStoreService } from '../services/draft-page-store.service';
+import { DraftModelStoreService } from '../services/draft-model-store.service';
+import type { Schema } from '../services/schema-types';
 
 interface DraftDsForm {
   targetPageId: string;
@@ -163,6 +165,28 @@ interface DsEntry {
                     <div class="empty-inline">Niewykorzystany — żaden widget nie bindi się do tego ds</div>
                   }
                 </div>
+              </div>
+
+              <div class="detail-block schema-block">
+                <div class="block-header">
+                  📐 Output Schema (typ danych na wyjściu)
+                </div>
+                <div class="schema-source">
+                  <label class="field">
+                    <span class="field-label">Źródło schematu</span>
+                    <select [ngModel]="selectedOutputModelId()" (ngModelChange)="setOutputModel(sel, $event)">
+                      <option value="">— brak (ręczny) —</option>
+                      @for (m of modelStore.all(); track m.id) {
+                        <option [value]="m.id">🧩 {{ m.id }} — {{ m.title }} ({{ m.fields.length }} pól)</option>
+                      }
+                    </select>
+                  </label>
+                </div>
+                @if (outputSchemaPreview(); as preview) {
+                  <pre class="block-code schema-code">{{ preview }}</pre>
+                } @else {
+                  <div class="empty-inline">Wybierz model żeby DS deklarował kształt danych na wyjściu.</div>
+                }
               </div>
             </div>
           } @else {
@@ -329,10 +353,16 @@ interface DsEntry {
     .field input, .field select, .field textarea { padding: 6px 10px; background: var(--panel-alt, #1f2937); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 12px; font-family: inherit; }
     .field textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
     .error-box { padding: 8px 10px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fecaca; border-radius: 3px; font-size: 11px; }
+
+    .schema-block { border-color: #8b5cf633; }
+    .schema-source { margin-bottom: 8px; }
+    .schema-source select { width: 100%; padding: 6px 10px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 3px; font-size: 12px; font-family: inherit; }
+    .schema-code { color: #c4b5fd; }
   `],
 })
 export class DatasourceDesignerComponent {
   readonly draftStore = inject(DraftPageStoreService);
+  readonly modelStore = inject(DraftModelStoreService);
   private readonly dataBus = inject(DATA_BUS, { optional: true }) as DataBus | null;
   private readonly destroyRef = inject(DestroyRef);
 
@@ -432,6 +462,34 @@ export class DatasourceDesignerComponent {
     if (v === undefined) return '(brak snapshotu — kliknij Test)';
     try { return JSON.stringify(v, null, 2); } catch { return String(v); }
   });
+
+  readonly selectedOutputModelId = signal<string>('');
+
+  readonly outputSchemaPreview = computed<string | null>(() => {
+    const modelId = this.selectedOutputModelId();
+    if (!modelId) return null;
+    const schema = this.modelStore.toSchema(modelId);
+    if (!schema) return null;
+    const lines: string[] = [];
+    for (const [k, v] of Object.entries(schema)) {
+      const req = v.required ? '' : '?';
+      lines.push(`  ${k}${req}: ${v.type}${v.description ? `  // ${v.description}` : ''}`);
+    }
+    return `{\n${lines.join('\n')}\n}`;
+  });
+
+  setOutputModel(sel: DsEntry, modelId: string): void {
+    this.selectedOutputModelId.set(modelId);
+    if (!sel.isDraft) return;
+    const draft = this.draftStore.get(sel.pageId);
+    if (!draft) return;
+    const ds = draft.config.page.datasources ?? {};
+    const current = ds[sel.id] ?? {};
+    const updated = { ...current, outputModel: modelId || undefined };
+    const nextDs = { ...ds, [sel.id]: updated };
+    const nextConfig = { ...draft.config, page: { ...draft.config.page, datasources: nextDs } };
+    this.draftStore.update(draft.id, nextConfig as typeof draft.config);
+  }
 
   byKind(kind: string): number {
     return this.allDatasources().filter((d) => d.kind === kind).length;

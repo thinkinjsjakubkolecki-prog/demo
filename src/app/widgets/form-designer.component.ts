@@ -18,6 +18,7 @@ import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
 import { DraftFormStoreService, type DraftForm, type DraftFormField, type FormInputContract, type InputProperty, type PropertyType } from '../services/draft-form-store.service';
 import { DraftPageStoreService } from '../services/draft-page-store.service';
+import { DraftModelStoreService } from '../services/draft-model-store.service';
 
 type EventAction =
   | { readonly emit: string; readonly payload?: string | Record<string, unknown> }
@@ -167,6 +168,12 @@ function isFormWidget(type: string): boolean {
                         <div class="ic-schema">
                           <div class="ic-schema-header">
                             <span>Schema — oczekiwany kształt danych</span>
+                            <select class="model-picker" (change)="fillSchemaFromModel(ci, $any($event.target).value); $any($event.target).value = ''">
+                              <option value="">📥 Wypełnij z modelu...</option>
+                              @for (m of modelStore.all(); track m.id) {
+                                <option [value]="m.id">🧩 {{ m.id }} ({{ m.fields.length }} pól)</option>
+                              }
+                            </select>
                             <button type="button" class="btn-add-mini" (click)="addSchemaProperty(ci)">+ property</button>
                           </div>
                           <div class="schema-table">
@@ -456,6 +463,7 @@ function isFormWidget(type: string): boolean {
     .schema-row.header { font-size: 9px; text-transform: uppercase; letter-spacing: 0.2px; color: var(--muted, #6b7280); font-weight: 600; padding: 2px 4px; }
     .schema-row input[type=text], .schema-row select { padding: 3px 5px; background: var(--panel, #0f172a); border: 1px solid var(--border, #374151); color: var(--fg, #e5e7eb); border-radius: 2px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .schema-row input[type=checkbox] { width: 14px; height: 14px; justify-self: center; }
+    .model-picker { padding: 2px 6px; background: #1e3a5f; border: 1px solid #3b82f6; color: #93c5fd; border-radius: 2px; font-size: 9px; cursor: pointer; font-family: inherit; letter-spacing: 0; text-transform: none; }
     .btn-add-mini { margin-left: auto; background: #064e3b; border: 1px solid #10b981; color: #d1fae5; padding: 1px 8px; border-radius: 2px; cursor: pointer; font-size: 10px; font-family: inherit; letter-spacing: 0; text-transform: none; }
     .btn-add-mini:hover { background: #065f46; }
     .btn-rm-mini { background: transparent; border: 1px solid #7f1d1d66; color: #fca5a5; border-radius: 2px; font-size: 10px; cursor: pointer; padding: 2px 6px; font-family: inherit; width: 24px; flex-shrink: 0; }
@@ -537,6 +545,7 @@ function isFormWidget(type: string): boolean {
 export class FormDesignerComponent {
   readonly formStore = inject(DraftFormStoreService);
   private readonly pageStore = inject(DraftPageStoreService);
+  readonly modelStore = inject(DraftModelStoreService);
 
   readonly fieldTypes = FIELD_TYPES;
   readonly actionPhases = ['onChange', 'onBlur', 'onFocus'] as const;
@@ -766,6 +775,17 @@ export class FormDesignerComponent {
     if (!f?.inputContracts) return;
     const contracts = [...f.inputContracts];
     contracts[ci] = { ...contracts[ci], [key]: value || undefined };
+    this.formStore.updateContracts(f.id, contracts);
+  }
+
+  fillSchemaFromModel(ci: number, modelId: string): void {
+    if (!modelId) return;
+    const schema = this.modelStore.toSchema(modelId);
+    if (!schema) return;
+    const f = this.selectedForm();
+    if (!f?.inputContracts) return;
+    const contracts = [...f.inputContracts];
+    contracts[ci] = { ...contracts[ci], schema: { ...contracts[ci].schema, ...schema } };
     this.formStore.updateContracts(f.id, contracts);
   }
 
