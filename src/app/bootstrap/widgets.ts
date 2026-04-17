@@ -37,6 +37,7 @@ import { AdvancedFormComponent } from '../widgets/advanced-form.component';
 import { ProcessDesignerComponent } from '../widgets/process-designer.component';
 import { ProcessSummaryComponent } from '../widgets/process-summary.component';
 import { FxSpotDealComponent } from '../widgets/fx-spot-deal.component';
+import { FormRefComponent } from '../widgets/form-ref.component';
 
 export const widgets = [
   // Generic — framework
@@ -71,4 +72,6 @@ export const widgets = [
   ProcessSummaryComponent,
   // FX Spot Deal — formularz transakcji z live pricing + RFQ flow
   FxSpotDealComponent,
+  // form-ref — osadza standalone formularz z DraftFormStore przez referencję
+  FormRefComponent,
 ];

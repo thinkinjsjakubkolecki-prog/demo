@@ -169,6 +169,29 @@ function isFormWidget(type: string): boolean {
               </div>
             </div>
 
+            <!-- GDZIE OSADZONY -->
+            @if (usages().length > 0) {
+              <div class="usages-section">
+                <div class="usages-header">📌 Osadzony na stronach ({{ usages().length }})</div>
+                @for (u of usages(); track u.pageId + u.widgetId) {
+                  <div class="usage-row">
+                    <span class="usage-page">{{ u.pageTitle }}</span>
+                    <span class="usage-arrow">→</span>
+                    <span class="usage-widget">{{ u.widgetId }}</span>
+                    <a class="usage-link" [href]="u.route" target="_blank" title="Otwórz stronę">↗</a>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="usages-section empty-usage">
+                <div class="usages-header">📌 Gdzie osadzony</div>
+                <div class="usage-empty">
+                  Formularz nie jest osadzony na żadnej stronie.
+                  Użyj widget <code>form-ref</code> z <code>formId: '{{ form.id }}'</code> żeby go osadzić.
+                </div>
+              </div>
+            }
+
             <!-- 3-COL EDITOR -->
             <div class="edit-mode">
               <div class="col-fields">
@@ -434,6 +457,18 @@ function isFormWidget(type: string): boolean {
     .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border, #1f2937); }
     .error-box { padding: 8px 10px; background: #7f1d1d33; border: 1px solid #ef4444; color: #fecaca; border-radius: 3px; font-size: 11px; }
 
+    .usages-section { background: var(--panel-alt, #111827); border: 1px solid var(--border, #1f2937); border-radius: 4px; padding: 10px; }
+    .usages-section.empty-usage { border-style: dashed; border-color: #374151; }
+    .usages-header { font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--muted, #9ca3af); font-weight: 600; margin-bottom: 6px; }
+    .usage-row { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: #0b1120; border-radius: 3px; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-bottom: 2px; }
+    .usage-page { color: var(--muted, #9ca3af); }
+    .usage-arrow { color: var(--muted, #6b7280); }
+    .usage-widget { color: #93c5fd; }
+    .usage-link { color: #60a5fa; text-decoration: none; margin-left: auto; font-size: 13px; }
+    .usage-link:hover { text-decoration: underline; }
+    .usage-empty { font-size: 11px; color: var(--muted, #6b7280); font-style: italic; line-height: 1.5; }
+    .usage-empty code { background: #0b1120; padding: 1px 4px; border-radius: 2px; color: #93c5fd; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; font-style: normal; }
+
     .detail-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--muted, #9ca3af); padding: 40px; text-align: center; }
     .empty-icon { font-size: 48px; opacity: 0.4; }
     .empty-title { font-size: 16px; font-weight: 600; color: var(--fg, #e5e7eb); }
@@ -487,6 +522,39 @@ export class FormDesignerComponent {
     const q = this.filter().trim().toLowerCase();
     if (!q) return this.allEntries();
     return this.allEntries().filter((e) => e.id.toLowerCase().includes(q) || e.title.toLowerCase().includes(q));
+  });
+
+  readonly usages = computed<ReadonlyArray<{ pageId: string; pageTitle: string; widgetId: string; route: string }>>(() => {
+    const form = this.selectedForm();
+    if (!form) return [];
+    const out: Array<{ pageId: string; pageTitle: string; widgetId: string; route: string }> = [];
+
+    const scan = (pageId: string, pageTitle: string, route: string, widgets: Record<string, unknown>): void => {
+      for (const [wId, w] of Object.entries(widgets ?? {})) {
+        const wAny = w as { type?: string; options?: { formId?: string } };
+        if (wAny.type === 'form-ref' && wAny.options?.formId === form.id) {
+          out.push({ pageId, pageTitle, widgetId: wId, route });
+        }
+        if (wAny.type === 'advanced-form' || wAny.type === 'validated-form') {
+          const opts = (w as { options?: { formId?: string } }).options;
+          if (opts?.formId === form.id) {
+            out.push({ pageId, pageTitle, widgetId: wId, route });
+          }
+        }
+      }
+    };
+
+    const classes = getRegisteredPageClasses() as Array<{ config?: PageConfig; __echelonPageMeta?: { route?: string } }>;
+    for (const cls of classes) {
+      const p = cls.config?.page;
+      if (!p) continue;
+      scan(p.id, p.title ?? p.id, cls.__echelonPageMeta?.route ?? '', (p.widgets ?? {}) as Record<string, unknown>);
+    }
+    for (const d of this.pageStore.all()) {
+      scan(d.id, d.title, d.route, (d.config.page.widgets ?? {}) as Record<string, unknown>);
+    }
+
+    return out;
   });
 
   readonly selectedForm = computed<DraftForm | null>(() => {

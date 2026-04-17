@@ -15,8 +15,7 @@ export function seedDesigners(
   seedFxSpotPage(pageStore);
   seedFxSpotForm(formStore);
   seedFxSpotDealForm(formStore);
-  // eslint-disable-next-line no-console
-  console.log('[seed-designers] forms in store:', formStore.all().map((f) => f.id));
+  seedFxSpotFormPage(pageStore);
 }
 
 function seedFxSpotPage(store: DraftPageStoreService): void {
@@ -184,5 +183,57 @@ function seedFxSpotDealForm(store: DraftFormStoreService): void {
       { id: 'marginPips', label: 'Marża (pips)', type: 'number', width: 6 },
       { id: 'dealType', label: 'Typ (computed z daty)', type: 'text', width: 6 },
     ],
+  });
+}
+
+function seedFxSpotFormPage(store: DraftPageStoreService): void {
+  if (store.get('fx-spot-form-page')) return;
+
+  const config: PageConfig = {
+    $schemaVersion: '2026.04-alpha' as PageConfig['$schemaVersion'],
+    page: {
+      id: 'fx-spot-form-page',
+      title: 'FX Spot — Formularz (form-ref)',
+      datasources: {
+        clientsList: {},
+        spotUsdPln: {},
+        selectedClient: { kind: 'local', initial: null },
+      },
+      layout: {
+        type: 'grid',
+        cols: 12,
+        items: [
+          { widget: 'title', x: 0, y: 0, w: 12 },
+          { widget: 'clients', x: 0, y: 1, w: 3, h: 10 },
+          { widget: 'txForm', x: 3, y: 1, w: 9, h: 10 },
+        ],
+      },
+      widgets: {
+        title: {
+          type: 'page-title',
+          options: { title: 'FX Spot — via form-ref', subtitle: 'Standalone formularz osadzony przez referencję' },
+        },
+        clients: {
+          type: 'client-list',
+          bind: { clients: 'clientsList' },
+        },
+        txForm: {
+          type: 'form-ref',
+          options: { formId: 'fx-spot-transaction' },
+        },
+      },
+      eventHandlers: [
+        { on: 'clients.select', do: [{ setDatasource: 'selectedClient', from: '$event' }] },
+        { on: 'txForm.submit', do: [{ emit: 'fx.spot.form-ref.submitted', payload: '$event' }] },
+      ],
+    } as PageConfig['page'],
+  };
+
+  store.upsert({
+    id: 'fx-spot-form-page',
+    title: 'FX Spot — Formularz (form-ref)',
+    route: '/fx-spot-form',
+    config,
+    className: 'FxSpotFormPage',
   });
 }
