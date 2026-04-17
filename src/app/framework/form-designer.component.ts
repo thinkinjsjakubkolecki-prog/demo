@@ -40,6 +40,7 @@ const FIELD_TYPES = [
   'string', 'text', 'number', 'decimal', 'integer',
   'boolean', 'checkbox', 'select', 'textarea',
   'date', 'datetime', 'email', 'password', 'url',
+  'lookup',
 ] as const;
 
 function isFormWidget(type: string): boolean {
@@ -405,6 +406,57 @@ function isFormWidget(type: string): boolean {
                         <input type="text" [ngModel]="field.pattern ?? ''" (ngModelChange)="updateField('pattern', $event)" /></label>
                     }
 
+                    @if (field.type === 'lookup') {
+                      <div class="lookup-config">
+                        <div class="lc-header">🔍 Lookup Config</div>
+                        <label class="field"><span class="field-label">Source Model</span>
+                          <select [ngModel]="field.lookupConfig?.sourceModel ?? ''" (ngModelChange)="updateLookupField('sourceModel', $event)">
+                            <option value="">— wybierz model —</option>
+                            @for (m of modelStore.all(); track m.id) {
+                              <option [value]="m.id">🧩 {{ m.id }} ({{ m.fields.length }} pól)</option>
+                            }
+                          </select>
+                        </label>
+                        @if (field.lookupConfig?.sourceModel) {
+                          <label class="field"><span class="field-label">Value Field (zwracana wartość)</span>
+                            <select [ngModel]="field.lookupConfig?.valueField ?? 'id'" (ngModelChange)="updateLookupField('valueField', $event)">
+                              @for (mf of lookupModelFields(); track mf.id) {
+                                <option [value]="mf.id">{{ mf.id }} ({{ mf.type }})</option>
+                              }
+                            </select>
+                          </label>
+                          <div class="field"><span class="field-label">Display Fields (co widzi user)</span>
+                            <div class="lc-checks">
+                              @for (mf of lookupModelFields(); track mf.id) {
+                                <label class="check">
+                                  <input type="checkbox" [checked]="isLookupDisplayField(mf.id)" (change)="toggleLookupDisplayField(mf.id)" />
+                                  <span>{{ mf.id }}</span>
+                                </label>
+                              }
+                            </div>
+                          </div>
+                          <label class="field"><span class="field-label">Search Field</span>
+                            <select [ngModel]="field.lookupConfig?.searchField ?? ''" (ngModelChange)="updateLookupField('searchField', $event)">
+                              @for (mf of lookupModelFields(); track mf.id) {
+                                @if (mf.type === 'string') {
+                                  <option [value]="mf.id">{{ mf.id }}</option>
+                                }
+                              }
+                            </select>
+                          </label>
+                          <div class="field-row">
+                            <label class="check"><input type="checkbox" [ngModel]="!!field.lookupConfig?.multi" (ngModelChange)="updateLookupField('multi', $event)" /> Multi-select</label>
+                          </div>
+                          <div class="field-row two">
+                            <label class="field"><span class="field-label">Min search</span>
+                              <input type="number" min="0" max="10" [ngModel]="field.lookupConfig?.minSearchLength ?? 1" (ngModelChange)="updateLookupField('minSearchLength', +$event)" /></label>
+                            <label class="field"><span class="field-label">Max results</span>
+                              <input type="number" min="1" max="100" [ngModel]="field.lookupConfig?.maxResults ?? 20" (ngModelChange)="updateLookupField('maxResults', +$event)" /></label>
+                          </div>
+                        }
+                      </div>
+                    }
+
                     <!-- Field-level actions -->
                     <div class="actions-editor">
                       @for (phase of actionPhases; track phase) {
@@ -622,6 +674,10 @@ function isFormWidget(type: string): boolean {
     .pol-bool.on { color: #6ee7b7; }
     .btn-toggle { padding: 1px 6px; background: transparent; border: 1px solid var(--ech-border, #374151); color: var(--ech-muted, #9ca3af); border-radius: 2px; cursor: pointer; font-size: 9px; font-family: inherit; }
     .btn-toggle:hover { border-color: #f59e0b; color: #fcd34d; }
+
+    .lookup-config { margin-top: 6px; padding: 8px; background: #0b1120; border: 1px solid #3b82f633; border-radius: 3px; display: flex; flex-direction: column; gap: 6px; }
+    .lc-header { font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; color: #93c5fd; font-weight: 600; margin-bottom: 2px; }
+    .lc-checks { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
 
     .usages-section { background: var(--ech-panel-alt, #111827); border: 1px solid var(--ech-border, #1f2937); border-radius: 4px; padding: 10px; }
     .usages-section.empty-usage { border-style: dashed; border-color: #374151; }
@@ -863,6 +919,50 @@ export class FormDesignerComponent {
         this.i18n.ensureKey(`form.${form.id}.${mf.id}.label`, mf.label ?? mf.id, 'form');
       }
     }
+  }
+
+  // ─── Lookup config ───
+
+  readonly lookupModelFields = computed(() => {
+    const form = this.selectedForm();
+    const idx = this.selectedFieldIndex();
+    if (!form || idx === null) return [];
+    const field = form.fields[idx];
+    if (!field?.lookupConfig?.sourceModel) return [];
+    const model = this.modelStore.get(field.lookupConfig.sourceModel);
+    return model?.fields ?? [];
+  });
+
+  isLookupDisplayField(fieldId: string): boolean {
+    const form = this.selectedForm();
+    const idx = this.selectedFieldIndex();
+    if (!form || idx === null) return false;
+    return form.fields[idx]?.lookupConfig?.displayFields?.includes(fieldId) ?? false;
+  }
+
+  toggleLookupDisplayField(fieldId: string): void {
+    const form = this.selectedForm();
+    const idx = this.selectedFieldIndex();
+    if (!form || idx === null) return;
+    const field = form.fields[idx];
+    if (!field?.lookupConfig) return;
+    const current = [...(field.lookupConfig.displayFields ?? [])];
+    const i = current.indexOf(fieldId);
+    if (i >= 0) current.splice(i, 1);
+    else current.push(fieldId);
+    this.updateLookupField('displayFields', current);
+  }
+
+  updateLookupField(key: string, value: unknown): void {
+    const form = this.selectedForm();
+    const idx = this.selectedFieldIndex();
+    if (!form || idx === null) return;
+    const fields = [...form.fields];
+    const field = fields[idx];
+    if (!field) return;
+    const config = { ...(field.lookupConfig ?? { sourceModel: '', valueField: 'id', displayFields: [] }), [key]: value };
+    fields[idx] = { ...field, lookupConfig: config };
+    this.formStore.updateFields(form.id, fields);
   }
 
   private guessDisplayFields(modelId: string): string[] {
