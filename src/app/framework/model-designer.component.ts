@@ -137,34 +137,36 @@ import type { PropertyType } from './designer-core';
                 </div>
                 @for (f of model.fields; track f.id; let i = $index) {
                   <div class="ft-row" [class.pk]="f.primaryKey" [class.has-ref]="!!f.ref">
-                    <input type="text" [value]="f.id" (change)="updateFieldProp(i, 'id', $any($event.target).value)" />
-                    <input type="text" [value]="f.label ?? ''" (change)="updateFieldProp(i, 'label', $any($event.target).value)" />
+                    <input type="text" [ngModel]="f.id" (ngModelChange)="updateFieldProp(i, 'id', $event)" />
+                    <input type="text" [ngModel]="f.label ?? ''" (ngModelChange)="updateFieldProp(i, 'label', $event)" />
                     <span class="cell-i18n" [class.missing]="!i18n.get(i18nKeyFor(model.id, f.id))" [title]="i18nKeyFor(model.id, f.id)">
                       {{ i18nKeyFor(model.id, f.id) }}
                       @if (i18n.get(i18nKeyFor(model.id, f.id))) { <span class="i18n-ok">✓</span> }
                       @else { <span class="i18n-miss">!</span> }
                     </span>
-                    <select [value]="f.type" (change)="onTypeChange(i, f, $any($event.target).value)">
+                    <select [ngModel]="f.type" (ngModelChange)="onTypeChange(i, f, $event)">
                       @for (t of propTypes; track t) { <option [value]="t">{{ t }}</option> }
                     </select>
-                    <input type="checkbox" [checked]="!!f.primaryKey" (change)="updateFieldProp(i, 'primaryKey', $any($event.target).checked)" />
-                    <input type="checkbox" [checked]="!!f.required" (change)="updateFieldProp(i, 'required', $any($event.target).checked)" />
-                    <input type="checkbox" [checked]="!!f.serverManaged" (change)="updateFieldProp(i, 'serverManaged', $any($event.target).checked)" title="Server-managed (auto)" />
+                    <input type="checkbox" [ngModel]="!!f.primaryKey" (ngModelChange)="updateFieldProp(i, 'primaryKey', $event)" />
+                    <input type="checkbox" [ngModel]="!!f.required" (ngModelChange)="updateFieldProp(i, 'required', $event)" />
+                    <input type="checkbox" [ngModel]="!!f.serverManaged" (ngModelChange)="updateFieldProp(i, 'serverManaged', $event)" title="Server-managed (auto)" />
                     <div class="ref-cell">
                       @if (f.type === 'object' || f.type === 'array') {
-                        <select [value]="f.ref?.modelId ?? ''" (change)="setFieldRef(i, f, $any($event.target).value)" class="ref-select">
-                          <option value="">— model —</option>
+                        <select [ngModel]="f.ref?.modelId ?? ''" (ngModelChange)="setFieldRef(i, f, $event)" class="ref-select">
+                          <option value="">— brak (prymityw) —</option>
                           @for (m of otherModels(model.id); track m.id) {
                             <option [value]="m.id">🧩 {{ m.id }}</option>
                           }
                         </select>
                         @if (f.ref) {
-                          <select [value]="f.ref.kind" (change)="setFieldRefKind(i, f, $any($event.target).value)" class="kind-select">
+                          <select [ngModel]="f.ref.kind" (ngModelChange)="setFieldRefKind(i, f, $event)" class="kind-select">
                             <option value="1:1">1:1</option>
                             <option value="1:N">1:N</option>
                             <option value="N:1">N:1</option>
                             <option value="N:M">N:M</option>
                           </select>
+                        } @else if (f.type === 'array') {
+                          <span class="prim-hint">{{ f.type }}[]</span>
                         }
                       } @else if (f.type === 'string') {
                         <input type="text" [value]="(f.enumValues ?? []).join(', ')" (change)="setFieldEnum(i, $any($event.target).value)" placeholder="enum: val1, val2" class="enum-input" />
@@ -281,6 +283,7 @@ import type { PropertyType } from './designer-core';
     .kind-select { width: 50px; padding: 3px 2px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 2px; font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .enum-input { width: 100%; padding: 3px 5px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: #6ee7b7; border-radius: 2px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .no-ref { color: var(--ech-muted, #4b5563); font-size: 10px; }
+    .prim-hint { font-size: 9px; color: var(--ech-muted, #6b7280); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .ft-row input[type=text], .ft-row select { padding: 3px 5px; background: var(--ech-panel, #0f172a); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: 2px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .ft-row input[type=checkbox] { width: 14px; height: 14px; justify-self: center; }
     .ft-actions { display: flex; gap: 2px; }
