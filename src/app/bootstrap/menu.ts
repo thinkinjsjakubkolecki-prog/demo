@@ -26,6 +26,7 @@ export const menu = defineMenu([
       { id: 'menu-editor',   label: 'Menu Editor',            icon: '🧭', route: '/menu-editor' },
       { id: 'business-flow', label: 'Business Flow (realne)', icon: '🎯', route: '/business-flow' },
       { id: 'process-flow',  label: 'Process Flow (technical)', icon: '🔀', route: '/process-flow' },
+      { id: 'model-designer', label: 'Model Designer',         icon: '🧩', route: '/designer/models' },
       { id: 'proc-designer', label: 'Process Designer',       icon: '🔄', route: '/designer/processes' },
   ] },
 

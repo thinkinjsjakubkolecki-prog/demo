@@ -28,6 +28,7 @@ import '../pages/menu-editor.page';
 import '../pages/datasources-designer.page';
 import '../pages/forms-designer.page';
 import '../pages/process-designer.page';
+import '../pages/model-designer.page';
 
 export const { pages, routes, declarations } = collectRegisteredPages({
   component: EchelonPageRouterComponent,

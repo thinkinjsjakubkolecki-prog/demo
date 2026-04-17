@@ -36,6 +36,7 @@ import { FormDesignerComponent } from '../widgets/form-designer.component';
 import { AdvancedFormComponent } from '../widgets/advanced-form.component';
 import { ProcessDesignerComponent } from '../widgets/process-designer.component';
 import { FormRefComponent } from '../widgets/form-ref.component';
+import { ModelDesignerComponent } from '../widgets/model-designer.component';
 
 export const widgets = [
   // Generic — framework
@@ -68,4 +69,6 @@ export const widgets = [
   ProcessDesignerComponent,
   // form-ref — osadza standalone formularz z DraftFormStore przez referencję
   FormRefComponent,
+  // Model Designer — kreator modeli danych (pola, typy, relacje)
+  ModelDesignerComponent,
 ];
