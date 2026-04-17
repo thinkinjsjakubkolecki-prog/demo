@@ -12,8 +12,8 @@ import { computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EchelonWidget } from '@echelon-framework/runtime';
-import { DraftModelStoreService, type DraftModel, type ModelField, type ModelRelation } from '../services/draft-model-store.service';
-import type { PropertyType } from '../services/schema-types';
+import { DraftModelStoreService, type DraftModel, type ModelField, type ModelRelation } from './designer-core';
+import type { PropertyType } from './designer-core';
 
 @EchelonWidget({
   manifest: {

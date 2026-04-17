@@ -1,18 +1,12 @@
 /// <reference types="vite/client" />
 /**
- * Discovery stron — ładujemy wszystkie pliki `pages/*.page.ts` żeby
- * `@Page(...)` zdążyło się wykonać i zarejestrować strony przed
- * `collectRegisteredPages()`.
- *
- * Próbujemy najpierw `import.meta.glob` (Vite). Jeśli build nie obsługuje
- * (różne wersje @angular/build), fallback to explicit imports niżej —
- * apka i tak musi je dodać raz, ale auto-rejestracja działa.
+ * Discovery stron — biznesowe z apki + designery z frameworka.
  */
 import { collectRegisteredPages } from '@echelon-framework/page-builders';
 import { EchelonPageRouterComponent } from '@echelon-framework/runtime';
 import { EchelonDetailShellComponent } from '@echelon-framework/widgets-core';
 
-// Explicit side-effect imports (fallback). Każdy import → @Page() runs → REGISTRY filled.
+// Biznesowe strony apki
 import '../pages/clients-admin.page';
 import '../pages/client-profile.page';
 import '../pages/dashboard.page';
@@ -23,12 +17,15 @@ import '../pages/client-fx.page';
 import '../pages/new-transaction.page';
 import '../pages/process-flow.page';
 import '../pages/business-flow.page';
-import '../pages/designer.page';
-import '../pages/menu-editor.page';
-import '../pages/datasources-designer.page';
-import '../pages/forms-designer.page';
-import '../pages/process-designer.page';
-import '../pages/model-designer.page';
+
+// Strony designerów — z frameworka (side-effect import rejestruje @Page)
+import '../framework/designer.page';
+import '../framework/menu-editor.page';
+import '../framework/datasources-designer.page';
+import '../framework/forms-designer.page';
+import '../framework/process-designer.page';
+import '../framework/model-designer.page';
+import '../framework/export.page';
 
 export const { pages, routes, declarations } = collectRegisteredPages({
   component: EchelonPageRouterComponent,

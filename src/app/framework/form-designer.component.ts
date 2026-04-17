@@ -16,9 +16,9 @@ import { FormsModule } from '@angular/forms';
 import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
-import { DraftFormStoreService, type DraftForm, type DraftFormField, type FormInputContract, type InputProperty, type PropertyType } from '../services/draft-form-store.service';
-import { DraftPageStoreService } from '../services/draft-page-store.service';
-import { DraftModelStoreService } from '../services/draft-model-store.service';
+import { DraftFormStoreService, type DraftForm, type DraftFormField, type FormInputContract, type InputProperty, type PropertyType } from './designer-core';
+import { DraftPageStoreService } from './designer-core';
+import { DraftModelStoreService } from './designer-core';
 
 type EventAction =
   | { readonly emit: string; readonly payload?: string | Record<string, unknown> }

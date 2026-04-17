@@ -11,7 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
-import { DraftPageStoreService } from '../services/draft-page-store.service';
+import { DraftPageStoreService } from './designer-core';
 
 interface ProcessInfo {
   readonly id: string;

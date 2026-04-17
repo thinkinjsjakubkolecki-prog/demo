@@ -21,10 +21,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EchelonWidget, DATA_BUS } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { DataBus, PageConfig, DatasourceConfig } from '@echelon-framework/core';
-import { DraftPageStoreService } from '../services/draft-page-store.service';
-import { DraftDatasourceStoreService, type DraftDatasource } from '../services/draft-datasource-store.service';
-import { DraftModelStoreService } from '../services/draft-model-store.service';
-import type { Schema } from '../services/schema-types';
+import { DraftPageStoreService } from './designer-core';
+import { DraftDatasourceStoreService, type DraftDatasource } from './designer-core';
+import { DraftModelStoreService } from './designer-core';
+import type { Schema } from './designer-core';
 
 interface DsEntry {
   readonly id: string;

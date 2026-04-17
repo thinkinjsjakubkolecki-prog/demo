@@ -14,7 +14,11 @@
     "importHelpers": true,
     "target": "ES2022",
     "module": "ES2022",
-    "lib": ["ES2022", "dom"]
+    "lib": ["ES2022", "dom"],
+    "paths": {
+      "@echelon-framework/designer-core": ["./src/app/framework/designer-core.ts"],
+      "@echelon-framework/designer-widgets": ["./src/app/framework/designer-widgets.ts"]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

@@ -22,7 +22,7 @@ import { EchelonWidget, WIDGET_REGISTRY } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { PageConfig, WidgetManifest, WidgetRegistry } from '@echelon-framework/core';
 import { PageDesignerModel, serialize } from '@echelon-framework/designer-page';
-import { DraftPageStoreService } from '../services/draft-page-store.service';
+import { DraftPageStoreService } from './designer-core';
 
 interface PaletteGroup {
   readonly id: string;

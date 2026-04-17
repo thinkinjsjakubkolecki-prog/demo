@@ -1,8 +1,9 @@
 /**
- * Menu apki — ręcznie definiowana struktura nawigacji. Niezależna od
- * `@Page` rejestracji stron — apka decyduje co ma być widoczne w menu.
+ * Menu apki — ręcznie definiowana struktura nawigacji.
+ * Designery importowane z frameworka — developer decyduje gdzie je pokazać.
  */
 import { defineMenu } from '@echelon-framework/page-builders';
+import { designerMenuItems } from '@echelon-framework/designer-widgets';
 
 export const menu = defineMenu([
   { id: 'q',     label: 'Panel kwotowań', icon: '☰', route: '/quote' },
@@ -19,18 +20,12 @@ export const menu = defineMenu([
   { id: 'informations',       label: 'Informacje',          icon: '▥', children: [] },
   { id: 'reports',            label: 'Raporty',             icon: '▥', children: [] },
   { id: 'permissions',        label: 'Uprawnienia',         icon: '▥', children: [] },
-  { id: 'dev',                label: 'Dev',                 icon: '⚙', defaultOpen: true, children: [
-      { id: 'designer',      label: 'Pages Designer',         icon: '🎨', route: '/designer' },
-      { id: 'ds-designer',   label: 'Data Sources',           icon: '📦', route: '/designer/datasources' },
-      { id: 'forms-designer', label: 'Forms Designer',        icon: '📋', route: '/designer/forms' },
-      { id: 'menu-editor',   label: 'Menu Editor',            icon: '🧭', route: '/menu-editor' },
+  { id: 'dev', label: 'Dev', icon: '⚙', defaultOpen: true, children: [
+      ...designerMenuItems(),
       { id: 'business-flow', label: 'Business Flow (realne)', icon: '🎯', route: '/business-flow' },
       { id: 'process-flow',  label: 'Process Flow (technical)', icon: '🔀', route: '/process-flow' },
-      { id: 'model-designer', label: 'Model Designer',         icon: '🧩', route: '/designer/models' },
-      { id: 'proc-designer', label: 'Process Designer',       icon: '🔄', route: '/designer/processes' },
   ] },
 
-  // User-koperta — pinowana do dołu przez `<ech-menu-tree>` (kind: 'user').
   {
     id: 'user', kind: 'user',
     label: 'jkolecki', subtitle: 'Dealer FX', icon: '●',

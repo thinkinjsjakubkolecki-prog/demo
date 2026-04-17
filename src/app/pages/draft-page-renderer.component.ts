@@ -23,7 +23,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { PageRendererComponent } from '@echelon-framework/runtime';
 import type { PageConfig } from '@echelon-framework/core';
-import { DraftPageStoreService, type PersistedDraft } from '../services/draft-page-store.service';
+import { DraftPageStoreService, type PersistedDraft } from '@echelon-framework/designer-core';
 
 @Component({
   selector: 'fx-draft-page-renderer',

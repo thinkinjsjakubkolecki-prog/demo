@@ -16,8 +16,8 @@ import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { MenuItem } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
-import { menu as initialMenu } from '../bootstrap/menu';
-import { DraftPageStoreService } from '../services/draft-page-store.service';
+import { menu as initialMenu } from './menu-import';
+import { DraftPageStoreService } from './designer-core';
 
 interface DraftMenuItem {
   id: string;

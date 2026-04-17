@@ -21,7 +21,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EchelonWidget } from '@echelon-framework/runtime';
-import { DraftFormStoreService, type DraftForm, type DraftFormField } from '../services/draft-form-store.service';
+import { DraftFormStoreService, type DraftForm, type DraftFormField } from './designer-core';
 
 @EchelonWidget({
   manifest: {
