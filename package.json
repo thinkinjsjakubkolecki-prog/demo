@@ -25,6 +25,8 @@
     "@echelon-framework/core": "^0.4.0-rc.1",
     "@echelon-framework/designer-core": "^0.4.0-rc.1",
     "@echelon-framework/designer-page": "^0.4.0-rc.1",
+    "@echelon-framework/designer-widgets": "^0.4.0-rc.1",
+    "@echelon-framework/embed": "^0.4.0-rc.1",
     "@echelon-framework/export-core": "^0.4.0-rc.1",
     "@echelon-framework/expression": "^0.4.0-rc.1",
     "@echelon-framework/functions-core": "^0.4.0-rc.1",
@@ -46,6 +48,7 @@
     "@angular/compiler-cli": "^21.0.0",
     "@echelon-framework/eslint-plugin": "^0.4.0-rc.1",
     "@echelon-framework/mock-server": "^0.4.0-rc.1",
+    "@echelon-framework/schematics": "^0.4.0-rc.1",
     "concurrently": "^9.0.0",
     "typescript": "~5.9.0"
   }
