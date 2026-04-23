@@ -25,6 +25,7 @@ import { EchelonWidget, DATA_BUS } from '@echelon-framework/runtime';
 import type { DataBus } from '@echelon-framework/core';
 import { DraftFormStoreService, type DraftForm, type DraftFormField, DraftModelStoreService, DraftDatasourceStoreService } from './designer-core';
 import { DataContextService } from './data-context.service';
+import { DraftTranslationStoreService } from './draft-translation-store';
 import { resolveFieldBehavior, type FormIntent } from './draft-form-store';
 
 @EchelonWidget({
@@ -59,7 +60,7 @@ import { resolveFieldBehavior, type FormIntent } from './draft-form-store';
             @for (field of f.fields; track field.id) {
               <div class="ref-cell" [style.grid-column]="'span ' + (field.width || 12)">
                 <label class="ref-label">
-                  {{ field.label || field.id }}
+                  {{ resolveLabel(field) }}
                   @if (field.required) { <span class="req">*</span> }
                 </label>
                 @switch (field.type) {
@@ -205,8 +206,10 @@ export class FormRefComponent {
   private readonly modelStore = inject(DraftModelStoreService);
   private readonly dsStoreRef = inject(DraftDatasourceStoreService);
   private readonly dataContext = inject(DataContextService);
+  private readonly i18n = inject(DraftTranslationStoreService, { optional: true });
   private readonly dataBus = inject(DATA_BUS, { optional: true }) as DataBus | null;
   readonly values = signal<Record<string, unknown>>({});
+  readonly fieldStates = signal<Record<string, { disabled?: boolean; readOnly?: boolean; visible?: boolean; label?: string; placeholder?: string }>>({});
   readonly lookupQueries = signal<Record<string, string>>({});
   readonly lookupOpen = signal<Record<string, boolean>>({});
   readonly lookupResults = signal<Record<string, ReadonlyArray<{ value: unknown; display: string }>>>({});
@@ -246,13 +249,27 @@ export class FormRefComponent {
                 this.values.update((v) => v[field.id] !== undefined ? v : { ...v, [field.id]: value });
                 break;
               case 'options':
+                if (Array.isArray(value)) {
+                  const optKey = binding.optionValueKey ?? 'value';
+                  const lblKey = binding.optionLabelKey ?? 'label';
+                  (field as { options?: unknown[] }).options = value.map((item: unknown) => {
+                    const obj = item as Record<string, unknown>;
+                    return { value: String(obj[optKey] ?? ''), label: String(obj[lblKey] ?? obj[optKey] ?? '') };
+                  });
+                }
                 break;
               case 'disabled':
               case 'readOnly':
+                this.fieldStates.update((s) => ({ ...s, [field.id]: { ...s[field.id], [binding.effect]: !!value } }));
+                break;
               case 'visible':
+                this.fieldStates.update((s) => ({ ...s, [field.id]: { ...s[field.id], visible: !!value } }));
                 break;
               case 'label':
+                this.fieldStates.update((s) => ({ ...s, [field.id]: { ...s[field.id], label: String(value) } }));
+                break;
               case 'placeholder':
+                this.fieldStates.update((s) => ({ ...s, [field.id]: { ...s[field.id], placeholder: String(value) } }));
                 break;
             }
           }
@@ -268,6 +285,15 @@ export class FormRefComponent {
       cur = (cur as Record<string, unknown>)[key];
     }
     return cur;
+  }
+
+  resolveLabel(field: DraftFormField): string {
+    if (!this.i18n) return field.label || field.id;
+    const form = this.form();
+    if (!form) return field.label || field.id;
+    const key = `form.${form.id}.${field.id}.label`;
+    const resolved = this.i18n.resolve(key);
+    return resolved !== key ? resolved : (field.label || field.id);
   }
 
   setValue(field: DraftFormField, value: unknown): void {

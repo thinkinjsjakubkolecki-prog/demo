@@ -12,5 +12,7 @@ export const routes: Routes = [
   // Dynamic route dla draftów designera — czyta ID z URL, resolve przez
   // DraftPageStoreService (localStorage). Nie wymaga rebuildu appki.
   { path: 'draft/:id', component: DraftPageRendererComponent },
+  // Embed route — iframe z legacy app, renderuje komponent bez menu chrome
+  { path: 'embed/:id', component: DraftPageRendererComponent },
   ...autoRoutes,
 ];

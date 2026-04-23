@@ -24,6 +24,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { PageRendererComponent } from '@echelon-framework/runtime';
 import type { PageConfig } from '@echelon-framework/core';
 import { DraftPageStoreService, type PersistedDraft } from '@echelon-framework/designer-core';
+import { DraftRuntimeBridgeService } from '../framework/draft-runtime-bridge.service';
 
 @Component({
   selector: 'fx-draft-page-renderer',
@@ -74,6 +75,7 @@ import { DraftPageStoreService, type PersistedDraft } from '@echelon-framework/d
 export class DraftPageRendererComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly store = inject(DraftPageStoreService);
+  private readonly bridge = inject(DraftRuntimeBridgeService);
   private readonly vcr = inject(ViewContainerRef);
   private readonly paramsSignal = toSignal(this.route.params);
 
@@ -93,11 +95,12 @@ export class DraftPageRendererComponent {
   private rendererRef: ComponentRef<PageRendererComponent> | null = null;
 
   constructor() {
-    // Re-mount renderer gdy zmienia się draft config (edit w designer → auto-save
-    // → store update → draft() computed zmienia się → tu).
     effect(() => {
       const d = this.draft();
       const cfg = d?.config ?? null;
+      // Bridge: draft datasources → DataBus (mock data, simulators)
+      this.bridge.cleanup();
+      if (cfg) this.bridge.bridgeAll();
       this.updateRendererConfig(cfg);
     });
   }
