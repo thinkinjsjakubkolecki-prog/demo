@@ -1,6 +1,5 @@
 /**
- * App config — czysty system z podlinkowanymi designerami.
- * Zero biznesowych widgetów/ds/funkcji — wszystko tworzone w designerze.
+ * App config — provideEchelon z widgetami z frameworka.
  */
 import { provideHttpClient } from '@angular/common/http';
 import { type ApplicationConfig } from '@angular/core';
@@ -8,7 +7,6 @@ import { provideRouter, withRouterConfig } from '@angular/router';
 import { provideEchelon } from '@echelon-framework/runtime';
 
 import { widgets } from './bootstrap/widgets';
-import { pages } from './bootstrap/pages';
 import { routes } from './bootstrap/routes';
 
 export const appConfig: ApplicationConfig = {
@@ -18,7 +16,6 @@ export const appConfig: ApplicationConfig = {
 
     ...provideEchelon({
       widgets,
-      pages,
     }),
   ],
 };

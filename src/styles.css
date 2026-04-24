@@ -1,5 +1,1 @@
-/**
- * Dealer FX App — styles.
- * Bazowy CSS z @echelon-framework/designer-widgets.
- */
-@import '@echelon-framework/designer-widgets/styles/echelon-base.css';
+@import '@echelon-framework/designer-widgets/dist/styles/echelon-base.css';
