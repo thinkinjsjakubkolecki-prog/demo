@@ -1,5 +1,5 @@
 import type { Routes } from '@angular/router';
-import { Component, ViewContainerRef, inject, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import {
   DesignerShellComponent,
   ModelDesignerComponent,
@@ -12,34 +12,34 @@ import {
   ExportPanelComponent,
 } from '@echelon-framework/designer-widgets';
 
-@Component({ selector: 'r-pages', standalone: true, template: '', styles: [':host{display:block;height:100%}'] })
-class R1 implements OnInit { private v = inject(ViewContainerRef); ngOnInit() { this.v.createComponent(DesignerShellComponent as any); } }
+@Component({ selector: 'r-pages', standalone: true, imports: [DesignerShellComponent], template: '<fx-designer-shell />' })
+class R1 {}
 
-@Component({ selector: 'r-models', standalone: true, template: '', styles: [':host{display:block;height:100%}'] })
-class R2 implements OnInit { private v = inject(ViewContainerRef); ngOnInit() { this.v.createComponent(ModelDesignerComponent as any); } }
+@Component({ selector: 'r-models', standalone: true, imports: [ModelDesignerComponent], template: '<fx-model-designer />' })
+class R2 {}
 
-@Component({ selector: 'r-ds', standalone: true, template: '', styles: [':host{display:block;height:100%}'] })
-class R3 implements OnInit { private v = inject(ViewContainerRef); ngOnInit() { this.v.createComponent(DatasourceDesignerComponent as any); } }
+@Component({ selector: 'r-ds', standalone: true, imports: [DatasourceDesignerComponent], template: '<fx-datasource-designer />' })
+class R3 {}
 
-@Component({ selector: 'r-forms', standalone: true, template: '', styles: [':host{display:block;height:100%}'] })
-class R4 implements OnInit { private v = inject(ViewContainerRef); ngOnInit() { this.v.createComponent(FormDesignerComponent as any); } }
+@Component({ selector: 'r-forms', standalone: true, imports: [FormDesignerComponent], template: '<fx-form-designer />' })
+class R4 {}
 
-@Component({ selector: 'r-proc', standalone: true, template: '', styles: [':host{display:block;height:100%}'] })
-class R5 implements OnInit { private v = inject(ViewContainerRef); ngOnInit() { this.v.createComponent(ProcessDesignerComponent as any); } }
+@Component({ selector: 'r-proc', standalone: true, imports: [ProcessDesignerComponent], template: '<fx-process-designer />' })
+class R5 {}
 
-@Component({ selector: 'r-menu', standalone: true, template: '', styles: [':host{display:block;height:100%}'] })
-class R6 implements OnInit { private v = inject(ViewContainerRef); ngOnInit() { this.v.createComponent(MenuEditorComponent as any); } }
+@Component({ selector: 'r-menu', standalone: true, imports: [MenuEditorComponent], template: '<fx-menu-editor />' })
+class R6 {}
 
-@Component({ selector: 'r-themes', standalone: true, template: '', styles: [':host{display:block;height:100%}'] })
-class R7 implements OnInit { private v = inject(ViewContainerRef); ngOnInit() { this.v.createComponent(ThemeManagerComponent as any); } }
+@Component({ selector: 'r-themes', standalone: true, imports: [ThemeManagerComponent], template: '<fx-theme-manager />' })
+class R7 {}
 
-@Component({ selector: 'r-i18n', standalone: true, template: '', styles: [':host{display:block;height:100%}'] })
-class R8 implements OnInit { private v = inject(ViewContainerRef); ngOnInit() { this.v.createComponent(TranslationManagerComponent as any); } }
+@Component({ selector: 'r-i18n', standalone: true, imports: [TranslationManagerComponent], template: '<fx-translation-manager />' })
+class R8 {}
 
-@Component({ selector: 'r-export', standalone: true, template: '', styles: [':host{display:block;height:100%}'] })
-class R9 implements OnInit { private v = inject(ViewContainerRef); ngOnInit() { this.v.createComponent(ExportPanelComponent as any); } }
+@Component({ selector: 'r-export', standalone: true, imports: [ExportPanelComponent], template: '<fx-export-panel />' })
+class R9 {}
 
-@Component({ selector: 'r-draft', standalone: true, template: '<p style="padding:40px;color:#9ca3af">Draft preview requires AOT build</p>' })
+@Component({ selector: 'r-draft', standalone: true, template: '<p style="padding:40px;color:#9ca3af">Draft preview</p>' })
 class R10 {}
 
 export const routes: Routes = [
