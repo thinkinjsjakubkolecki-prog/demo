@@ -10,6 +10,7 @@ import {
   ThemeManagerComponent,
   TranslationManagerComponent,
   ExportPanelComponent,
+  PipelineDesignerComponent,
 } from '@echelon-framework/designer-widgets';
 
 @Component({ selector: 'r-pages', standalone: true, imports: [DesignerShellComponent], template: '<fx-designer-shell />' })
@@ -39,6 +40,9 @@ class R8 {}
 @Component({ selector: 'r-export', standalone: true, imports: [ExportPanelComponent], template: '<fx-export-panel />' })
 class R9 {}
 
+@Component({ selector: 'r-pipelines', standalone: true, imports: [PipelineDesignerComponent], template: '<fx-pipeline-designer />' })
+class R11 {}
+
 @Component({ selector: 'r-draft', standalone: true, template: '<p style="padding:40px;color:#9ca3af">Draft preview</p>' })
 class R10 {}
 
@@ -49,6 +53,7 @@ export const routes: Routes = [
   { path: 'designer/datasources', component: R3, title: 'Data Sources' },
   { path: 'designer/forms', component: R4, title: 'Forms Designer' },
   { path: 'designer/processes', component: R5, title: 'Process Designer' },
+  { path: 'designer/pipelines', component: R11, title: 'Pipelines' },
   { path: 'designer/themes', component: R7, title: 'Theme Manager' },
   { path: 'designer/translations', component: R8, title: 'Translations' },
   { path: 'designer/export', component: R9, title: 'Export' },
