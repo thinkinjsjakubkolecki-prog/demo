@@ -190,6 +190,21 @@ import { EchelonWidget } from '@echelon-framework/runtime';
           </div>
         }
 
+        @case ('key-value') {
+          <div class="cf-kv">
+            @for (entry of kvEntries(); track $index; let ki = $index) {
+              <div class="cf-kv-row">
+                <input type="text" class="cf-kv-key" [value]="entry.key" [placeholder]="kvConfig?.keyPlaceholder ?? 'klucz'"
+                       (input)="setKvKey(ki, $any($event.target).value)" />
+                <input type="text" class="cf-kv-val" [value]="entry.value" [placeholder]="kvConfig?.valuePlaceholder ?? 'wartość'"
+                       (input)="setKvValue(ki, $any($event.target).value)" />
+                <button type="button" class="cf-kv-rm" (click)="removeKvEntry(ki)">✕</button>
+              </div>
+            }
+            <button type="button" class="cf-kv-add" [disabled]="disabled" (click)="addKvEntry()">+ Dodaj wpis</button>
+          </div>
+        }
+
         @case ('repeater') {
           <div class="cf-repeater">
             @for (item of repeaterItems(); track $index; let ri = $index) {
@@ -317,6 +332,14 @@ import { EchelonWidget } from '@echelon-framework/runtime';
     .cf-rep-field { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 120px; }
     .cf-rep-label { font-size: 10px; color: var(--ech-muted, #9ca3af); }
     .cf-rep-rm { background: transparent; border: 1px solid #7f1d1d44; color: var(--ech-danger); width: 22px; height: 22px; border-radius: 2px; cursor: pointer; font-size: 10px; margin-top: 6px; }
+    .cf-kv { display: flex; flex-direction: column; gap: 4px; }
+    .cf-kv-row { display: grid; grid-template-columns: 1fr 2fr 24px; gap: 4px; }
+    .cf-kv-key, .cf-kv-val { padding: 6px 8px; background: var(--ech-panel-alt, #1f2937); border: 1px solid var(--ech-border, #374151); color: var(--ech-fg, #e5e7eb); border-radius: var(--ech-radius-sm, 3px); font-size: 12px; font-family: var(--ech-font-mono); }
+    .cf-kv-key { font-weight: 600; }
+    .cf-kv-rm { background: transparent; border: 1px solid color-mix(in srgb, var(--ech-danger) 30%, transparent); color: var(--ech-danger); border-radius: 2px; cursor: pointer; font-size: 10px; }
+    .cf-kv-add { padding: 5px 12px; background: transparent; border: 1px dashed var(--ech-border, #374151); color: var(--ech-muted, #9ca3af); border-radius: var(--ech-radius-sm, 3px); cursor: pointer; font-size: 11px; font-family: inherit; }
+    .cf-kv-add:hover { border-color: var(--ech-accent); color: var(--ech-accent); }
+
     .cf-rep-add, .cf-it-add { padding: 6px 14px; background: var(--ech-panel-alt, #1f2937); border: 1px dashed var(--ech-border, #374151); color: var(--ech-muted, #9ca3af); border-radius: var(--ech-radius-sm, 3px); cursor: pointer; font-size: 12px; font-family: inherit; }
     .cf-rep-add:hover, .cf-it-add:hover { border-color: var(--ech-accent, #58a6ff); color: var(--ech-accent, #58a6ff); }
 
@@ -412,6 +435,44 @@ export class CompositeFieldComponent {
 
   // ─── Signature ───
   clearSignature(): void { this.emit(null); }
+
+  // ─── Key-Value ───
+  get kvConfig() { return this.config as { keyPlaceholder?: string; valuePlaceholder?: string; maxEntries?: number } | undefined; }
+  kvEntries(): ReadonlyArray<{ key: string; value: string }> {
+    const v = this._value();
+    if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+      return Object.entries(v as Record<string, unknown>).map(([k, val]) => ({ key: k, value: String(val ?? '') }));
+    }
+    return [];
+  }
+  addKvEntry(): void {
+    const entries = this.kvEntries();
+    const obj: Record<string, unknown> = {};
+    for (const e of entries) obj[e.key] = e.value;
+    obj[''] = '';
+    this.emit(obj);
+  }
+  removeKvEntry(i: number): void {
+    const entries = [...this.kvEntries()];
+    entries.splice(i, 1);
+    const obj: Record<string, unknown> = {};
+    for (const e of entries) obj[e.key] = e.value;
+    this.emit(obj);
+  }
+  setKvKey(i: number, newKey: string): void {
+    const entries = [...this.kvEntries()];
+    entries[i] = { ...entries[i], key: newKey };
+    const obj: Record<string, unknown> = {};
+    for (const e of entries) obj[e.key] = e.value;
+    this.emit(obj);
+  }
+  setKvValue(i: number, newVal: string): void {
+    const entries = [...this.kvEntries()];
+    entries[i] = { ...entries[i], value: newVal };
+    const obj: Record<string, unknown> = {};
+    for (const e of entries) obj[e.key] = e.value;
+    this.emit(obj);
+  }
 
   // ─── Repeater ───
   repeaterItems(): ReadonlyArray<Record<string, unknown>> { return Array.isArray(this._value()) ? this._value() as Record<string, unknown>[] : []; }

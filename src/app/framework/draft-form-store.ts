@@ -122,6 +122,16 @@ export function resolveFieldBehavior(
 
 // ─── Form field ─────────────────────────────────────────────────────────────
 
+export type NestingStrategy = 'lookup' | 'inline' | 'repeater' | 'key-value' | 'json' | 'skip';
+
+export interface KeyValueFieldConfig {
+  readonly keyPlaceholder?: string;
+  readonly valuePlaceholder?: string;
+  readonly keyType?: 'string' | 'number';
+  readonly valueType?: 'string' | 'number' | 'boolean' | 'any';
+  readonly maxEntries?: number;
+}
+
 export interface LookupFieldConfig {
   /** Model z którego szukamy (np. 'Client'). */
   readonly sourceModel: string;
@@ -238,8 +248,12 @@ export interface DraftFormField {
   };
   /** Typed bindingi — pole czyta dane z input contracts. */
   inputBindings?: ReadonlyArray<FieldInputBinding>;
+  /** Strategia zagnieżdżenia — jak pole z ref do modelu jest renderowane. */
+  nestingStrategy?: NestingStrategy;
   /** Konfiguracja lookup — pole typu 'lookup' szuka w innym modelu. */
   lookupConfig?: LookupFieldConfig;
+  /** Konfiguracja key-value — dynamiczne pary klucz:wartość (map/dictionary). */
+  keyValueConfig?: KeyValueFieldConfig;
   /** Konfiguracja złożonych typów pól. */
   moneyConfig?: MoneyFieldConfig;
   dateRangeConfig?: DateRangeFieldConfig;

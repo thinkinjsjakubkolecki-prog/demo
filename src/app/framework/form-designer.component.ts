@@ -17,7 +17,7 @@ import { EchelonWidget } from '@echelon-framework/runtime';
 import { getRegisteredPageClasses } from '@echelon-framework/page-builders';
 import type { PageConfig } from '@echelon-framework/core';
 import { DraftFormStoreService, type DraftForm, type DraftFormField, type FormInputContract, type InputProperty, type PropertyType } from './designer-core';
-import { type FormIntent, type ModelFieldPolicy, resolveFieldBehavior } from './draft-form-store';
+import { type FormIntent, type ModelFieldPolicy, type NestingStrategy, resolveFieldBehavior } from './draft-form-store';
 import { DraftPageStoreService } from './designer-core';
 import { DraftModelStoreService } from './designer-core';
 import { DraftDatasourceStoreService } from './draft-datasource-store';
@@ -45,7 +45,7 @@ const FIELD_TYPES = [
   'lookup',
   'file', 'range', 'time', 'color', 'rating', 'toggle',
   'money', 'date-range', 'address', 'phone',
-  'repeater', 'inline-table',
+  'repeater', 'inline-table', 'key-value',
   'rich-text', 'code', 'json', 'signature',
 ] as const;
 
@@ -936,24 +936,26 @@ export class FormDesignerComponent {
       const behavior = resolveFieldBehavior(mf, intent, policy);
       if (!behavior.include) continue;
 
-      const field: DraftFormField = {
-        id: mf.id,
-        label: mf.label ?? mf.id,
-        type: mf.ref ? 'lookup' : (typeMap[mf.type] ?? 'text'),
-        required: behavior.required,
-        width: mf.type === 'boolean' ? 3 : 6,
-        ...(mf.enumValues ? { options: mf.enumValues.map((v) => ({ value: v, label: v })) } : {}),
-        ...(mf.ref ? {
-          lookupConfig: {
-            sourceModel: mf.ref.modelId,
-            valueField: 'id',
-            displayFields: this.guessDisplayFields(mf.ref.modelId),
-            searchField: this.guessSearchField(mf.ref.modelId),
-            multi: mf.ref.kind === '1:N' || mf.ref.kind === 'N:M',
-          },
-        } : {}),
-      };
-      newFields.push(field);
+      const needsStrategy = mf.ref || mf.type === 'object' || mf.type === 'array';
+
+      if (needsStrategy) {
+        const strategy = this.chooseNestingStrategy(mf);
+        if (strategy === 'skip') continue;
+        const generated = this.generateNestedField(mf, strategy, behavior.required);
+        for (const f of generated) {
+          if (!existing.has(f.id)) { newFields.push(f); existing.add(f.id); }
+        }
+      } else {
+        const field: DraftFormField = {
+          id: mf.id,
+          label: mf.label ?? mf.id,
+          type: typeMap[mf.type] ?? 'text',
+          required: behavior.required,
+          width: mf.type === 'boolean' ? 3 : 6,
+          ...(mf.enumValues ? { options: mf.enumValues.map((v) => ({ value: v, label: v })) } : {}),
+        };
+        newFields.push(field);
+      }
     }
 
     this.formStore.updateFields(form.id, newFields);
@@ -1006,6 +1008,95 @@ export class FormDesignerComponent {
     const config = { ...(field.lookupConfig ?? { sourceModel: '', valueField: 'id', displayFields: [] }), [key]: value };
     fields[idx] = { ...field, lookupConfig: config };
     this.formStore.updateFields(form.id, fields);
+  }
+
+  private chooseNestingStrategy(mf: { id: string; type: string; ref?: { modelId: string; kind: string } }): NestingStrategy {
+    const hasRef = !!mf.ref;
+    const isArray = mf.type === 'array';
+    const isObject = mf.type === 'object';
+
+    let options: string[];
+    if (hasRef && (isArray || mf.ref!.kind === '1:N' || mf.ref!.kind === 'N:M')) {
+      options = ['lookup — wybierz istniejące', 'repeater — powtarzalna sekcja z polami', 'inline — flat fields (single)', 'json — raw JSON editor', 'skip — pomiń'];
+    } else if (hasRef) {
+      options = ['lookup — wybierz istniejący', 'inline — flat fields', 'json — raw JSON', 'skip — pomiń'];
+    } else if (isObject) {
+      options = ['key-value — dynamiczne pary klucz:wartość', 'json — raw JSON editor', 'inline — flat fields (jeśli znany kształt)', 'skip — pomiń'];
+    } else {
+      options = ['json — raw JSON editor', 'key-value — pary klucz:wartość', 'skip — pomiń'];
+    }
+
+    const choice = prompt(
+      `Pole "${mf.id}" (${mf.type}${mf.ref ? ' → ' + mf.ref.modelId : ''}):\nJak dodać?\n${options.map((o, i) => `  ${i + 1}. ${o}`).join('\n')}\n\nWybierz numer (1-${options.length}):`,
+    );
+    const idx = parseInt(choice ?? '1', 10) - 1;
+    const selected = options[idx] ?? options[0];
+    return selected.split(' — ')[0] as NestingStrategy;
+  }
+
+  private generateNestedField(
+    mf: { id: string; label?: string; type: string; ref?: { modelId: string; kind: string } },
+    strategy: NestingStrategy,
+    required: boolean,
+  ): DraftFormField[] {
+    const typeMap: Record<string, string> = { string: 'text', number: 'number', boolean: 'checkbox', date: 'date' };
+    const refModel = mf.ref ? this.modelStore.get(mf.ref.modelId) : null;
+
+    switch (strategy) {
+      case 'lookup':
+        return [{
+          id: mf.id, label: mf.label ?? mf.id, type: 'lookup', required, width: 6,
+          nestingStrategy: 'lookup',
+          lookupConfig: {
+            sourceModel: mf.ref?.modelId ?? '', valueField: 'id',
+            displayFields: this.guessDisplayFields(mf.ref?.modelId ?? ''),
+            searchField: this.guessSearchField(mf.ref?.modelId ?? ''),
+            multi: mf.ref?.kind === '1:N' || mf.ref?.kind === 'N:M',
+          },
+        }];
+
+      case 'inline':
+        if (!refModel) return [{ id: mf.id, label: mf.label ?? mf.id, type: 'text', required, width: 12, nestingStrategy: 'inline' }];
+        return refModel.fields
+          .filter((f) => !f.serverManaged)
+          .map((f) => ({
+            id: `${mf.id}.${f.id}`,
+            label: `${mf.label ?? mf.id} › ${f.label ?? f.id}`,
+            type: typeMap[f.type] ?? 'text',
+            required: !!f.required && required,
+            width: 6,
+            nestingStrategy: 'inline' as NestingStrategy,
+          }));
+
+      case 'repeater':
+        if (!refModel) return [{ id: mf.id, label: mf.label ?? mf.id, type: 'repeater', required, width: 12, nestingStrategy: 'repeater' }];
+        return [{
+          id: mf.id, label: mf.label ?? mf.id, type: 'repeater', required, width: 12,
+          nestingStrategy: 'repeater',
+          repeaterConfig: {
+            itemFields: refModel.fields
+              .filter((f) => !f.serverManaged)
+              .map((f) => ({ id: f.id, label: f.label ?? f.id, type: typeMap[f.type] ?? 'text', placeholder: '' })),
+            addLabel: `+ ${mf.label ?? mf.id}`,
+          },
+        }];
+
+      case 'key-value':
+        return [{
+          id: mf.id, label: mf.label ?? mf.id, type: 'key-value', required, width: 12,
+          nestingStrategy: 'key-value',
+          keyValueConfig: { keyPlaceholder: 'klucz', valuePlaceholder: 'wartość', valueType: 'any' },
+        }];
+
+      case 'json':
+        return [{
+          id: mf.id, label: mf.label ?? mf.id, type: 'json', required, width: 12,
+          nestingStrategy: 'json',
+        }];
+
+      default:
+        return [];
+    }
   }
 
   private guessDisplayFields(modelId: string): string[] {
