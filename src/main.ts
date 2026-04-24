@@ -1,6 +1,7 @@
 import '@angular/compiler';  // JIT for components shipped from @echelon-framework/runtime (until library ships AOT'd)
 import { bootstrapApplication } from '@angular/platform-browser';
 import { AppShellComponent, APP_SHELL_CONFIG } from '@echelon-framework/widgets-core';
+import { loadSavedTheme } from '@echelon-framework/designer-widgets';
 import { appConfig } from './app/app.config';
 import { menu } from './app/bootstrap/menu';
 
@@ -36,6 +37,7 @@ bootstrapApplication(AppShellComponent, {
         brand: 'DEALER FX',
         envLabel: (document.documentElement.dataset['env'] ?? 'dev').toUpperCase(),
         menu,
+        themeInit: loadSavedTheme,
       },
     },
   ],

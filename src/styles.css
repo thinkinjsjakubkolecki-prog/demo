@@ -1,8 +1,5 @@
 /**
  * Dealer FX App — styles.
- * Bazowy CSS z frameworka + app-specific overrides (jeśli potrzebne).
- *
- * Docelowo (po publish rc.17):
- *   @import '@echelon-framework/designer-widgets/styles/echelon-base.css';
+ * Bazowy CSS z @echelon-framework/designer-widgets.
  */
-@import 'app/framework/echelon-base.css';
+@import '@echelon-framework/designer-widgets/styles/echelon-base.css';
