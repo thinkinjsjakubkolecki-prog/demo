@@ -1,6 +1,7 @@
 import type { Routes } from '@angular/router';
 import { Component } from '@angular/core';
 import {
+  ApplicationDesignerComponent,
   DesignerShellComponent,
   ModelDesignerComponent,
   DatasourceDesignerComponent,
@@ -43,12 +44,16 @@ class R9 {}
 @Component({ selector: 'r-pipelines', standalone: true, imports: [PipelineDesignerComponent], template: '<fx-pipeline-designer />' })
 class R11 {}
 
+@Component({ selector: 'r-app-designer', standalone: true, imports: [ApplicationDesignerComponent], template: '<fx-application-designer />' })
+class R0 {}
+
 @Component({ selector: 'r-draft', standalone: true, template: '<p style="padding:40px;color:#9ca3af">Draft preview</p>' })
 class R10 {}
 
 export const routes: Routes = [
   { path: '', redirectTo: '/designer', pathMatch: 'full' },
-  { path: 'designer', component: R1, title: 'Pages Designer' },
+  { path: 'designer', component: R0, title: 'Application Designer' },
+  { path: 'designer/pages', component: R1, title: 'Pages Designer' },
   { path: 'designer/models', component: R2, title: 'Model Designer' },
   { path: 'designer/datasources', component: R3, title: 'Data Sources' },
   { path: 'designer/forms', component: R4, title: 'Forms Designer' },
