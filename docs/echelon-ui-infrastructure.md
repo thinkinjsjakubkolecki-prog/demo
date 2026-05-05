@@ -587,7 +587,130 @@ Konkretne use case'y z aplikacji dealer:
 
 ---
 
-## 21. Roadmap (znane TODO)
+## 21. Strategia wymiany starego GUI przez embed
+
+Echelon `embed` (rozdz. 14) umożliwia **stopniową migrację** legacy aplikacji bez big-bang rewrite. Zamiast przepisywać cały front naraz, zastępujemy go **kawałkami** — Echelon page-bundle osadzony w iframe wewnątrz starego shellu, z bidirectional bridge przez `postMessage`.
+
+To wzorzec **strangler fig** — stara aplikacja "obrasta" nowymi fragmentami, kurczy się, aż w końcu znika.
+
+### 21.1. Założenia wstępne
+
+- Stara aplikacja **musi pozwolić na osadzenie iframe** (CSP, X-Frame-Options) w obrębie własnej domeny lub jako allowed origin
+- Komunikacja host ↔ embed jest **wyłącznie przez `postMessage`** — żaden bezpośredni dostęp do DOM/JS po obu stronach
+- **Sesja użytkownika** (token, role, locale, theme) jest źródłem prawdy w starym hoście; embed tylko ją konsumuje, nie zarządza
+- **Routing** pozostaje w gestii starego shellu na poziomie nawigacji globalnej; embed obsługuje routing wewnątrz osadzonego widoku
+
+### 21.2. Cztery fazy migracji
+
+**Faza 1 — Przygotowanie infrastruktury (1–2 sprinty)**
+
+- Wystawienie po stronie hosta endpointa do dostarczania bundle'i (`GET /api/dashboard/<id>` → `PageConfig`)
+- Implementacja host-bridge w starej aplikacji (warstwa komunikacji z iframe: pre-load auth, intercept events, propagacja zmian theme/locale)
+- Zdefiniowanie **kontraktu komunikatów** (TypeScript types) wspólnego dla obu stron
+- Wybór 1 niskoryzykowny ekran (read-only widget, np. dashboard, lista) jako proof of concept
+
+**Faza 2 — Pierwszy embed end-to-end (1 sprint)**
+
+- Wybrany ekran zbudowany w designerze Echelon → eksport bundle → publikacja
+- Stara aplikacja zastępuje swój komponent iframe'em z `<ech-dashboard-renderer>` w środku
+- Walidacja: parity functional (ten sam UX), parity stylistyczna (theme propagation), brak regresji w hoście
+- Feature flag w hoście: `embed:dashboard` — natychmiastowy rollback do legacy
+
+**Faza 3 — Skalowanie (n sprintów, równolegle z developmentem)**
+
+- Tabela migracyjna: każdy ekran legacy → status (legacy / in-progress / embedded / removed)
+- Granica priorytetów: read-only przed write, prosty CRUD przed flow procesowymi, ekrany z małym ruchem przed core flow
+- **Każdy embed jest niezależnym deployem** bundle'a — bez koniecznosci redeployu hosta
+- Stara aplikacja stopniowo traci kod: usuwany komponent legacy gdy jego ekran jest 100% w embed dla wszystkich użytkowników
+
+**Faza 4 — Inwersja (cel końcowy)**
+
+- Gdy wszystkie istotne ekrany są w Echelon, **stara aplikacja staje się shellem** — kontener nawigacyjny + auth + global state
+- Następnie shell zostaje przepisany na natywny Echelon `<ech-app-shell>` lub minimalna wraperka
+- Stara aplikacja zostaje wyłączona
+
+### 21.3. Co przechodzi przez bridge (kontrakt)
+
+Komunikacja host ↔ embed jest **deklaratywna i typowana**. Cztery klasy komunikatów:
+
+| Kierunek | Typ | Cel |
+|---|---|---|
+| Host → Embed | `init` | Przekazanie configu + sesji + theme + locale przy starcie |
+| Host → Embed | `update` | Aktualizacja sesji/theme/locale w trakcie życia |
+| Host → Embed | `command` | Polecenie wykonania akcji (refresh, focus, save) |
+| Embed → Host | `event` | Zdarzenie domenowe (selection, navigation request, error) |
+
+Każda klasa ma zdefiniowany schemat (Zod). **Nieznane komunikaty są ignorowane** — wersjonowanie kontraktu jest przyrostowe, host i embed mogą być w różnych wersjach bez krachu.
+
+### 21.4. Granice modułów
+
+Dobry kandydat na embed:
+- Ekran z **wyraźną granicą domenową** (jeden agregat, jeden flow)
+- Konsumuje dane z **dobrze zdefiniowanego API** (REST/GraphQL/WS)
+- Komunikuje się ze starą aplikacją **przez ograniczoną liczbę zdarzeń** (selection, save complete, request close)
+- Może być wyświetlony **w prostokątnym kontenerze** (nie polega na overlay/popout poza iframe'em)
+
+Zły kandydat:
+- Ekran z **gęstym sprzężeniem** ze stanem globalnym hosta (wspólny store, wspólne dialogi, wspólny event bus)
+- Wymaga **drag&drop poza granice iframe** (cross-frame drag jest skomplikowane)
+- Otwiera **modale na poziomie całej aplikacji** (powinien delegować to do hosta przez event)
+- **Custom keyboard shortcuts globalne** (kolizje host/embed)
+
+Granicę modułu wyznacza się **przed** rozpoczęciem migracji ekranu — jeżeli granica nie istnieje, najpierw refactor legacy.
+
+### 21.5. Spójność wizualna
+
+- **Theme** propagowany z hosta przez `postMessage` na starcie + przy zmianie. Echelon ma 7 wbudowanych motywów + override CSS variables — host przekazuje swoje wartości CSS variables, embed je stosuje
+- **Typografia/odstępy** zharmonizowane przez wspólny `:root { ... }` token set — embed publikowany razem z odniesieniem do wersjonowanego "design tokens contract"
+- **Z-index / layering** — embed pracuje wewnątrz swojej granicy iframe; modale globalne deleguje do hosta
+- **Responsive** — embed jest "bezgraniczny" w sensie szerokości; host kontroluje wymiar przez CSS na iframe
+
+### 21.6. Sesja, autoryzacja, lokalizacja
+
+- **Token autoryzacyjny** przekazywany przez `postMessage init` — embed przepuszcza go do `transport-http` headers; nie trzymany w localStorage embed (single source of truth = host)
+- **Refresh token** zarządzany wyłącznie po stronie hosta — embed reaguje na `update.session` gdy token się odświeża
+- **Locale i18n** propagowany z hosta — embed używa `DraftTranslationStore` skonfigurowanego pod aktywny język
+- **Logout** to `command:logout` z hosta — embed unmount + cleanup
+
+### 21.7. Routing i nawigacja
+
+- **Routing globalny** zostaje w starej aplikacji do końca (lub do fazy 4)
+- Embed używa swojego routera **wewnątrz iframe** dla nawigacji w obrębie osadzonego widoku
+- Embed prosi host o nawigację globalną przez `event:navigate-request` — host decyduje, czy ją wykonać (np. zmienić ekran legacy lub załadować inny embed)
+- **Deep linking**: URL hosta zawiera identyfikator aktualnego embedu + jego wewnętrzny stan — embed deserializuje stan z `init.params`
+
+### 21.8. Dane — DS i transport
+
+- **Backend nie zmienia się** w trakcie migracji — embed konsumuje te same API co stara aplikacja
+- **Datasource w embed** wskazuje na ten sam endpoint co legacy; abstrakcja DS pozwala później przepiąć na inny backend bez zmian w embed
+- **Stream/WebSocket** — jeden socket per host (pojedyncze połączenie), embed dostaje selektywne wiadomości przez bridge (host filtruje i forwarduje)
+
+### 21.9. Risk control
+
+- **Feature flag per-embed** — `embed:<screen-id>` w hoście; gdy off → legacy fallback
+- **Wersjonowanie bundle'i** — stara wersja bundle'a zostaje dostępna do natychmiastowego rollbacku (deploy nowego bundle nie kasuje poprzedniego)
+- **Smoke test post-deploy** — automatyczna weryfikacja kluczowych eventów embedu w produkcji
+- **Telemetria po obu stronach** — host loguje błędy z embedu (forwarded przez `event:error`), embed loguje czas inicjalizacji i błędy walidacji
+- **Stopniowy rollout** — A/B test, canary % użytkowników, dopiero potem 100%
+
+### 21.10. Wskaźniki sukcesu (per-embed)
+
+- Brak regresji functionalnej (E2E coverage tych samych przypadków co legacy)
+- Czas startowego rendera ≤ poprzedni
+- Krytyczne ścieżki (save, submit) działają end-to-end z bridge
+- Error rate (errors/session) ≤ poprzedni
+- Telemetria UX (czas wykonania zadania, abandonment) w granicach normy
+
+### 21.11. Kiedy NIE iść w embed
+
+- Aplikacja jest tak mała, że **przepisanie z gruntu zajmie mniej** niż infrastruktura embed (granica zwykle ~5-10 ekranów średniej złożoności)
+- Backend wymaga jednoczesnej zmiany — wtedy migracja UI bez backendu daje pozorny efekt
+- Aplikacja będzie **wycofywana w < 12 miesięcy** — koszt embed-infra się nie zwróci
+- **Brak dostępu do hosta** (zewnętrzny vendor) — wtedy drop-in replacement, nie migracja krokowa
+
+---
+
+## 22. Roadmap (znane TODO)
 
 - **0.7.0**: extract `runtime-tokens` package — wycięcie cyklu `designer-core ↔ runtime`
 - **0.7.0**: pełen strict-mode lint (aktualnie disable directives jako TODO)
