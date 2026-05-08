@@ -1,0 +1,42 @@
+flowchart TB
+  subgraph App["Aplikacja (dealer-fx-app)"]
+    App1[provideEchelon]
+    App2["Bundle (PageConfig + Models + DS)"]
+    App3[Routes / Menu]
+  end
+  subgraph Designer["Designer (design-time)"]
+    D1[application-designer]
+    D2[form/model/process designers]
+    D3[theme + i18n + export]
+  end
+  subgraph Widgets["UI widgets"]
+    W1[widgets-core<br/>26 komponentów]
+    W2[form-builder + 15 typów pól]
+    W3[charts-echarts]
+  end
+  subgraph Runtime["Runtime (browser)"]
+    R1[dashboard-renderer]
+    R2[port-resolver]
+    R3[binding-engine]
+    R4[DataBus / EventBus]
+  end
+  subgraph Core["Core (zero-Angular)"]
+    C1[PageConfig types]
+    C2[expression evaluator]
+    C3[DI tokens<br/>DATA_BUS / EVENT_BUS]
+    C4[transport adapters<br/>HTTP / WS / mock]
+  end
+
+  App --> Designer
+  App --> Widgets
+  App --> Runtime
+  Designer --> Widgets
+  Widgets --> Runtime
+  Runtime --> Core
+  Designer --> Core
+
+  style App fill:#1e3a8a,stroke:#3b82f6,color:#fff
+  style Designer fill:#7c2d12,stroke:#fb923c,color:#fff
+  style Widgets fill:#14532d,stroke:#22c55e,color:#fff
+  style Runtime fill:#3f3f46,stroke:#a1a1aa,color:#fff
+  style Core fill:#0f172a,stroke:#475569,color:#fff

@@ -1,0 +1,30 @@
+sequenceDiagram
+  autonumber
+  participant U as Użytkownik
+  participant H as Host (legacy)
+  participant E as Embed (Echelon)
+  participant API as Backend API
+
+  U->>H: otwiera ekran
+  H->>H: feature flag embed:X = on?
+  H->>E: iframe load + postMessage init<br/>(config + session + theme + locale)
+  E->>E: inicjalizacja runtime
+  E->>API: GET /api/data (token z init)
+  API-->>E: response
+  E-->>H: postMessage event:ready
+
+  Note over U,E: życie embedu
+
+  U->>E: interakcja (klik / form save)
+  E->>API: POST /api/save
+  API-->>E: 200 OK
+  E-->>H: postMessage event:saved
+  H->>H: refresh listy / nawigacja
+
+  H->>E: postMessage update:theme<br/>(zmiana motywu w hoście)
+  E->>E: applyTheme
+
+  Note over H,E: w przypadku problemu
+
+  E-->>H: postMessage event:error
+  H->>H: log do telemetrii<br/>fallback / rollback

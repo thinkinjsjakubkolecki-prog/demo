@@ -1,5 +1,6 @@
 import type { Routes } from '@angular/router';
-import { Component } from '@angular/core';
+import { Component, inject, computed, ChangeDetectionStrategy } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import {
   ApplicationDesignerComponent,
   DesignerShellComponent,
@@ -13,6 +14,10 @@ import {
   ExportPanelComponent,
   PipelineDesignerComponent,
 } from '@echelon-framework/designer-widgets';
+import { DraftPageStoreService } from '@echelon-framework/designer-core';
+import { PageRendererComponent } from '@echelon-framework/runtime';
+import { PortFlowDemoComponent } from '../demo/port-flow-demo.component';
+import { FormBuilderDemoComponent } from '../demo/form-builder-demo.component';
 
 @Component({ selector: 'r-pages', standalone: true, imports: [DesignerShellComponent], template: '<fx-designer-shell />' })
 class R1 {}
@@ -47,8 +52,33 @@ class R11 {}
 @Component({ selector: 'r-app-designer', standalone: true, imports: [ApplicationDesignerComponent], template: '<fx-application-designer />' })
 class R0 {}
 
-@Component({ selector: 'r-draft', standalone: true, template: '<p style="padding:40px;color:#9ca3af">Draft preview</p>' })
-class R10 {}
+/**
+ * Renderer dynamicznych stron — czyta `DraftPageStore` po :id z URL.
+ * Match: `page.id === id` lub `page.route.endsWith('/' + id)`.
+ */
+@Component({
+  selector: 'r-draft',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [PageRendererComponent],
+  template: `
+    @if (cfg(); as c) {
+      <ech-page-renderer [config]="c" />
+    } @else {
+      <div style="padding:40px;color:#9ca3af">Brak strony "{{ pageId() }}". Sprawdz DraftPageStore lub uzyj Application Designer.</div>
+    }
+  `,
+})
+class R10 {
+  private readonly route = inject(ActivatedRoute);
+  private readonly pageStore = inject(DraftPageStoreService);
+  readonly pageId = computed(() => this.route.snapshot.paramMap.get('id') ?? '');
+  readonly cfg = computed(() => {
+    const id = this.pageId();
+    const stored = this.pageStore.all().find((p: any) => p.id === id || p.route?.endsWith('/' + id));
+    return (stored as any)?.config ?? null;
+  });
+}
 
 export const routes: Routes = [
   { path: '', redirectTo: '/designer', pathMatch: 'full' },
@@ -65,4 +95,8 @@ export const routes: Routes = [
   { path: 'menu-editor', component: R6, title: 'Menu Editor' },
   { path: 'draft/:id', component: R10 },
   { path: 'embed/:id', component: R10 },
+  // Demo nowego data flow API (PortSource/PortTarget/transformy)
+  { path: 'demo/ports', component: PortFlowDemoComponent, title: 'Port Flow Demo' },
+  // Demo Form Builder (Sprint F3)
+  { path: 'demo/form-builder', component: FormBuilderDemoComponent, title: 'Form Builder Demo' },
 ];

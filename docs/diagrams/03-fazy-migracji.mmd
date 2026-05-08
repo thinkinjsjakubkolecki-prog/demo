@@ -1,0 +1,31 @@
+flowchart LR
+  subgraph F1["Faza 1 — Przygotowanie"]
+    P1[Host-bridge<br/>postMessage]
+    P2[Kontrakt typów<br/>init/update/command/event]
+    P3[Endpoint<br/>GET /api/dashboard/:id]
+    P4[Wybór PoC<br/>1 ekran read-only]
+  end
+  subgraph F2["Faza 2 — Pierwszy embed"]
+    A1[Bundle w designerze]
+    A2[Iframe w hoście]
+    A3[Feature flag<br/>embed:dashboard]
+    A4[Walidacja parity<br/>UX + theme]
+  end
+  subgraph F3["Faza 3 — Skalowanie"]
+    B1[Tabela migracyjna]
+    B2[Read-only → CRUD → flow]
+    B3[Niezależne deploye<br/>bundle per ekran]
+    B4[Usuwanie kodu legacy]
+  end
+  subgraph F4["Faza 4 — Inwersja"]
+    C1[Stara apka =<br/>tylko shell]
+    C2[Echelon app-shell]
+    C3[Wyłączenie legacy]
+  end
+
+  F1 --> F2 --> F3 --> F4
+
+  style F1 fill:#1e3a8a,stroke:#3b82f6,color:#fff
+  style F2 fill:#7c2d12,stroke:#fb923c,color:#fff
+  style F3 fill:#14532d,stroke:#22c55e,color:#fff
+  style F4 fill:#581c87,stroke:#a855f7,color:#fff

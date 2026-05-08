@@ -1,0 +1,43 @@
+flowchart LR
+  Cfg[PageConfig<br/>JSON / TS]
+  Renderer[dashboard-renderer]
+  WReg[Widget<br/>Registry]
+  W1[Widget A]
+  W2[Widget B]
+  W3[Chart]
+  Bind[binding-engine]
+  Resolver[port-resolver]
+  Bus[DataBus]
+  DSh[DS abstraction]
+  Imp{Implementation?}
+  Http[HTTP /api/...]
+  Ws[WS stream]
+  Mock[mock data]
+  Comp[computed fn]
+  Pipe[pipeline]
+  Expr["expression<br/>$ds / $computed / $session"]
+
+  Cfg --> Renderer
+  Renderer --> WReg
+  WReg --> W1
+  WReg --> W2
+  WReg --> W3
+  W1 --> Bind
+  W2 --> Bind
+  W3 --> Bind
+  Bind --> Expr
+  Expr --> Resolver
+  Resolver --> Bus
+  Bus --> DSh
+  DSh --> Imp
+  Imp -->|kind=transport| Http
+  Imp -->|kind=stream| Ws
+  Imp -->|kind=mock| Mock
+  Imp -->|kind=computed| Comp
+  Imp -->|kind=pipeline| Pipe
+
+  style Cfg fill:#1e3a8a,stroke:#3b82f6,color:#fff
+  style Renderer fill:#7c2d12,stroke:#fb923c,color:#fff
+  style Bus fill:#14532d,stroke:#22c55e,color:#fff
+  style DSh fill:#14532d,stroke:#22c55e,color:#fff
+  style Imp fill:#581c87,stroke:#a855f7,color:#fff
